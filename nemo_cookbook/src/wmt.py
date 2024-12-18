@@ -14,6 +14,8 @@ import numpy as np
 import xarray as xr
 from flox.xarray import xarray_reduce
 
+from xarray.core.types import T_DataArray, T_Dataset
+
 # -- Define function to compute surface-forced overturning component in density-coordinates -- #
 def compute_sfoc_sigma0(sst:xr.DataArray, sss:xr.DataArray, qhf:xr.DataArray, qfw:xr.DataArray, e1t:xr.DataArray, e2t:xr.DataArray, sigma0_bins:np.ndarray, mask:xr.DataArray | None = None) -> xr.DataArray:
     """
@@ -343,7 +345,7 @@ def compute_ssd_area(sst:xr.DataArray, sss:xr.DataArray, e1t:xr.DataArray, e2t:x
     return ssd_area
 
 # -- Define function to compute sea water volume census in T-S -- #
-def compute_volume_census(thetao:xr.DataArray, so:xr.DataArray, e1t:xr.DataArray, e2t:xr.DataArray, e3t:xr.DataArray, thetao_bins:np.ndarray, so_bins:np.ndarray, mask:xr.DataArray | None = None) -> xr.DataArray:
+def compute_volume_census(thetao:T_DataArray, so:T_DataArray, e1t:T_DataArray, e2t:T_DataArray, e3t:T_DataArray, thetao_bins:np.ndarray, so_bins:np.ndarray, mask:T_DataArray | None = None) -> T_DataArray:
     """
     Compute sea water volume census in temperature and salinity coordinates.
 
@@ -352,15 +354,15 @@ def compute_volume_census(thetao:xr.DataArray, so:xr.DataArray, e1t:xr.DataArray
 
     Parameters
     ----------
-    thetao : xr.DataArray
+    thetao : DataArray
         Sea water temperature (C) stored at T-points.
-    so : xr.DataArray
+    so : DataArray
         Salinity (g kg-1) stored at T-points.
-    e1t : xr.DataArray
+    e1t : DataArray
         Zonal width of model grid cell (m) on T-points.
-    e2t : xr.DataArray
+    e2t : DataArray
         Meridional width of model grid cell (m) on T-points.
-    e3t : xr.DataArray
+    e3t : DataArray
         Vertical thickness of model grid cell (m) on T-points.
     thetao_bins: ndarray
         Monotonically increasing array of temperature bin edges
@@ -368,13 +370,13 @@ def compute_volume_census(thetao:xr.DataArray, so:xr.DataArray, e1t:xr.DataArray
     so_bins: ndarray
         Monotonically increasing array of salinity bin edges
         closed on the rightmost edge (i.e., bin_{n} <= x < bin_{n+1}).
-    mask: xarray.DataArray
+    mask: DataArray
         Ocean basin mask where 1 = included and 0 = excluded values.
         Default value is None.
 
     Returns
     -------
-    xr.DataArray
+    DataArray
         Volume of seawater (m3) in temperature and salinity coordinates.
 
     Raises

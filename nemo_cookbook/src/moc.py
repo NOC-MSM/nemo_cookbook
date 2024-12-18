@@ -240,7 +240,6 @@ def compute_moc_tracer(vo:xr.DataArray, e1v:xr.DataArray, e3v:xr.DataArray, trac
     tracer_name = tracer.name
     # Update tracer depth-dimension label:
     tracer = tracer.rename({'deptht':'depthv'})
-    print(tracer.dims)
 
     # -- Apply ocean mask to variables -- #
     if mask is not None:
@@ -266,11 +265,11 @@ def compute_moc_tracer(vo:xr.DataArray, e1v:xr.DataArray, e3v:xr.DataArray, trac
     subvol_tracer = xarray_reduce(
             subvol['subvol'], # Meridional volume transport DataArray to bin.
             subvol['time_counter'], # Coordinate DataArrays to retain - 1. time_counter
-            subvol['y'], # Coordinate DataArrays to retain - 2. y coordinate index.
             subvol[tracer_name], # Tracer variable used to bin meridional volume transport.
+            subvol['y'], # Coordinate DataArrays to retain - 2. y coordinate index.
             func="nansum", # Summary operation within bins - no need to include x coordinate since sum is over x-tracer.
-            expected_groups=(None, None, tracer_bins), # Bins specified for each group - None for existing labels.
-            isbin=(False, False, True),
+            expected_groups=(None, tracer_bins, None), # Bins specified for each group - None for existing labels.
+            isbin=(False, True, False),
             method="map-reduce",
             reindex=False, # Do not reindex during block aggregations to reduce memory at cost of performance.
             engine='numbagg' # Use numbagg grouped aggregations.
@@ -290,5 +289,8 @@ def compute_moc_tracer(vo:xr.DataArray, e1v:xr.DataArray, e3v:xr.DataArray, trac
     moc_tracer.attrs['units'] = 'Sv'
     moc_tracer.attrs['long_name'] = f'meridional overturning stream function in {tracer_name} coordinates'
     moc_tracer.attrs['standard_name'] = f'moc_{tracer_name}'
+    # Update coordinate labels:
+    moc_tracer.sigma0_bins.attrs['long_name'] = f'{tracer_name} bins'
+    moc_tracer.sigma0_bins.attrs['standard_name'] = tracer_name
 
     return moc_tracer
