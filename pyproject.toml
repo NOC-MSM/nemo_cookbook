@@ -1,0 +1,54 @@
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = [
+  "setuptools>=42",
+  "setuptools-scm>=7",
+]
+
+[tool.setuptools]
+packages = ["nemo_cookbook"]
+
+[project]
+name = "nemo_cookbook"
+description = "Python recipes for reproducible analysis of NEMO ocean general circulation model outputs."
+requires-python = ">=3.10"
+keywords = ["NEMO", "oceanography", "modelling", "analysis", "data", "noc"]
+authors = [{email = "oliver.tooth@noc.ac.uk"},{name = "Ollie Tooth"}]
+maintainers = [{name = "Ollie Tooth", email = "oliver.tooth@noc.ac.uk"}]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Intended Audience :: Science/Research"
+]
+dependencies = [
+  "dask[complete]>=2024.10.0",
+  "flox>=0.9.12",
+  "gsw>=3.6.19",
+  "h5netcdf>=1.4.0",
+  "jupyter>=1.1.1",
+  "notebook>=7.2.2",
+  "ipykernel>=6.29.5",
+  "xarray[io,accel,viz]>=2024.10.0",
+  "xoak>=0.1.1",
+  "s3fs>=2024.10.0",
+  "fsspec>=2024.10.0",
+  "numpy>=1.26.4",
+  "numba>=0.60.0",
+  "numbagg>=0.8.2",
+  "zarr>=2.18.3",
+  ]
+
+dynamic = ["version"]
+
+[project.readme]
+file = "README.md"
+content-type = "text/markdown"
+
+[project.license]
+file = "LICENSE.md"
+content-type = "text/markdown"
+
+[project.optional-dependencies]
+test = ["pytest >=8.3.3"]
+
+[project.urls]
+repository = "https://github.com/NOC-MSM/nemo_cookbook"
