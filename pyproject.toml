@@ -20,6 +20,7 @@ classifiers = [
   "Intended Audience :: Science/Research"
 ]
 dependencies = [
+  "aiohttp>=3.10.10",
   "dask[complete]>=2024.10.0",
   "flox>=0.9.12",
   "gsw>=3.6.19",
@@ -31,6 +32,7 @@ dependencies = [
   "xoak>=0.1.1",
   "s3fs>=2024.10.0",
   "fsspec>=2024.10.0",
+  "requests>=2.32.3",
   "numpy>=1.26.4",
   "numba>=0.60.0",
   "numbagg>=0.8.2",
