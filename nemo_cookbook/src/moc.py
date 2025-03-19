@@ -271,6 +271,7 @@ def compute_moc_tracer(vo:xr.DataArray, e1v:xr.DataArray, e3v:xr.DataArray, trac
             expected_groups=(None, tracer_bins, None), # Bins specified for each group - None for existing labels.
             isbin=(False, True, False),
             method="map-reduce",
+            fill_value=np.nan, # Fill missing values with NaN.
             reindex=False, # Do not reindex during block aggregations to reduce memory at cost of performance.
             engine='numbagg' # Use numbagg grouped aggregations.
         )
