@@ -1,0 +1,95 @@
+site_name: NEMO Cookbook Documentation
+site_url: https://noc-msm.github.io/nemo_cookbook/
+
+repo_url: https://github.com/NOC-MSM/nemo_cookbook
+repo_name: nemo_cookbook
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  language: en
+  logo: assets/icons/noc_logo.png
+  favicon: assets/icons/favicon.ico
+  icon:
+    edit: material/pencil 
+    view: material/eye
+    repo: fontawesome/brands/git-alt
+  font:
+    text: Roboto
+    code: Roboto Mono
+  features:
+    - content.action.edit
+    - content.tabs.link
+    - content.code.copy
+    - content.code.annotate
+    - content.code.select
+    - toc.integrate
+    - navigation.tabs
+    - navigation.expand
+    - navigation.footer
+    - search.suggest
+  palette:
+    # Dark Mode
+    - scheme: slate
+      toggle:
+        icon: material/weather-sunny
+        name: Dark mode
+      primary: light blue
+      accent: deep purple
+    # Light Mode
+    - scheme: default
+      toggle:
+        icon: material/weather-night
+        name: Light mode
+      primary: light blue
+      accent: deep orange
+
+markdown_extensions:
+  - attr_list
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.arithmatex:
+      generic: true
+  - md_in_html
+  - pymdownx.blocks.caption
+
+nav:
+  - Getting started: index.md
+  - Recipes: 
+    - Meridional Overturning Stream Function - Depth: recipe_moc_z.ipynb
+    - Meridional Overturning Stream Function - Tracer: recipe_moc_tracer.ipynb
+    - Volume Census in T-S Space: recipe_volume_census.ipynb
+  - User Guide: user_guide.md
+  - Contributing: contributing.md
+
+plugins:
+  - search
+  - glightbox
+  - mkdocs-jupyter:
+      include_source: True
+
+extra:
+  social:
+    - icon: fontawesome/brands/github 
+      link: https://github.com/NOC-MSM/nemo_cookbook
+      name: GitHub
+
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
