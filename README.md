@@ -14,7 +14,7 @@ Each recipe comprises of one or more functions built using the [xarray](https://
 
 Users currently have two options for installing **nemo_cookbook**:
 
-**Method 1: Downloading & Installing with GitHub**
+**Method 1: Downloading & Installing in Editable Mode with GitHub**
 
 ```{bash}
 git clone git@github.com:NOC-MSM/nemo_cookbook.git
@@ -49,7 +49,7 @@ We are steadily adding more recipes to the NEMO Cookbook. Here, we include a lis
 
 5. Volume census in temperature - salinity coordinates.
 
-**In Progress:**
+**In Development:**
 
 1. Barotropic Stream Functions.
 
