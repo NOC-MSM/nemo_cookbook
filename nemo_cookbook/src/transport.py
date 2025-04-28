@@ -8,13 +8,16 @@ Created By: Ollie Tooth (oliver.tooth@noc.ac.uk)
 Date Created: 22/10/2024
 """
 
-# -- Import required packages -- #
-import numpy as np
+# -- Import dependencies -- #
 import xarray as xr
-from flox.xarray import xarray_reduce
 
-# -- Define function to compute meridional heat transport as a function of latitude -- #
-def compute_mht(vo:xr.DataArray, thetao:xr.DataArray, e1v:xr.DataArray, e3v:xr.DataArray, mask:xr.DataArray | None = None) -> xr.DataArray:
+# -- Exernal Functions -- #
+def compute_mht(vo: xr.DataArray,
+                thetao: xr.DataArray,
+                e1v: xr.DataArray,
+                e3v: xr.DataArray,
+                mask: xr.DataArray | None = None
+                ) -> xr.DataArray:
     """
     Compute the meridional heat transport in latitude coordinates using 
     output stored on the NEMO ORCA grid. The vertical grid cell thickness
@@ -30,14 +33,13 @@ def compute_mht(vo:xr.DataArray, thetao:xr.DataArray, e1v:xr.DataArray, e3v:xr.D
         Grid cell width in the zonal direction at V-points.
     e3v: xarray.DataArray
         Grid cell thickness in the vertical direction at V-points.
-    mask: xarray.DataArray
+    mask: xarray.DataArray, default=None
         Ocean basin mask where 1 = included and 0 = excluded values.
-        Default value is None.
 
     Returns
     -------
-    DataArray
-        Meridional heat transport [PW] as a function of latitude.
+    xarray.DataArray
+        Meridional heat transport [1 PW == 10^15 Watts] as a function of latitude.
 
     Raises
     ------
@@ -57,7 +59,19 @@ def compute_mht(vo:xr.DataArray, thetao:xr.DataArray, e1v:xr.DataArray, e3v:xr.D
                     )
 
     """
-    # -- Verify input arguments --#
+    # -- Verify Inputs --#
+    # Types:
+    if not isinstance(vo, xr.DataArray):
+        raise TypeError("vo must be an xarray.DataArray.")
+    if not isinstance(thetao, xr.DataArray):
+        raise TypeError("thetao must be an xarray.DataArray.")
+    if not isinstance(e1v, xr.DataArray):
+        raise TypeError("e1v must be an xarray.DataArray.")
+    if not isinstance(e3v, xr.DataArray):
+        raise TypeError("e3v must be an xarray.DataArray.")
+    if mask is not None:
+        if not isinstance(mask, xr.DataArray):
+            raise TypeError("mask must be an xarray.DataArray.")
     # Dimension names:
     if vo.dims != ('time_counter', 'depthv', 'y', 'x'):
         raise ValueError("vo must have dimensions ('time_counter', 'depthv', 'y', 'x').")
@@ -69,19 +83,8 @@ def compute_mht(vo:xr.DataArray, thetao:xr.DataArray, e1v:xr.DataArray, e3v:xr.D
         raise ValueError("e1v must have dimensions ('y', 'x').")
     if mask.dims != ('y', 'x'):
         raise ValueError("mask must have dimensions ('y', 'x').")
-    # Number of dimensions:
-    if vo.ndim != 4:
-        raise ValueError("vo must be a 4D array.")
-    if thetao.ndim != 4:
-        raise ValueError("thetao must be a 4D array.")
-    if e3v.ndim != 4:
-        raise ValueError("e3v must be a 4D array.")
-    if e1v.ndim != 2:
-        raise ValueError("e1v must be a 2D array.")
-    if mask.ndim != 2:
-        raise ValueError("mask must be a 2D array.")
 
-    # -- Define parameters --
+    # -- Define parameters -- #
     # Conversion from heat flux in [Jm^2/s to PW]:
     Jm2s_to_PW = 1E-15
     # Reference density for seawater [kg/m^3]:
@@ -100,13 +103,13 @@ def compute_mht(vo:xr.DataArray, thetao:xr.DataArray, e1v:xr.DataArray, e3v:xr.D
         # Time-independent grid cell width, dx:
         dx = e1v.where(mask == 1)
 
-    # -- Interpolate potential temperature onto V-points --
+    # -- Interpolate potential temperature onto V-points -- #
     # Average adjacent T-points to interpolate, excluding last T-point:
     thetao_interpv = 0.5 * (thetao.isel(y=slice(None,-1)) + thetao.isel(y=slice(1,None)))
     # Rename vertical coordinate to match V-points:
     thetao_interpv = thetao_interpv.rename({'deptht':'depthv'})
 
-    # -- Calculate MHT --
+    # -- Calculate MHT -- #
     # Compute product of meridional volume transport and potential temperature:
     # NOTE: Exclude last y-point to match interpolated V-point dimensions.
     # See CDFTOOLS: https://github.com/meom-group/CDFTOOLS/blob/master/src/cdfmhst.f90
@@ -122,8 +125,13 @@ def compute_mht(vo:xr.DataArray, thetao:xr.DataArray, e1v:xr.DataArray, e3v:xr.D
 
     return mht
 
-# -- Define function to compute meridional salt transport as a function of latitude -- #
-def compute_mst(vo:xr.DataArray, so:xr.DataArray, e1v:xr.DataArray, e3v:xr.DataArray, mask:xr.DataArray | None = None) -> xr.DataArray:
+
+def compute_mst(vo: xr.DataArray,
+                so: xr.DataArray,
+                e1v: xr.DataArray,
+                e3v: xr.DataArray,
+                mask: xr.DataArray | None = None
+                ) -> xr.DataArray:
     """
     Compute the meridional salt transport in latitude coordinates using 
     output stored on the NEMO ORCA grid. The vertical grid cell thickness
@@ -139,13 +147,12 @@ def compute_mst(vo:xr.DataArray, so:xr.DataArray, e1v:xr.DataArray, e3v:xr.DataA
         Grid cell width in the zonal direction at V-points.
     e3v: xarray.DataArray
         Grid cell thickness in the vertical direction at V-points.
-    mask: xarray.DataArray
+    mask: xarray.DataArray, default=None
         Ocean basin mask where 1 = included and 0 = excluded values.
-        Default value is None.
 
     Returns
     -------
-    DataArray
+    xarray.DataArray
         Meridional salt transport [Sv.PSU] as a function of latitude.
 
     Raises
@@ -166,7 +173,19 @@ def compute_mst(vo:xr.DataArray, so:xr.DataArray, e1v:xr.DataArray, e3v:xr.DataA
                     )
 
     """
-    # -- Verify input arguments --#
+    # -- Verify Inputs --#
+    # Types:
+    if not isinstance(vo, xr.DataArray):
+        raise TypeError("vo must be an xarray.DataArray.")
+    if not isinstance(so, xr.DataArray):
+        raise TypeError("so must be an xarray.DataArray.")
+    if not isinstance(e1v, xr.DataArray):
+        raise TypeError("e1v must be an xarray.DataArray.")
+    if not isinstance(e3v, xr.DataArray):
+        raise TypeError("e3v must be an xarray.DataArray.")
+    if mask is not None:
+        if not isinstance(mask, xr.DataArray):
+            raise TypeError("mask must be an xarray.DataArray.")
     # Dimension names:
     if vo.dims != ('time_counter', 'depthv', 'y', 'x'):
         raise ValueError("vo must have dimensions ('time_counter', 'depthv', 'y', 'x').")
@@ -178,23 +197,12 @@ def compute_mst(vo:xr.DataArray, so:xr.DataArray, e1v:xr.DataArray, e3v:xr.DataA
         raise ValueError("e1v must have dimensions ('y', 'x').")
     if mask.dims != ('y', 'x'):
         raise ValueError("mask must have dimensions ('y', 'x').")
-    # Number of dimensions:
-    if vo.ndim != 4:
-        raise ValueError("vo must be a 4D array.")
-    if so.ndim != 4:
-        raise ValueError("so must be a 4D array.")
-    if e3v.ndim != 4:
-        raise ValueError("e3v must be a 4D array.")
-    if e1v.ndim != 2:
-        raise ValueError("e1v must be a 2D array.")
-    if mask.ndim != 2:
-        raise ValueError("mask must be a 2D array.")
 
-    # -- Define parameters --
+    # -- Define parameters -- #
     # Conversion for salt transport in [Sv.PSU]:
     m3s_to_Sv = 1E-6
 
-    # -- Apply Atlantic Ocean mask to variables --
+    # -- Apply Atlantic Ocean mask to variables -- #
     if mask is not None:
         # Time-evolving meridional volume transport:
         vo = vo.where(mask == 1)
@@ -205,7 +213,7 @@ def compute_mst(vo:xr.DataArray, so:xr.DataArray, e1v:xr.DataArray, e3v:xr.DataA
         # Time-independent grid cell width, dx:
         dx = e1v.where(mask == 1)
 
-    # -- Interpolate practical salinity onto V-points --
+    # -- Interpolate practical salinity onto V-points -- #
     # Average adjacent T-points to interpolate, excluding last T-point:
     so_interpv = 0.5 * (so.isel(y=slice(None,-1)) + so.isel(y=slice(1,None)))
     # Rename vertical coordinate to match V-points:
