@@ -10,7 +10,7 @@ dependencies:
   - jupyter
   - netcdf4
   - notebook
-  - xarray
+  - xarray[io,accel,viz]
   - xoak
   - zarr
   - aiohttp
