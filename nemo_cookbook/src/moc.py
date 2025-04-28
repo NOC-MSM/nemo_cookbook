@@ -2,19 +2,24 @@
 moc.py
 
 Description: Functions to calculate the meridional overturning stream function
-as a function of latitude and geopotential- or tracer-coordinates [Sv]
+as a function of latitude and geopotential- or tracer-coordinates [Sv].
 
 Created By: Ollie Tooth (oliver.tooth@noc.ac.uk)
 Date Created: 22/10/2024
 """
 
-# -- Import required packages -- #
+# -- Import dependencies -- #
 import numpy as np
 import xarray as xr
 from flox.xarray import xarray_reduce
 
-# -- Define function to compute depth-space AMOC as a function of latitude -- #
-def compute_moc_z(vo:xr.DataArray, e1v:xr.DataArray, e3v:xr.DataArray, mask:xr.DataArray | None = None) -> xr.DataArray:
+# -- External Functions -- #
+def compute_moc_z(vo: xr.DataArray,
+                  e1v: xr.DataArray,
+                  e3v: xr.DataArray,
+                  dir: str = '+1',
+                  mask: xr.DataArray | None = None
+                  ) -> xr.DataArray:
     """
     Compute the Meridional Overturning Stream Function in depth-coordinates
     using output stored on the NEMO ORCA grid. The vertical grid cell thickness
@@ -28,13 +33,17 @@ def compute_moc_z(vo:xr.DataArray, e1v:xr.DataArray, e3v:xr.DataArray, mask:xr.D
         Grid cell width in the zonal direction at V-points.
     e3v: xarray.DataArray
         Grid cell thickness in the vertical direction at V-points.
-    mask: xarray.DataArray
+    dir: str, default='+1'
+        Direction of cumulative integration along the discrete depth coordinate axis.
+        Use'+1' to accumulate from the shallowest to deepest level or '-1' to
+        accumulate from the deepest to shallowest level.
+        level.
+    mask: xarray.DataArray, default=None
         Ocean basin mask where 1 = included and 0 = excluded values.
-        Default value is None.
 
     Returns
     -------
-    DataArray
+    xarray.DataArray
         Meridional overturning stream function in latitude-depth coordinates.
 
     Raises
@@ -51,6 +60,7 @@ def compute_moc_z(vo:xr.DataArray, e1v:xr.DataArray, e3v:xr.DataArray, mask:xr.D
     >>> compute_moc_z(vo=ds_gridV['vo'],
                       e1v=ds_gridV['e1v'],
                       e3v=ds_gridV['e3v'],
+                      dir = '+1',
                       mask=ds_subbasins['atlmsk'],
                       )
 
@@ -74,7 +84,20 @@ def compute_moc_z(vo:xr.DataArray, e1v:xr.DataArray, e3v:xr.DataArray, mask:xr.D
     Dimensions without coordinates: y
 
     """
-    # -- Verify input arguments --#
+    # -- Verify Inputs -- #
+    # Types:
+    if not isinstance(vo, xr.DataArray):
+        raise TypeError('vo must be specified as an xarray DataArray')
+    if not isinstance(e1v, xr.DataArray):
+        raise TypeError('e1v must be specified as an xarray DataArray')
+    if not isinstance(e3v, xr.DataArray):
+        raise TypeError('e3v must be specified as an xarray DataArray')
+    if not isinstance(dir, str):
+        raise TypeError('dir must be specified as a str')
+    if dir not in ['+1', '-1']:
+        raise ValueError("direction of cumulative integration must be given as either '+1' or '-1'")
+    if mask is not None and not isinstance(mask, xr.DataArray):
+        raise TypeError('mask must be specified as an xarray DataArray')
     # Dimension names:
     if vo.dims != ('time_counter', 'depthv', 'y', 'x'):
         raise ValueError("vo must have dimensions ('time_counter', 'depthv', 'y', 'x').")
@@ -84,21 +107,12 @@ def compute_moc_z(vo:xr.DataArray, e1v:xr.DataArray, e3v:xr.DataArray, mask:xr.D
         raise ValueError("e1v must have dimensions ('y', 'x').")
     if mask.dims != ('y', 'x'):
         raise ValueError("mask must have dimensions ('y', 'x').")
-    # Number of dimensions:
-    if vo.ndim != 4:
-        raise ValueError("vo must be a 4D array.")
-    if e3v.ndim != 4:
-        raise ValueError("e3v must be a 4D array.")
-    if e1v.ndim != 2:
-        raise ValueError("e1v must be a 2D array.")
-    if mask.ndim != 2:
-        raise ValueError("mask must be a 2D array.")
 
-    # -- Define parameters --
+    # -- Define parameters -- #
     # Conversion from volume flux in m^3/s to Sv:
     m3s_to_Sv = 1E-6
 
-    # -- Apply Atlantic Ocean mask to variables --
+    # -- Apply Atlantic Ocean mask to variables -- #
     if mask is not None:
         # Time-evolving meridional volume transport:
         vo = vo.where(mask == 1)
@@ -107,14 +121,19 @@ def compute_moc_z(vo:xr.DataArray, e1v:xr.DataArray, e3v:xr.DataArray, mask:xr.D
         # Time-independent grid cell width, dx:
         dx = e1v.where(mask == 1)
 
-    # -- Calculate AMOC in depth-coordinates --
+    # -- Calculate AMOC in depth-coordinates -- #
     # Compute meridional volume transport (Sv):
     subvol = m3s_to_Sv * (vo * dzt * dx)
     # Compute vertical overturning stream function (Sv):
-    moc_z = subvol.sum(dim='x').cumsum(dim='depthv')
+    # 1. Accumulating from shallowest to deepest level:
+    if dir == '+1':
+        moc_z = subvol.sum(dim='x').cumsum(dim='depthv')
+    # 2. Accumulating from deepest to shallowest level:
+    else:
+        moc_z = subvol.sum(dim='x').reindex(depthv=subvol['depthv'][::-1]).cumsum(dim='depthv')
 
     # Update DataArray attributes:
-    moc_z.name = f'moc_z'
+    moc_z.name = 'moc_z'
     moc_z.attrs['units'] = 'Sv'
     moc_z.attrs['long_name'] = 'meridional overturning stream function in depth coordinates'
     moc_z.attrs['standard_name'] = 'moc_z'
@@ -122,7 +141,14 @@ def compute_moc_z(vo:xr.DataArray, e1v:xr.DataArray, e3v:xr.DataArray, mask:xr.D
     return moc_z
 
 # -- Define function to compute tracer-space AMOC as a function of latitude -- #
-def compute_moc_tracer(vo:xr.DataArray, e1v:xr.DataArray, e3v:xr.DataArray, tracer:xr.DataArray, tracer_bins:np.ndarray, dir:str = '+1', mask:xr.DataArray | None = None) -> xr.DataArray:
+def compute_moc_tracer(vo: xr.DataArray,
+                       e1v: xr.DataArray,
+                       e3v: xr.DataArray,
+                       tracer: xr.DataArray,
+                       tracer_bins: np.ndarray,
+                       dir: str = '+1',
+                       mask: xr.DataArray | None = None
+                       ) -> xr.DataArray:
     """
     Compute the Meridional Overturning Stream Function in latitude-tracer coordinates
     using output stored on the NEMO ORCA grid. The vertical grid cell thickness
@@ -141,7 +167,7 @@ def compute_moc_tracer(vo:xr.DataArray, e1v:xr.DataArray, e3v:xr.DataArray, trac
         Grid cell thickness in the vertical direction at V-points.
     tracer: xarray.DataArray
         Tracer values used to bin the meridional volume transport.
-    tracer_bins: ndarray
+    tracer_bins: numpy.ndarray
         Monotonically increasing array of bin edges closed on the rightmost edge
         (i.e., bin_{n} <= x < bin_{n+1}).
     dir: str
@@ -154,7 +180,7 @@ def compute_moc_tracer(vo:xr.DataArray, e1v:xr.DataArray, e3v:xr.DataArray, trac
     
     Returns
     -------
-    DataArray
+    xarray.DataArray
         Meridional overturning stream function in latitude-tracer coordinates.
 
     Raises
@@ -200,8 +226,24 @@ def compute_moc_tracer(vo:xr.DataArray, e1v:xr.DataArray, e3v:xr.DataArray, trac
     * y             (y) int64 10kB 0 1 2 3 4 5 6 ... 1200 1201 1202 1203 1204 1205
     * sigma0_bins   (sigma0_bins) object 6kB (21.0, 21.01] ... (28.180000000001...
     """
-
     # -- Verify input arguments -- #
+    # Types:
+    if not isinstance(vo, xr.DataArray):
+        raise TypeError('vo must be specified as an xarray DataArray')
+    if not isinstance(e1v, xr.DataArray):
+        raise TypeError('e1v must be specified as an xarray DataArray')
+    if not isinstance(e3v, xr.DataArray):
+        raise TypeError('e3v must be specified as an xarray DataArray')
+    if not isinstance(tracer, xr.DataArray):
+        raise TypeError('tracer must be specified as an xarray DataArray')
+    if not isinstance(tracer_bins, np.ndarray):
+        raise TypeError('tracer_bins must be specified as an ndarray')
+    if not isinstance(dir, str):
+        raise TypeError('dir must be specified as a str')
+    if dir not in ['+1', '-1']:
+        raise ValueError("direction of cumulative integration must be given as either '+1' or '-1'")
+    if mask is not None and not isinstance(mask, xr.DataArray):
+        raise TypeError('mask must be specified as an xarray DataArray')
     # Dimension names:
     if vo.dims != ('time_counter', 'depthv', 'y', 'x'):
         raise ValueError("vo must have dimensions ('time_counter', 'depthv', 'y', 'x').")
@@ -213,25 +255,6 @@ def compute_moc_tracer(vo:xr.DataArray, e1v:xr.DataArray, e3v:xr.DataArray, trac
         raise ValueError("e1v must have dimensions ('y', 'x').")
     if mask.dims != ('y', 'x'):
         raise ValueError("mask must have dimensions ('y', 'x').")
-    # Number of dimensions:
-    if vo.ndim != 4:
-        raise ValueError("vo must be a 4D array.")
-    if e3v.ndim != 4:
-        raise ValueError("e3v must be a 4D array.")
-    if tracer.ndim != 4:
-        raise ValueError("tracer must be a 4D array.")
-    if e1v.ndim != 2:
-        raise ValueError("e1v must be a 2D array.")
-    if mask.ndim != 2:
-        raise ValueError("mask must be a 2D array.")
-    # Type of tracer bins:
-    if not isinstance(tracer_bins, np.ndarray):
-        raise TypeError('tracer_bins must be specified as an ndarray')
-    # Type and value of cumulative integration direction:
-    if not isinstance(dir, str):
-        raise TypeError('dir must be specified as a str')
-    if dir not in ['+1', '-1']:
-        raise ValueError('direction of cumulative integration must be given as either \'+1\' or \'-1\'')
 
     # -- Define parameters & tracer properties -- #
     # Conversion from volume flux in m^3/s to Sv:
@@ -282,15 +305,156 @@ def compute_moc_tracer(vo:xr.DataArray, e1v:xr.DataArray, e3v:xr.DataArray, trac
         moc_tracer = subvol_tracer.cumsum(dim=f'{tracer_name}_bins')
     # Accumulating from largest to smallest tracer bin:
     else:
-        moc_tracer = subvol_tracer.reindex(tracer_bins=subvol_tracer[f'{tracer_name}_bins'][::-1]).cumsum(dim='tracer_bins')
-        moc_tracer.rename({'tracer_bins':f'{tracer_name}_bins'})
+        moc_tracer = subvol_tracer.reindex({f"{tracer_name}_bins":subvol_tracer[f'{tracer_name}_bins'][::-1]}).cumsum(dim=f'{tracer_name}_bins')
 
     # Update DataArray attributes:
     moc_tracer.name = f'moc_{tracer_name}'
     moc_tracer.attrs['units'] = 'Sv'
     moc_tracer.attrs['long_name'] = f'meridional overturning stream function in {tracer_name} coordinates'
     moc_tracer.attrs['standard_name'] = f'moc_{tracer_name}'
-    # Update coordinate labels:
+
+    # Transform tracer coordinate from IntervalIndex to DataArray of mid-points:
+    moc_tracer = moc_tracer.assign_coords({f'{tracer_name}_bins': np.array([interval.mid for interval in moc_tracer[f'{tracer_name}_bins'].values])})
+    moc_tracer.sigma0_bins.attrs['long_name'] = f'{tracer_name} bins'
+    moc_tracer.sigma0_bins.attrs['standard_name'] = tracer_name
+
+    return moc_tracer
+
+
+def compute_section_moc_tracer(ds: xr.Dataset,
+                               tracer_name: str,
+                               tracer_bins: np.ndarray,
+                               dir: str = '+1',
+                               mask: xr.DataArray | None = None
+                               ) -> xr.DataArray:
+    """
+    Compute the Meridional Overturning Stream Function in tracer coordinates
+    along a hydrographic section extracted from the NEMO ORCA grid.
+
+    Note in the current implementation tracer values have already been
+    interpolated onto U & V-points during the creation of the section Dataset
+    using `extract_section()` function.
+
+    Parameters
+    ----------
+    ds: xarray.Dataset
+        Dataset containing the meridional volume transport and co-located tracer values.
+    tracer_name: str
+        Name of the tracer variable in the Dataset `ds`.
+    tracer_bins: numpy.ndarray
+        Monotonically increasing array of bin edges closed on the rightmost edge
+        (i.e., bin_{n} <= x < bin_{n+1}).
+    dir: str, default='+1'
+        Direction of cumulative integration along the discrete tracer coordinate axis.
+        Default value is '+1' resulting in accumulation from the smallest to largest
+        tracer value.
+    mask: xarray.DataArray, default=None
+        Section mask where 1 = included and 0 = excluded values.
+    
+    Returns
+    -------
+    xarray.DataArray
+        Meridional overturning stream function in tracer coordinates.
+
+    Raises
+    ------
+    TypeError
+    ValueError
+
+    Examples
+    --------
+    >>> import gsw
+    >>> from nemo_cookbook import compute_section_moc_tracer
+
+    >>> # Calculate meridional overturning stream function in potential density coordinates:
+    >>> compute_moc_tracer(ds=ds_section,
+                           tracer_name='sigma0',
+                           tracer_bins=np.arange(21, 28.2, 0.01),
+                           dir = '+1',
+                           mask=ds_subbasins['atlmsk'],
+                           )
+    <xarray.DataArray 'moc_sigma0' (time_counter: 4, sigma0_bins: 719)> Size: 23kB
+    array([[ 0.        ,  0.        ,  0.        , ..., -1.41464939,
+            -1.41464939, -1.41464939],
+        [ 0.        ,  0.        ,  0.        , ..., -1.91208789,
+            -1.91208789, -1.91208789],
+        [ 0.        ,  0.        ,  0.        , ..., -1.88010699,
+            -1.88010699, -1.88010699],
+        [ 0.        ,  0.        ,  0.        , ..., -2.02575098,
+            -2.02575098, -2.02575098]], shape=(4, 719))
+    Coordinates:
+    * time_counter  (time_counter) datetime64[ns] 32B 1976-07-02 ... 1979-07-02...
+    * sigma0_bins   (sigma0_bins) float64 6kB 21.01 21.02 21.03 ... 28.18 28.19
+    """
+
+    # -- Verify input arguments -- #
+    # Types:
+    if not isinstance(ds, xr.Dataset):
+        raise TypeError('ds must be specified as an xarray Dataset')
+    if not isinstance(tracer_name, str):
+        raise TypeError('tracer must be specified as a str')
+    if not isinstance(tracer_bins, np.ndarray):
+        raise TypeError('tracer_bins must be specified as an ndarray')
+    if not isinstance(dir, str):
+        raise TypeError('dir must be specified as a str')
+    if dir not in ['+1', '-1']:
+        raise ValueError("direction of cumulative integration must be given as either '+1' or '-1'")
+    # Variables:
+    if 'volume_transport' not in ds:
+        raise ValueError("ds must contain volume transport variable named 'volume_transport'")
+    if tracer_name not in ds:
+        raise ValueError(f"ds must contain tracer variable named '{tracer_name}'")
+    # Dimension names:
+    if ds['volume_transport'].dims != ('time_counter', 'depth', 'station'):
+        raise ValueError("volume_transport must have dimensions ('time_counter', 'depth', 'station').")
+    if ds[tracer_name].dims != ('time_counter', 'depth', 'station'):
+        raise ValueError(f"{tracer_name} must have dimensions ('time_counter', 'depth', 'station').")
+    if mask is not None:
+        if mask.dims not in (('depth', 'station'), ('station',), ('depth',)):
+            raise ValueError("mask must have dimensions 'depth' and / or 'station'.")
+
+    # -- Define parameters & tracer properties -- #
+    # Conversion from volume flux in m^3/s to Sv:
+    m3s_to_Sv = 1E-6
+
+    # -- Apply section mask to variables -- #
+    if mask is not None:
+        # Time-evolving volume transport:
+        volume_transport = ds['volume_transport'].where(mask == 1)
+    else:
+        volume_transport = ds['volume_transport']
+
+    # -- Calculate volume transport in tracer-coordinates -- #
+    # Compute binned sum of volume transport (Sv) in discrete tracer bins.
+    subvol_tracer = xarray_reduce(
+            m3s_to_Sv * volume_transport, # Meridional volume transport DataArray to bin.
+            ds['time_counter'], # Coordinate DataArrays to retain - 1. time_counter
+            ds[tracer_name], # Tracer variable used to bin volume transport.
+            func="nansum", # Summary operation within bins - no need to include x coordinate since sum is over x-tracer.
+            expected_groups=(None, tracer_bins), # Bins specified for each group - None for existing labels.
+            isbin=(False, True),
+            method="map-reduce",
+            fill_value=np.nan, # Fill missing values with NaN.
+            reindex=False, # Do not reindex during block aggregations to reduce memory at cost of performance.
+            engine='numbagg' # Use numbagg grouped aggregations.
+        )
+
+    # -- Compute meridional overturning stream function in tracer-coordinates -- #
+    # Accumulating from smallest to largest tracer bin:
+    if dir == '+1':
+        moc_tracer = subvol_tracer.cumsum(dim=f'{tracer_name}_bins')
+    # Accumulating from largest to smallest tracer bin:
+    else:
+        moc_tracer = subvol_tracer.reindex({f"{tracer_name}_bins":subvol_tracer[f'{tracer_name}_bins'][::-1]}).cumsum(dim=f'{tracer_name}_bins')
+
+    # Update DataArray attributes:
+    moc_tracer.name = f'moc_{tracer_name}'
+    moc_tracer.attrs['units'] = 'Sv'
+    moc_tracer.attrs['long_name'] = f'meridional overturning stream function in {tracer_name} coordinates'
+    moc_tracer.attrs['standard_name'] = f'moc_{tracer_name}'
+
+    # Transform tracer coordinate from IntervalIndex to DataArray of mid-points:
+    moc_tracer = moc_tracer.assign_coords({f'{tracer_name}_bins': np.array([interval.mid for interval in moc_tracer[f'{tracer_name}_bins'].values])})
     moc_tracer.sigma0_bins.attrs['long_name'] = f'{tracer_name} bins'
     moc_tracer.sigma0_bins.attrs['standard_name'] = tracer_name
 
