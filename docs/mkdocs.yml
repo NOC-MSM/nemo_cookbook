@@ -71,10 +71,11 @@ markdown_extensions:
 
 nav:
   - Getting started: index.md
-  - Recipes: 
+  - Recipes:
     - Meridional Overturning Stream Function - Depth: recipe_moc_z.ipynb
     - Meridional Overturning Stream Function - Tracer: recipe_moc_tracer.ipynb
     - Volume Census in T-S Space: recipe_volume_census.ipynb
+    - Extracting the OSNAP Section: recipe_extract_osnap.ipynb
   - User Guide: user_guide.md
   - Contributing: contributing.md
 
