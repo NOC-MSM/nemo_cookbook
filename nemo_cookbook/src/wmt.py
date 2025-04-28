@@ -8,16 +8,22 @@ Created By: Ollie Tooth (oliver.tooth@noc.ac.uk)
 Date Created: 30/10/2024
 """
 
-# -- Import required packages -- #
+# -- Import dependencies -- #
 import gsw
 import numpy as np
 import xarray as xr
 from flox.xarray import xarray_reduce
 
-from xarray.core.types import T_DataArray, T_Dataset
-
-# -- Define function to compute surface-forced overturning component in density-coordinates -- #
-def compute_sfoc_sigma0(sst:xr.DataArray, sss:xr.DataArray, qhf:xr.DataArray, qfw:xr.DataArray, e1t:xr.DataArray, e2t:xr.DataArray, sigma0_bins:np.ndarray, mask:xr.DataArray | None = None) -> xr.DataArray:
+# -- External Functions -- #
+def compute_sfoc_sigma0(sst:xr.DataArray,
+                        sss:xr.DataArray,
+                        qhf:xr.DataArray,
+                        qfw:xr.DataArray,
+                        e1t:xr.DataArray,
+                        e2t:xr.DataArray,
+                        sigma0_bins:np.ndarray,
+                        mask:xr.DataArray | None = None
+                        ) -> xr.DataArray:
     """
     Compute Surface-Forced Overturning Component (SFOC) in
     density-coordinates from sea surface properties and surface
@@ -29,30 +35,29 @@ def compute_sfoc_sigma0(sst:xr.DataArray, sss:xr.DataArray, qhf:xr.DataArray, qf
 
     Parameters
     ----------
-    sst : xr.DataArray
+    sst : xarray.DataArray
         Sea surface temperature (C) with dimensions (j x i).
-    sss : xr.DataArray
+    sss : xarray.DataArray
         Sea surface salinity (g kg-1) with dimensions (j x i).
-    qhf : xr.DataArray
+    qhf : xarray.DataArray
         Net surface heat flux (W m-2) directed downwards into
         the ocean with dimensions (j x i).
-    qfw : xr.DataArray
+    qfw : xarray.DataArray
         Net surface freshwater flux (kg m-2) directed upwards
         out of the ocean with dimensions (j x i).
-    e1t : xr.DataArray
+    e1t : xarray.DataArray
         Zonal width of model grid cell at T-points (m).
-    e2t : xr.DataArray
+    e2t : xarray.DataArray
         Meridional width of model grid cell at T-points (m).
-    sigma0_bins: ndarray
+    sigma0_bins: numpy.ndarray
         Monotonically increasing array of sea surface density bin edges
         closed on the rightmost edge (i.e., bin_{n} <= x < bin_{n+1}).
-    mask: xarray.DataArray
+    mask: xarray.DataArray, default=None
         Ocean basin mask where 1 = included and 0 = excluded values.
-        Default value is None.
 
     Returns
     -------
-    xr.DataArray
+    xarray.DataArray
         Surface-forced overturning component (Sv) in
         potential density coordinates.
 
@@ -121,7 +126,25 @@ def compute_sfoc_sigma0(sst:xr.DataArray, sss:xr.DataArray, qhf:xr.DataArray, qf
     * time_counter  (time_counter) datetime64[ns] 1kB 2023-07-02T12:00:00....
     * sigma0_bins   (sigma0_bins) object 5kB (22.0, 22.01] ... (27.980000000000...
     """
-    # -- Verify input arguments -- #
+    # -- Verify Inputs -- #
+    # Types:
+    if not isinstance(sst, xr.DataArray):
+        raise TypeError('sst must be specified as an xarray.DataArray')
+    if not isinstance(sss, xr.DataArray):
+        raise TypeError('sss must be specified as an xarray.DataArray')
+    if not isinstance(qhf, xr.DataArray):
+        raise TypeError('qhf must be specified as an xarray.DataArray')
+    if not isinstance(qfw, xr.DataArray):
+        raise TypeError('qfw must be specified as an xarray.DataArray')
+    if not isinstance(e1t, xr.DataArray):
+        raise TypeError('e1t must be specified as an xarray.DataArray')
+    if not isinstance(e2t, xr.DataArray):
+        raise TypeError('e2t must be specified as an xarray.DataArray')
+    if not isinstance(sigma0_bins, np.ndarray):
+        raise TypeError('sigma0_bins must be specified as an ndarray')
+    if mask is not None:
+        if not isinstance(mask, xr.DataArray):
+            raise TypeError('mask must be specified as an xarray.DataArray')
     # Dimension names:
     if sst.dims != ('time_counter', 'y', 'x'):
         raise ValueError("sst must have dimensions ('time_counter', 'y', 'x').")
@@ -133,20 +156,6 @@ def compute_sfoc_sigma0(sst:xr.DataArray, sss:xr.DataArray, qhf:xr.DataArray, qf
         raise ValueError("e2t must have dimensions ('y', 'x').")
     if mask.dims != ('y', 'x'):
         raise ValueError("mask must have dimensions ('y', 'x').")
-    # Number of dimensions:
-    if sst.ndim != 3:
-        raise ValueError("sst must be a 3D array.")
-    if sss.ndim != 3:
-        raise ValueError("sss must be a 3D array.")
-    if e1t.ndim != 2:
-        raise ValueError("tracer must be a 2D array.")
-    if e2t.ndim != 2:
-        raise ValueError("e1v must be a 2D array.")
-    if mask.ndim != 2:
-        raise ValueError("mask must be a 2D array.")
-    # Type of tracer bins:
-    if not isinstance(sigma0_bins, np.ndarray):
-        raise TypeError('sigma0_bins must be specified as an ndarray')
 
     # -- Defining Physical Parameters -- #
     # Specific heat capacity of sea water J kg m-3 from GSW.
@@ -209,32 +218,37 @@ def compute_sfoc_sigma0(sst:xr.DataArray, sss:xr.DataArray, qhf:xr.DataArray, qf
 
     return sfoc_sigma0
 
-# -- Define function to compute area of sea surface density outcrops -- #
-def compute_ssd_area(sst:xr.DataArray, sss:xr.DataArray, e1t:xr.DataArray, e2t:xr.DataArray, sigma0_bins:np.ndarray, mask:xr.DataArray | None = None) -> xr.DataArray:
+
+def compute_ssd_area(sst: xr.DataArray,
+                     sss: xr.DataArray,
+                     e1t: xr.DataArray,
+                     e2t: xr.DataArray,
+                     sigma0_bins: np.ndarray,
+                     mask: xr.DataArray | None = None
+                     ) -> xr.DataArray:
     """
     Compute area of sea surface density outcrops in potential
     density-coordinates from sea surface properties.
 
     Parameters
     ----------
-    sst : xr.DataArray
+    sst : xarray.DataArray
         Sea surface temperature (C) stored at T-points.
-    sss : xr.DataArray
+    sss : xarray.DataArray
         Sea surface salinity (g kg-1) stored at T-points.
-    e1t : xr.DataArray
+    e1t : xarray.DataArray
         Zonal width of model grid cell (m) on T-points.
-    e2t : xr.DataArray
+    e2t : xarray.DataArray
         Meridional width of model grid cell (m) at T-points.
-    sigma0_bins: ndarray
+    sigma0_bins: numpy.ndarray
         Monotonically increasing array of sea surface density bin edges
         closed on the rightmost edge (i.e., bin_{n} <= x < bin_{n+1}).
-    mask: xarray.DataArray
+    mask: xarray.DataArray, default=None
         Ocean basin mask where 1 = included and 0 = excluded values.
-        Default value is None.
 
     Returns
     -------
-    xr.DataArray
+    xarray.DataArray
         Area of sea surface density outcrops (m2) in potential density
         coordinates.
 
@@ -301,9 +315,37 @@ def compute_ssd_area(sst:xr.DataArray, sss:xr.DataArray, e1t:xr.DataArray, e2t:x
     * time_counter  (time_counter) datetime64[ns] 8B 2023-07-02T12:00:00...
     * sigma0_bins   (sigma0_bins) object 6kB (20.0, 20.01] ... (27.980000000001...
     """
+    # -- Verify Inputs -- #
+    # Types:
+    if not isinstance(sst, xr.DataArray):
+        raise TypeError('sst must be specified as an xarray.DataArray')
+    if not isinstance(sss, xr.DataArray):
+        raise TypeError('sss must be specified as an xarray.DataArray')
+    if not isinstance(e1t, xr.DataArray):
+        raise TypeError('e1t must be specified as an xarray.DataArray')
+    if not isinstance(e2t, xr.DataArray):
+        raise TypeError('e2t must be specified as an xarray.DataArray')
+    if not isinstance(sigma0_bins, np.ndarray):
+        raise TypeError('sigma0_bins must be specified as an ndarray')
+    if mask is not None:
+        if not isinstance(mask, xr.DataArray):
+            raise TypeError('mask must be specified as an xarray.DataArray')
+    # Dimension names:
+    if sst.dims != ('time_counter', 'y', 'x'):
+        raise ValueError("sst must have dimensions ('time_counter', 'y', 'x').")
+    if sss.dims != ('time_counter', 'y', 'x'):
+        raise ValueError("sss must have dimensions ('time_counter', 'y', 'x').")
+    if e1t.dims != ('y', 'x'):
+        raise ValueError("e1t must have dimensions ('y', 'x').")
+    if e2t.dims != ('y', 'x'):
+        raise ValueError("e2t must have dimensions ('y', 'x').")
+    if mask is not None:
+        if mask.dims != ('y', 'x'):
+            raise ValueError("mask must have dimensions ('y', 'x').")
+
     #  -- Computing Surface Area Model Grid Cells -- #
     # Compute area of model grid cells located about T-Grid points.
-    dxdy = e1t.squeeze()*e2t.squeeze()
+    dxdy = e1t.squeeze() * e2t.squeeze()
 
     # -- Apply mask to variables --
     if mask is not None:
@@ -345,7 +387,15 @@ def compute_ssd_area(sst:xr.DataArray, sss:xr.DataArray, e1t:xr.DataArray, e2t:x
     return ssd_area
 
 # -- Define function to compute sea water volume census in T-S -- #
-def compute_volume_census(thetao:T_DataArray, so:T_DataArray, e1t:T_DataArray, e2t:T_DataArray, e3t:T_DataArray, thetao_bins:np.ndarray, so_bins:np.ndarray, mask:T_DataArray | None = None) -> T_DataArray:
+def compute_volume_census(thetao: xr.DataArray,
+                          so: xr.DataArray,
+                          e1t: xr.DataArray,
+                          e2t: xr.DataArray,
+                          e3t: xr.DataArray,
+                          thetao_bins: np.ndarray,
+                          so_bins: np.ndarray, 
+                          mask: xr.DataArray | None = None
+                          ) -> xr.DataArray:
     """
     Compute sea water volume census in temperature and salinity coordinates.
 
@@ -354,29 +404,28 @@ def compute_volume_census(thetao:T_DataArray, so:T_DataArray, e1t:T_DataArray, e
 
     Parameters
     ----------
-    thetao : DataArray
+    thetao : xarray.DataArray
         Sea water temperature (C) stored at T-points.
-    so : DataArray
+    so : xarray.DataArray
         Salinity (g kg-1) stored at T-points.
-    e1t : DataArray
+    e1t : xarray.DataArray
         Zonal width of model grid cell (m) on T-points.
-    e2t : DataArray
+    e2t : xarray.DataArray
         Meridional width of model grid cell (m) on T-points.
-    e3t : DataArray
+    e3t : xarray.DataArray
         Vertical thickness of model grid cell (m) on T-points.
-    thetao_bins: ndarray
+    thetao_bins: numpy.ndarray
         Monotonically increasing array of temperature bin edges
         closed on the rightmost edge (i.e., bin_{n} <= x < bin_{n+1}).
-    so_bins: ndarray
+    so_bins: numpy.ndarray
         Monotonically increasing array of salinity bin edges
         closed on the rightmost edge (i.e., bin_{n} <= x < bin_{n+1}).
-    mask: DataArray
+    mask: xarray.DataArray, default=None
         Ocean basin mask where 1 = included and 0 = excluded values.
-        Default value is None.
 
     Returns
     -------
-    DataArray
+    xarray.DataArray
         Volume of seawater (m3) in temperature and salinity coordinates.
 
     Raises
