@@ -1,0 +1,20 @@
+name: env_nemo_cookbook
+channels:
+  - conda-forge
+dependencies:
+  - python=3.13
+  - flox
+  - gsw
+  - h5netcdf
+  - ipykernel
+  - jupyter
+  - netcdf4
+  - notebook
+  - xarray
+  - xoak
+  - zarr
+  - aiohttp
+  - fsspec
+  - requests
+  - s3fs
+  - pys2index
