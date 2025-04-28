@@ -17,30 +17,26 @@ Each recipe comprises of one or more functions built using the [**xarray**](http
 
 ### Installation
 
-There are currently two options available to install the **NEMO Cookbook**:
-
-**Method 1: Downloading & Installing with GitHub**
+We recommend downloading and installing **NEMO Cookbook** into a new virtual environment via GitHub
 
 First, clone the latest version of the nemo_cookbook repository using Git:
 ```{bash}
 git clone git@github.com:NOC-MSM/nemo_cookbook.git
 ```
 
-Next, install the dependencies in a new conda virtual environment before pip installing **NEMO Cookbook** in editable mode:
+Next, install the dependencies in a new conda virtual environment:
 ```{bash}
 cd nemo_cookbook
 
 conda env create -f environment.yml
+```
 
+Finally, activate your new virtual environment and pip install **NEMO Cookbook** in editable mode:
+
+```{bash}
 conda activate env_nemo_cookbook
 
 pip install -e .
-```
-
-**Method 2: Installing Directly with pip**
-
-```{bash}
-pip install git+git@github.com:NOC-MSM/nemo_cookbook.git
 ```
 
 ??? tip "Helpful Tip..."

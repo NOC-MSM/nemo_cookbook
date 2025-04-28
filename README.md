@@ -1,43 +1,50 @@
-# **NEMO Cookbook**
 
-Python recipes for reproducible analysis of NEMO ocean general circulation model outputs.
+<h1 align="center">NEMO Cookbook</h1>
+<p align="center">
+<strong>Python recipes for reproducible analysis of NEMO ocean general circulation model outputs.<strong>
+</a>
+<br />
+<br />
+-
+<a href="https://noc-msm.github.io/nemo_cookbook/"><strong>Documentation</strong></a>
+-
+<a href="https://github.com/NOC-MSM/nemo_cookbook/issues"><strong>Report an Issue</strong></a>
+-
+</p>
 
-NEMO Cookbook aims to provide Python implementations of the post-processing & analysis functions available in [CDFTOOLS](https://github.com/meom-group/CDFTOOLS/tree/master) alongside new diagnostics (e.g., surface-forced water mass transformation), which are compatible with generalised vertical coordinate systems (e.g., MES).
+## **About**
+**NEMO Cookbook** is a collection of Python recipes for performing reproducible analyses of the Nucleus for European Modelling of the Ocean ([**NEMO**](https://www.nemo-ocean.eu)) ocean general circulation model outputs.
 
-Notably, the NEMO Cookbook does not seek to be a generic ocean circulation model analysis framework such as [xgcm](https://xgcm.readthedocs.io/en/latest/). As a result, recipes do not require users to generate grid objects in advance of their calculations; only the necessary NEMO grid variables are required similar to in CDFTOOLS.
+Our aim is to provide Python implementations of the post-processing & analysis functions available in [**CDFTOOLS**](https://github.com/meom-group/CDFTOOLS) alongside new diagnostics (e.g., surface-forced water mass transformation), which are compatible with generalised vertical coordinate systems (e.g., MES).
 
-Each recipe comprises of one or more functions built using the [xarray](https://xarray.dev), [flox](https://flox.readthedocs.io/en/latest/) & [dask](https://www.dask.org) libraries (think of these are your cooking utensils!) & the raw ingredients (ocean model outputs - that's where you come in!).
+Importantly, **NEMO Cookbook** does not aim to be a generic ocean circulation model analysis framework such as [**xgcm**](https://xgcm.readthedocs.io/en/latest/). As such, recipes do not require users to generate grid objects in advance of their calculations; only the necessary NEMO grid variables are required similar to [**CDFTOOLS**](https://github.com/meom-group/CDFTOOLS).
+
+Each recipe comprises of one or more functions built using the [**xarray**](https://xarray.dev), [**flox**](https://flox.readthedocs.io/en/latest/) & [**dask**](https://www.dask.org) libraries (think of these are your cooking utensils!) & the raw ingredients (ocean model outputs) - that's where you come in!
 
 ## **Getting Started**
 
 ### **Installation**
 
-There are currently two options available to install the **NEMO Cookbook**:
-
-**Method 1: Downloading & Installing with GitHub**
+We recommend downloading and installing **NEMO Cookbook** into a new virtual environment via GitHub
 
 First, clone the latest version of the nemo_cookbook repository using Git:
 ```{bash}
 git clone git@github.com:NOC-MSM/nemo_cookbook.git
 ```
 
-Next, install the dependencies in a new conda virtual environment before pip installing **NEMO Cookbook** in editable mode:
+Next, install the dependencies in a new conda virtual environment:
 ```{bash}
 cd nemo_cookbook
 
 conda env create -f environment.yml
+```
 
+Finally, activate your new virtual environment and pip install **NEMO Cookbook** in editable mode:
+
+```{bash}
 conda activate env_nemo_cookbook
 
 pip install -e .
-```
-
-**Method 2: Installing Directly with pip**
-
-- We strongly recommend setting-up a virtual environment before installing nemo_cookbook with pip.
-
-```{bash}
-pip install git+git@github.com:NOC-MSM/nemo_cookbook.git
 ```
 
 ## **Available Recipes**

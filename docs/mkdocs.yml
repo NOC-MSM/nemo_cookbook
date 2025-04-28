@@ -29,13 +29,6 @@ theme:
     - navigation.footer
     - search.suggest
   palette:
-    # Dark Mode
-    - scheme: slate
-      toggle:
-        icon: material/weather-sunny
-        name: Dark mode
-      primary: light blue
-      accent: deep purple
     # Light Mode
     - scheme: default
       toggle:
