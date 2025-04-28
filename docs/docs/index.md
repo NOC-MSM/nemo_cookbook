@@ -26,9 +26,14 @@ First, clone the latest version of the nemo_cookbook repository using Git:
 git clone git@github.com:NOC-MSM/nemo_cookbook.git
 ```
 
-Next, pip install **NEMO Cookbook** and its dependencies in editable mode:
+Next, install the dependencies in a new conda virtual environment before pip installing **NEMO Cookbook** in editable mode:
 ```{bash}
 cd nemo_cookbook
+
+conda env create -f environment.yml
+
+conda activate env_nemo_cookbook
+
 pip install -e .
 ```
 
@@ -51,7 +56,7 @@ pip install git+git@github.com:NOC-MSM/nemo_cookbook.git
     Alternatively, using an existing miniconda or miniforge installation:
 
     ```sh
-    conda create -n env_nemo_cookbook python=3.13
+    conda env create -f environment.yml
     ```
 
 ---
@@ -69,6 +74,8 @@ The following recipes are currently available in the **NEMO Cookbook** and be ex
 4. Surface-Forced Overturning Stream Functions in potential density coordinates.
 
 5. Volume census in temperature - salinity coordinates.
+
+6. Extracting the Overturning in the Subpolar North Atlantic array.
 
 ### Recipe Wishlist
 
