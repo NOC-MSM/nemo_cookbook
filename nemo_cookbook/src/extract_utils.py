@@ -18,8 +18,8 @@ from math import sqrt
 # -- Define function to find nearest NEMO eORCA grid coords to observed coords -- #
 def _nearest_ji_coords(glamt:xr.DataArray,
                        gphit:xr.DataArray,
-                       target_lon:xr.DataArray,
-                       target_lat:xr.DataArray
+                       target_lon:np.ndarray,
+                       target_lat:np.ndarray
                        ) -> list[tuple[int, int]]:
     """
     Define (j,i) tuples of the NEMO eORCA grid points closest
@@ -32,9 +32,9 @@ def _nearest_ji_coords(glamt:xr.DataArray,
         Latitude coordinates of the NEMO model grid on T-points.
     gphit : xr.DataArray
         Longitude coordinates of the NEMO model grid on T-points.
-    target_lon : xr.DataArray
+    target_lon : np.ndarray
         Longitude coordinates defining the hydrographic section.
-    target_lat : xr.DataArray
+    target_lat : np.ndarray
         Latitude coordinates defining the hydrographic section.
 
     Returns
