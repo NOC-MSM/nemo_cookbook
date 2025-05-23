@@ -18,7 +18,7 @@ from .extract_utils import _nearest_ji_coords, _get_section_coords
 
 # -- Internal Preprocessing Functions -- #
 def process_Um(ds: xr.Dataset,
-               vars: str | list[str],
+               var: str,
                var_map: dict,
                x_index: xr.DataArray,
                y_index: xr.DataArray,
@@ -34,8 +34,8 @@ def process_Um(ds: xr.Dataset,
     ----------
     ds : xarray.Dataset
         NEMO model output dataset.
-    vars : str | list[str]
-        Variable names to be extracted from the dataset. Options are 'uo',
+    var : str
+        Variable name to extract from the dataset. Default options are 'uo',
         'uo_eiv', 'e3u'.
     var_map : dict
         Dictionary mapping variable names to their corresponding dataset keys.
@@ -52,70 +52,49 @@ def process_Um(ds: xr.Dataset,
 
     Returns
     -------
-    ds_Um : xarray.Dataset
+    xarray.Dataset
         Dataset including zonal velocities (m/s), eddy-induced velocities (m/s)
         and vertical grid cell thicknesses (m) on U- grid cell faces defining
         section on NEMO model grid.
     """
-    # Define empty list to store variables:
-    var_list = []
+    match var:
+        case 'uo':
+            # Extract U- velocities (m/s):
+            variable = ds[var_map.get('uo', 'uo')].isel(x=x_index, y=y_index)
+            variable.name = 'velocity'
+            variable = variable.assign_attrs({'standard_name': 'sea_water_velocity', 'units': 'm/s'})
 
-    if 'uo' in vars:
-        # Extract U- velocities (m/s):
-        if 'uo' in var_map:
-            uo = ds[var_map['uo']]
-        else:
-            uo = ds['uo']
+        case 'uo_eiv':
+            # Extract eddy-induced U- velocities (m/s):
+            variable = ds[var_map.get('uo_eiv', 'uo_eiv')].isel(x=x_index, y=y_index)
+            variable.name = 'eddy_induced_velocity'
+            variable = variable.assign_attrs({'standard_name': 'sea_water_bolus_velocity', 'units': 'm/s'})
 
-        uo = uo.isel(x=x_index, y=y_index)
-        uo.name = 'velocity'
-        uo = uo.assign_attrs({'standard_name': 'sea_water_velocity', 'units': 'm/s'})
-        var_list.append(uo)
+        case 'e3u':
+            # Extract vertical grid cell thickness (m):
+            variable = ds[var_map.get('e3u', 'e3u')].isel(x=x_index, y=y_index)
+            variable.name = 'dz'
+            variable = variable.assign_attrs({'standard_name': 'cell_thickness', 'units': 'm'})
 
-    if 'uo_eiv' in vars:
-        # Extract eddy-induced U- velocities (m/s):
-        if 'uo_eiv' in var_map:
-            uo_eiv = ds[var_map['uo_eiv']]
-        else:
-            uo_eiv = ds['uo_eiv']
-
-        uo_eiv = uo_eiv.isel(x=x_index, y=y_index)
-        uo_eiv.name = 'eddy_induced_velocity'
-        uo_eiv = uo_eiv.assign_attrs({'standard_name': 'sea_water_bolus_velocity', 'units': 'm/s'})
-        var_list.append(uo_eiv)
-
-    if 'e3u' in vars:
-        # Extract vertical grid cell thickness (m):
-        if 'e3u' in var_map:
-            e3u = ds[var_map['e3u']]
-        else:
-            e3u = ds['e3u']
-
-        e3u = e3u.isel(x=x_index, y=y_index)
-        e3u.name = 'dz'
-        e3u = e3u.assign_attrs({'standard_name': 'cell_thickness', 'units': 'm'})
-        var_list.append(e3u)
-
-    # Return variable or combine into single Dataset:
-    if len(var_list) == 1:
-        ds_Um = var_list[0]
-    else:
-        ds_Um = xr.merge(var_list)
+        case _:
+            # Extract specified variable without assigned attributes:
+            variable = ds[var].isel(x=x_index, y=y_index)
+            variable.name = var
 
     # Assign coordinates to the dataset:
-    ds_Um = (ds_Um.
-            assign_coords({'station': stations,
-                            'longitude': longitudes,
-                            'latitude': latitudes
-                            })
-            .rename({'depthu':'depth'})
-            )
+    variable = (variable.
+                assign_coords({'station': stations,
+                               'longitude': longitudes,
+                               'latitude': latitudes
+                               })
+                               .rename({'depthu':'depth'})
+                               )
 
-    return ds_Um
+    return variable
 
 
 def process_Up(ds: xr.Dataset,
-               vars: str | list[str],
+               var: str,
                var_map: dict,
                x_index: xr.DataArray,
                y_index: xr.DataArray,
@@ -131,8 +110,8 @@ def process_Up(ds: xr.Dataset,
     ----------
     ds : xarray.Dataset
         NEMO model output dataset.
-    vars : str | list[str]
-        Variable names to be extracted from the dataset. Options are 'uo',
+    var : str
+        Variable name to extract from the dataset. Default options are 'uo',
         'uo_eiv', 'e3u'.
     var_map : dict
         Dictionary mapping variable names to their corresponding dataset keys.
@@ -149,69 +128,47 @@ def process_Up(ds: xr.Dataset,
 
     Returns
     -------
-    ds_Up : xarray.Dataset
+    xarray.Dataset
         Dataset including zonal velocities (m/s) and vertical grid cell thickness (m)
         on U+ grid cell faces defining section on NEMO model grid.
     """
-    # Define empty list to store variables:
-    var_list = []
+    match var:
+        case 'uo':
+            # Extract U+ velocities (m/s):
+            variable = -ds[var_map.get('uo', 'uo')].isel(x=x_index, y=y_index)
+            variable.name = 'velocity'
+            variable = variable.assign_attrs({'standard_name': 'sea_water_velocity', 'units': 'm/s'})
 
-    if 'uo' in vars:
-        # Extract U+ velocities (m/s):
-        if 'uo' in var_map:
-            up = -ds[var_map['uo']]
-        else:
-            up = -ds['uo']
+        case 'uo_eiv':
+            # Extract eddy-induced U+ velocities (m/s):
+            variable = -ds[var_map.get('uo_eiv', 'uo_eiv')].isel(x=x_index, y=y_index)
+            variable.name = 'eddy_induced_velocity'
+            variable = variable.assign_attrs({'standard_name': 'sea_water_bolus_velocity', 'units': 'm/s'})
 
-        up = up.isel(x=x_index, y=y_index)
-        up.name = 'velocity'
-        up = up.assign_attrs({'standard_name': 'sea_water_velocity', 'units': 'm/s'})
-        var_list.append(up)
+        case 'e3u':
+            # Extract vertical grid cell thickness (m):
+            variable = ds[var_map.get('e3u', 'e3u')].isel(x=x_index, y=y_index)
+            variable.name = 'dz'
+            variable = variable.assign_attrs({'standard_name': 'cell_thickness', 'units': 'm'})
 
-    if 'uo_eiv' in vars:
-        # Extract eddy-induced U+ velocities (m/s):
-        if 'uo_eiv' in var_map:
-            up_eiv = -ds[var_map['uo_eiv']]
-        else:
-            up_eiv = -ds['uo_eiv']
-
-        up_eiv = up_eiv.isel(x=x_index, y=y_index)
-        up_eiv.name = 'eddy_induced_velocity'
-        up_eiv = up_eiv.assign_attrs({'standard_name': 'sea_water_bolus_velocity', 'units': 'm/s'})
-        var_list.append(up_eiv)
-
-    if 'e3u' in vars:
-        # Extract vertical grid cell thickness (m):
-        if 'e3u' in var_map:
-            e3up = ds[var_map['e3u']]
-        else:
-            e3up = ds['e3u']
-        
-        e3up = e3up.isel(x=x_index, y=y_index)
-        e3up.name = 'dz'
-        e3up = e3up.assign_attrs({'standard_name': 'cell_thickness', 'units': 'm'})
-        var_list.append(e3up)
-
-    # Return variable or combine into single Dataset:
-    if len(var_list) == 1:
-        ds_Up = var_list[0]
-    else:
-        ds_Up = xr.merge(var_list)
+        case _:
+            # Extract specified variable without assigned attributes:
+            variable = ds[var].isel(x=x_index, y=y_index)
+            variable.name = var
 
     # Assign coordinates to the dataset:
-    ds_Up = (ds_Up.
-             assign_coords({'station': stations,
-                            'longitude': longitudes,
-                            'latitude': latitudes
-                            })
-            .rename({'depthu':'depth'})
-            )
+    variable = (variable.
+                assign_coords({'station': stations,
+                               'longitude': longitudes,
+                               'latitude': latitudes
+                               })
+                               .rename({'depthu':'depth'})
+                               )
 
-    return ds_Up
-
+    return variable
 
 def process_Vp(ds: xr.Dataset,
-               vars: str | list[str],
+               var: str,
                var_map: dict,
                x_index: xr.DataArray,
                y_index: xr.DataArray,
@@ -227,8 +184,8 @@ def process_Vp(ds: xr.Dataset,
     ----------
     ds : xarray.Dataset
         NEMO model output dataset.
-    vars : str | list[str]
-        Variable names to be extracted from the dataset. Options are 'vo',
+    var : str
+        Variable name to extract from the dataset. Default options are 'vo',
         'vo_eiv', 'e3v'.
     var_map : dict
         Dictionary mapping variable names to their corresponding dataset keys.
@@ -245,69 +202,48 @@ def process_Vp(ds: xr.Dataset,
 
     Returns
     -------
-    ds_Vp : xarray.Dataset
+    xarray.Dataset
         Dataset including meridional velocities (m/s) and vertical grid cell thickness (m)
         on V+ grid cell faces defining section on NEMO model grid.
     """
-    # Define empty list to store variables:
-    var_list = []
+    match var:
+        case 'vo':
+            # Extract V+ velocities (m/s):
+            variable = ds[var_map.get('vo', 'vo')].isel(x=x_index, y=y_index)
+            variable.name = 'velocity'
+            variable = variable.assign_attrs({'standard_name': 'sea_water_velocity', 'units': 'm/s'})
 
-    # Extract V+ velocities (m/s):
-    if 'vo' in vars:
-        if 'vo' in var_map:
-            vp = ds[var_map['vo']]
-        else:
-            vp = ds['vo']
+        case 'vo_eiv':
+            # Extract eddy-induced V+ velocities (m/s):
+            variable = ds[var_map.get('vo_eiv', 'vo_eiv')].isel(x=x_index, y=y_index)
+            variable.name = 'eddy_induced_velocity'
+            variable = variable.assign_attrs({'standard_name': 'sea_water_bolus_velocity', 'units': 'm/s'})
+        
+        case 'e3v':
+            # Extract vertical grid cell thickness (m):
+            variable = ds[var_map.get('e3v', 'e3v')].isel(x=x_index, y=y_index)
+            variable.name = 'dz'
+            variable = variable.assign_attrs({'standard_name': 'cell_thickness', 'units': 'm'})
 
-        vp = vp.isel(x=x_index, y=y_index)
-        vp.name = 'velocity'
-        vp = vp.assign_attrs({'standard_name': 'sea_water_velocity', 'units': 'm/s'})
-        var_list.append(vp)
-
-    # Extract eddy-induced V+ velocities (m/s):
-    if 'vo_eiv' in vars:
-        if 'vo_eiv' in var_map:
-            vp_eiv = ds[var_map['vo_eiv']]
-        else:
-            vp_eiv = ds['vo_eiv']
-
-        vp_eiv = vp_eiv.isel(x=x_index, y=y_index)
-        vp_eiv.name = 'eddy_induced_velocity'
-        vp_eiv = vp_eiv.assign_attrs({'standard_name': 'sea_water_bolus_velocity', 'units': 'm/s'})
-        var_list.append(vp_eiv)
-
-    # Extract vertical grid cell thickness (m):
-    if 'e3v' in vars:
-        if 'e3v' in var_map:
-            e3vp = ds[var_map['e3v']]
-        else:
-            e3vp = ds['e3v']
-
-        e3vp = e3vp.isel(x=x_index, y=y_index)
-        e3vp.name = 'dz'
-        e3vp = e3vp.assign_attrs({'standard_name': 'cell_thickness', 'units': 'm'})
-        var_list.append(e3vp)
-
-    # Return variable or combine into single Dataset:
-    if len(var_list) == 1:
-        ds_Vp = var_list[0]
-    else:
-        ds_Vp = xr.merge(var_list)
+        case _:
+            # Extract specified variable without assigned attributes:
+            variable = ds[vars].isel(x=x_index, y=y_index)
+            variable.name = vars
 
     # Assign coordinates to the dataset:
-    ds_Vp = (ds_Vp.
-             assign_coords({'station': stations,
-                            'longitude': longitudes,
-                            'latitude': latitudes
-                            })
-            .rename({'depthv':'depth'})
-            )
-
-    return ds_Vp
+    variable = (variable.
+                assign_coords({'station': stations,
+                               'longitude': longitudes,
+                               'latitude': latitudes
+                               })
+                               .rename({'depthv':'depth'})
+                               )
+    
+    return variable
 
 
 def process_Tu(ds: xr.Dataset,
-               vars: str | list[str],
+               var: str,
                var_map: dict,
                x_index: xr.DataArray,
                y_index: xr.DataArray,
@@ -316,14 +252,14 @@ def process_Tu(ds: xr.Dataset,
                latitudes: xr.DataArray,
                ) -> xr.Dataset:
     """
-    Preprocess temperature & salinity interpolated on U grid cell faces.
+    Preprocess tracer variables interpolated on U grid cell faces.
 
     Parameters
     ----------
     ds : xarray.Dataset
         NEMO model output dataset.
-    vars : str | list[str]
-        Variable names to be extracted from the dataset. Options are 'temp',
+    var : str
+        Variable name to be extracted from the dataset. Default options are 'temp',
         'sal'.
     var_map : dict
         Dictionary mapping variable names to their corresponding dataset keys.
@@ -340,73 +276,60 @@ def process_Tu(ds: xr.Dataset,
 
     Returns
     -------
-    ds_Tu : xarray.Dataset
+    xarray.Dataset
         Dataset including temperature (C) and salinity (psu | g/kg) on U grid cell
         faces defining section on NEMO model grid.
     """
-    # Define empty list to store variables:
-    var_list = []
+    match var:
+        case 'temp':
+            # Extract U temperature (C):
+            variable = ds[var_map.get('temp', 'temp')]
+            variable = 0.5 * (variable.isel(x=x_index, y=y_index) + variable.isel(x=x_index+1, y=y_index))
+            variable.name = 'temp'
+            variable = variable.assign_attrs({'standard_name': 'sea_water_temperature'})
 
-    # Extract U temperature (C):
-    if 'temp' in vars:
-        if 'temp' in var_map:
-            temp = ds[var_map['temp']]
-        else:
-            temp = ds['temp']
+        case 'sal':
+            # Extract U salinity (psu | g/kg):
+            variable = ds[var_map.get('sal', 'sal')]
+            variable = 0.5 * (variable.isel(x=x_index, y=y_index) + variable.isel(x=x_index+1, y=y_index))
+            variable.name = 'sal'
+            variable = variable.assign_attrs({'standard_name': 'sea_water_salinity'})
 
-        temp_u = 0.5 * (temp.isel(x=x_index, y=y_index) + temp.isel(x=x_index+1, y=y_index))
-        temp_u.name = 'temp'
-        temp_u = temp_u.assign_attrs({'standard_name': 'sea_water_temperature'})
-        var_list.append(temp_u)
-
-    # Extract U salinity (psu | g/kg):
-    if 'sal' in vars:
-        if 'sal' in var_map:
-            sal = ds[var_map['sal']]
-        else:
-            sal = ds['sal']
-
-        sal_u = 0.5 * (sal.isel(x=x_index, y=y_index) + sal.isel(x=x_index+1, y=y_index))
-        sal_u.name = 'sal'
-        sal_u = sal_u.assign_attrs({'standard_name': 'sea_water_salinity'})
-        var_list.append(sal_u)
-
-    # Return variable or combine into single Dataset:
-    if len(var_list) == 1:
-        ds_Tu = var_list[0]
-    else:
-        ds_Tu = xr.merge(var_list)
+        case _:
+            # Extract specified T variable without assigned attributes:
+            variable = 0.5 * (ds[var].isel(x=x_index, y=y_index) + ds[var].isel(x=x_index+1, y=y_index))
+            variable.name = var
 
     # Assign coordinates to the dataset:
-    ds_Tu = (ds_Tu.
-             assign_coords({'station': stations,
-                            'longitude': longitudes,
-                            'latitude': latitudes
-                            })
-            .rename({'deptht':'depth'})
-            )
+    variable = (variable
+                .assign_coords({'station': stations,
+                               'longitude': longitudes,
+                               'latitude': latitudes
+                               })
+                .rename({'deptht':'depth'})
+                )
 
-    return ds_Tu
+    return variable
 
 
 def process_Tv(ds: xr.Dataset,
-                vars: str | list[str],
-                var_map: dict,
-                x_index: xr.DataArray,
-                y_index: xr.DataArray,
-                stations: xr.DataArray,
-                longitudes: xr.DataArray,
-                latitudes: xr.DataArray,
-                ) -> xr.Dataset:
+               var: str,
+               var_map: dict,
+               x_index: xr.DataArray,
+               y_index: xr.DataArray,
+               stations: xr.DataArray,
+               longitudes: xr.DataArray,
+               latitudes: xr.DataArray,
+               ) -> xr.Dataset:
     """
-    Preprocess temperature & salinity interpolated on V grid cell faces.
+    Preprocess tracer variables interpolated on V grid cell faces.
 
     Parameters
     ----------
     ds : xarray.Dataset
         NEMO model output dataset.
-    vars : str | list[str]
-        Variable names to be extracted from the dataset. Options are 'temp',
+    var : str
+        Variable name to be extracted from the dataset. Default options are 'temp',
         'sal'.
     var_map : dict
         Dictionary mapping variable names to their corresponding dataset keys.
@@ -423,53 +346,40 @@ def process_Tv(ds: xr.Dataset,
 
     Returns
     -------
-    ds_Tv : xarray.Dataset
+    xarray.Dataset
         Dataset including temperature (C) and salinity (psu | g/kg) on V grid cell
         faces defining section on NEMO model grid.
     """
-    # Define empty list to store variables:
-    var_list = []
+    match var:
+        case 'temp':
+            # Extract V temperature (C):
+            variable = ds[var_map.get('temp', 'temp')]
+            variable = 0.5 * (variable.isel(x=x_index, y=y_index) + variable.isel(x=x_index, y=y_index+1))
+            variable.name = 'temp'
+            variable = variable.assign_attrs({'standard_name': 'sea_water_temperature'})
+    
+        case 'sal':
+            # Extract V salinity (psu | g/kg):
+            variable = ds[var_map.get('sal', 'sal')]
+            variable = 0.5 * (variable.isel(x=x_index, y=y_index) + variable.isel(x=x_index, y=y_index+1))
+            variable.name = 'sal'
+            variable = variable.assign_attrs({'standard_name': 'sea_water_salinity'})
 
-    # Extract V temperature (C):
-    if 'temp' in vars:
-        if 'temp' in var_map:
-            temp = ds[var_map['temp']]
-        else:
-            temp = ds['temp']
-
-        temp_v = 0.5 * (temp.isel(x=x_index, y=y_index) + temp.isel(x=x_index, y=y_index+1))
-        temp_v.name = 'temp'
-        temp_v = temp_v.assign_attrs({'standard_name': 'sea_water_temperature'})
-        var_list.append(temp_v)
-
-    # Extract V salinity (psu | g/kg):
-    if 'sal' in vars:
-        if 'sal' in var_map:
-            sal = ds[var_map['sal']]
-        else:
-            sal = ds['sal']
-
-        sal_v = 0.5 * (sal.isel(x=x_index, y=y_index) + sal.isel(x=x_index, y=y_index+1))
-        sal_v.name = 'sal'
-        sal_v = sal_v.assign_attrs({'standard_name': 'sea_water_salinity'})
-        var_list.append(sal_v)
-
-    # Return variable or combine into single Dataset:
-    if len(var_list) == 1:
-        ds_Tv = var_list[0]
-    else:
-        ds_Tv = xr.merge(var_list)
+        case _:
+            # Extract specified T variable without assigned attributes:
+            variable = 0.5 * (ds[var].isel(x=x_index, y=y_index) + ds[var].isel(x=x_index, y=y_index+1))
+            variable.name = var
 
     # Assign coordinates to the dataset:
-    ds_Tv = (ds_Tv.
-             assign_coords({'station': stations,
-                            'longitude': longitudes,
-                            'latitude': latitudes
-                            })
-            .rename({'deptht':'depth'})
-            )
-
-    return ds_Tv
+    variable = (variable
+                .assign_coords({'station': stations,
+                               'longitude': longitudes,
+                               'latitude': latitudes
+                               })
+                .rename({'deptht':'depth'})
+                )
+    
+    return variable
 
 
 # -- External Functions -- #
@@ -497,18 +407,15 @@ def extract_section(section_lon: np.ndarray,
     domain_path : str
         Path to the NEMO model domain configuration file. This file must contain
         the expected variables 'glamt' and 'gphit' model grid coordinates.
-    T_paths : list[str] | dict[str, list[str]]
-        Path to the NEMO model output T files. If variables are stored in separate
-        output files, a dictionary of file paths must be provided with the variable
-        names as keys and the file paths as values.
-    U_paths : list[str] | dict[str, list[str]]
-        Path to the NEMO model output U files. If variables are stored in separate
-        output files, a dictionary of file paths must be provided with the variable
-        names as keys and the file paths as values.
-    V_paths : list[str] | dict[str, list[str]]
-        Path to the NEMO model output V files. If variables are stored in separate
-        output files, a dictionary of file paths must be provided with the variable
-        names as keys and the file paths as values.
+    T_paths : dict[str, list[str]]
+        Paths to the NEMO model output T variables. A dictionary of file paths must
+        be provided with the variable names as keys and the file paths as values.
+    U_paths : dict[str, list[str]]
+        Paths to the NEMO model output U variables. A dictionary of file paths must
+        be provided with the variable names as keys and the file paths as values.
+    V_paths : dict[str, list[str]]
+        Paths to the NEMO model output V variables. A dictionary of file paths must
+        be provided with the variable names as keys and the file paths as values.
     var_map : dict, default={}
         Dictionary mapping expected variable names to their corresponding names in
         the given NEMO output files. Expected keys are 'uo', 'uo_eiv', 'vo', 'vo_eiv',
@@ -540,10 +447,18 @@ def extract_section(section_lon: np.ndarray,
 
     >>> # Define NEMO model domain configuration file path:
     >>> domain_path = '/path/to/nemo/domain_cfg.nc'
-    >>> # Define NEMO model output file paths, where variables are stored in shared files:
-    >>> T_paths = ['/path/to/nemo/output_gridT_1.nc', '/path/to/nemo/output_gridT_2.nc']
-    >>> U_paths = ['/path/to/nemo/output_gridU_1.nc', '/path/to/nemo/output_gridU_2.nc']
-    >>> V_paths = ['/path/to/nemo/output_gridV_1.nc', '/path/to/nemo/output_gridV_2.nc']
+    >>> # Define NEMO model output file paths:
+    >>> T_paths = {'temp': ['/path/to/nemo/output_gridT_1.nc', '/path/to/nemo/output_gridT_2.nc'],
+    >>>            'sal': ['/path/to/nemo/output_gridT_1.nc', '/path/to/nemo/output_gridT_2.nc'],
+    >>>            }
+    >>> U_paths = {'uo': ['/path/to/nemo/output_gridU_1.nc', '/path/to/nemo/output_gridU_2.nc'],
+    >>>            'uo_eiv': ['/path/to/nemo/output_gridU_1.nc', '/path/to/nemo/output_gridU_2.nc'],
+    >>>            'e3u': ['/path/to/nemo/output_gridU_1.nc', '/path/to/nemo/output_gridU_2.nc']
+    >>>            }
+    >>> V_paths = {'vo': ['/path/to/nemo/output_gridV_1.nc', '/path/to/nemo/output_gridV_2.nc'],
+    >>>            'vo_eiv': ['/path/to/nemo/output_gridV_1.nc', '/path/to/nemo/output_gridV_2.nc'],
+    >>>            'e3v': ['/path/to/nemo/output_gridV_1.nc', '/path/to/nemo/output_gridV_2.nc']
+    >>>            }
 
     >>> # Extract hydrographic section from NEMO model output with eddy-induced velocities:
     >>> ds_section = extract_section(section_lon=section_lon,
@@ -574,21 +489,26 @@ def extract_section(section_lon: np.ndarray,
     """
     # -- Verify Inputs -- #
     if not isinstance(section_lon, np.ndarray):
-        raise TypeError("section_lon must be an xarray DataArray.")
+        raise TypeError("section_lon must be a numpy ndarray.")
     if not isinstance(section_lat, np.ndarray):
-        raise TypeError("section_lat must be an xarray DataArray.")
+        raise TypeError("section_lat must be a numpy ndarray.")
     if not isinstance(domain_path, str):
         raise TypeError("domain_path must be a string.")
-    if not isinstance(T_paths, (list, dict)):
-        raise TypeError("T_paths must be either a list or a dictionary.")
-    if not isinstance(U_paths, (list, dict)):
-        raise TypeError("U_paths must be either a list or a dictionary.")
-    if not isinstance(V_paths, (list, dict)):
-        raise TypeError("V_paths must be either a list or a dictionary.")
+    if not isinstance(T_paths, dict):
+        raise TypeError("T_paths must be either a dictionary.")
+    if not isinstance(U_paths, dict):
+        raise TypeError("U_paths must be either a dictionary.")
+    if not isinstance(V_paths, dict):
+        raise TypeError("V_paths must be either a dictionary.")
     if not isinstance(var_map, dict):
         raise TypeError("var_map must be a dictionary.")
     if not isinstance(uv_eiv, bool):
         raise TypeError("uv_eiv must be a boolean.")
+    if uv_eiv:
+        if var_map.get('uo_eiv', 'uo_eiv') not in U_paths.keys():
+            raise KeyError(f"U_paths must contain '{var_map.get('uo_eiv', 'uo_eiv')}' key.")
+        if var_map.get('vo_eiv', 'vo_eiv') not in V_paths.keys():
+            raise KeyError(f"V_paths must contain '{var_map.get('uo_eiv', 'uo_eiv')}' key.")
     if not isinstance(log, bool):
         raise TypeError("log must be a boolean.")
     
@@ -661,12 +581,9 @@ def extract_section(section_lon: np.ndarray,
     if log:
         logging.info("Completed Extracted section coordinates from NEMO model grid.")
 
-    # -- Process NEMO domain -- #
+    # -- Process NEMO domain -- #
     # U+ zonal grid cell width (m):
-    if 'e2u' in var_map:
-        e2u = ds_domain_cfg[var_map['e2u']]
-    else:
-        e2u = ds_domain_cfg['e2u']
+    e2u = ds_domain_cfg[var_map.get('e2u', 'e2u')]
     e2um = e2u.squeeze().isel(x=x_index[ummask], y=y_index[ummask])
     e2um = e2um.assign_coords({'station': station_ummask,
                                'longitude': longitudes[ummask],
@@ -683,10 +600,7 @@ def extract_section(section_lon: np.ndarray,
     e2up.name = 'dx'
 
     # V+ zonal grid cell width (m):
-    if 'e1v' in var_map:
-        e1v = ds_domain_cfg[var_map['e1v']]
-    else:
-        e1v = ds_domain_cfg['e1v']
+    e1v = ds_domain_cfg[var_map.get('e1v', 'e1v')]
     e1v = e1v.squeeze().isel(x=x_index[vmask], y=y_index[vmask])
     e1v = e1v.assign_coords({'station': station_vmask,
                              'longitude': longitudes[vmask],
@@ -698,16 +612,12 @@ def extract_section(section_lon: np.ndarray,
         logging.info("Completed: Extracted variable dx from NEMO model grid.")
 
     # -- Process NEMO U,V outputs -- #
-    # All U variables are stored in common output files:
-    if isinstance(U_paths, list):
-        if uv_eiv:
-            vars = ['uo', 'uo_eiv', 'e3u']
-        else:
-            vars = ['uo', 'e3u']
-
-        # Extract U- velocities & vertical grid cell thickness:
+    # Store U- and U+ variable Datasets in a list:
+    UV_list = []
+    for var in U_paths.keys():
+        # Extract U- velocities & vertical grid cell thicknesses:
         _process_Um = partial(process_Um,
-                              vars=vars,
+                              var=var,
                               var_map=var_map,
                               x_index=x_index[ummask],
                               y_index=y_index[ummask],
@@ -716,15 +626,16 @@ def extract_section(section_lon: np.ndarray,
                               latitudes=latitudes[ummask],
                               )
         try:
-            ds_Um = xr.open_mfdataset(U_paths, preprocess=_process_Um).load()
+            with xr.open_mfdataset(U_paths[var], preprocess=_process_Um) as ds:
+                UV_list.append(ds.load())
             if log:
-                logging.info(f"Completed: Extracted U- variables -> {vars}.")
+                logging.info(f"Completed: Extracted U- variable -> {var}.")
         except FileNotFoundError:
-            raise FileNotFoundError(f"NEMO U-grid file not found at: {U_paths}.")
+            raise FileNotFoundError(f"NEMO U-grid file not found at: {U_paths[var]}.")
 
-        # Extract U+ velocities & vertical grid cell thickness:
+        # Extract U+ velocities & vertical grid cell thicknesses:
         _process_Up = partial(process_Up,
-                              vars=vars,
+                              var=var,
                               var_map=var_map,
                               x_index=x_index[upmask],
                               y_index=y_index[upmask],
@@ -733,103 +644,37 @@ def extract_section(section_lon: np.ndarray,
                               latitudes=latitudes[upmask],
                               )
         try:
-            ds_Up = xr.open_mfdataset(U_paths, preprocess=_process_Up).load()
+            with xr.open_mfdataset(U_paths[var], preprocess=_process_Up) as ds:
+                UV_list.append(ds.load())
             if log:
-                logging.info(f"Completed: Extracted U+ variables -> {vars}.")
+                logging.info(f"Completed: Extracted U+ variable -> {var}.")
         except FileNotFoundError:
-            raise FileNotFoundError(f"NEMO U-grid file not found at: {U_paths}.")
+            raise FileNotFoundError(f"NEMO U-grid file not found at: {U_paths[var]}.")
 
-    # All U variables are stored in separate output files:
-    else:
-        Um_list = []
-        Up_list = []
-        for var in U_paths.keys():
-            # Extract U- velocities & vertical grid cell thickness:
-            _process_Um = partial(process_Um,
-                                  vars=[var],
-                                  var_map=var_map,
-                                  x_index=x_index[ummask],
-                                  y_index=y_index[ummask],
-                                  stations=station_ummask,
-                                  longitudes=longitudes[ummask],
-                                  latitudes=latitudes[ummask],
-                                  )
-            try:
-                Um_list.append(xr.open_mfdataset(U_paths[var], preprocess=_process_Um).load())
-                if log:
-                    logging.info(f"Completed: Extracted U- variable -> {var}.")
-            except FileNotFoundError:
-                raise FileNotFoundError(f"NEMO U-grid file not found at: {U_paths[var]}.")
-
-            # Extract U+ velocities & vertical grid cell thickness:
-            _process_Up = partial(process_Up,
-                                  vars=[var],
-                                  var_map=var_map,
-                                  x_index=x_index[upmask],
-                                  y_index=y_index[upmask],
-                                  stations=station_upmask,
-                                  longitudes=longitudes[upmask],
-                                  latitudes=latitudes[upmask],
-                                  )
-            try:
-                Up_list.append(xr.open_mfdataset(U_paths[var], preprocess=_process_Up).load())
-                if log:
-                    logging.info(f"Completed: Extracted U+ variable -> {var}.")
-            except FileNotFoundError:
-                raise FileNotFoundError(f"NEMO U-grid file not found at: {U_paths[var]}.")
-
-        # Merge U- and U+ variables into single datasets:
-        ds_Um = xr.merge(Um_list)
-        ds_Up = xr.merge(Up_list)
-
-    # All V variables are stored in common output files:
-    if isinstance(V_paths, list):
-        if uv_eiv:
-            vars = ['vo', 'vo_eiv', 'e3v']
-        else:
-            vars = ['vo', 'e3v']
-
-        # Extract V+ velocities & vertical grid cell thickness:
-        _process_Vp = partial(process_Vp,
-                              vars=vars,
-                              var_map=var_map,
-                              x_index=x_index[vmask],
-                              y_index=y_index[vmask],
-                              stations=station_vmask,
-                              longitudes=longitudes[vmask],
-                              latitudes=latitudes[vmask],
-                              )
+    # Extract V+ velocities & vertical grid cell thicknesses:
+    for var in V_paths.keys():
+        _process_Vm = partial(process_Vp,
+                                var=var,
+                                var_map=var_map,
+                                x_index=x_index[vmask],
+                                y_index=y_index[vmask],
+                                stations=station_vmask,
+                                longitudes=longitudes[vmask],
+                                latitudes=latitudes[vmask],
+                                )
         try:
-            ds_V = xr.open_mfdataset(V_paths, preprocess=_process_Vp).load()
+            with xr.open_mfdataset(V_paths[var], preprocess=_process_Vm) as ds:
+                UV_list.append(ds.load())
             if log:
-                logging.info(f"Completed: Extracted V variables -> {vars}.")
+                logging.info(f"Completed: Extracted V variable -> {var}.")
         except FileNotFoundError:
-            raise FileNotFoundError(f"NEMO V-grid file not found at: {V_paths}.")
-
-    # All V variables are stored in separate output files:
-    else:
-        V_list = []
-        for var in V_paths.keys():
-            _process_Vm = partial(process_Vp,
-                                  vars=[var],
-                                  var_map=var_map,
-                                  x_index=x_index[vmask],
-                                  y_index=y_index[vmask],
-                                  stations=station_vmask,
-                                  longitudes=longitudes[vmask],
-                                  latitudes=latitudes[vmask],
-                                  )
-            try:
-                V_list.append(xr.open_mfdataset(V_paths[var], preprocess=_process_Vm).load())
-                if log:
-                    logging.info(f"Completed: Extracted V variable -> {var}.")
-            except FileNotFoundError:
-                raise FileNotFoundError(f"NEMO V-grid file not found at: {V_paths[var]}.")
-        
-        ds_V = xr.merge(V_list)
+            raise FileNotFoundError(f"NEMO V-grid file not found at: {V_paths[var]}.")
+    
+    # Merge U-, U+ & V variables into single dataset:
+    ds_UV = xr.merge(UV_list)
 
     # Merge zonal, meridional velocities & grid cell properties into a single Dataset:
-    ds_uv = xr.merge([ds_Um, ds_Up, ds_V, e2um, e2up, e1v], combine_attrs='drop_conflicts')
+    ds_uv = xr.merge([ds_UV, e2um, e2up, e1v], combine_attrs='drop_conflicts')
 
     # Calculate total volume transport normal to the section:
     if uv_eiv:
@@ -840,11 +685,12 @@ def extract_section(section_lon: np.ndarray,
         logging.info("Completed: Calculated volume transport normal to section.")
 
     # -- Process NEMO T outputs -- #
-    # All T variables are stored in common output files:
-    if isinstance(T_paths, list):
+    # Store T-point variable Datasets in a list:
+    T_list = []
+    for var in T_paths.keys():
         # Extract U-point temperature and salinity:
         _process_Tu = partial(process_Tu,
-                              vars=['temp', 'sal'],
+                              var=var,
                               var_map=var_map,
                               x_index=x_index[umask],
                               y_index=y_index[umask],
@@ -853,15 +699,16 @@ def extract_section(section_lon: np.ndarray,
                               latitudes=latitudes[umask]
                               )
         try:
-            ds_Tu = xr.open_mfdataset(T_paths, preprocess=_process_Tu).load()
+            with xr.open_mfdataset(T_paths[var], preprocess=_process_Tu) as ds:
+                T_list.append(ds.load())
             if log:
-                logging.info("Completed: Extracted Tu variables -> temp, sal.")
+                logging.info(f"Completed: Extracted T variable on U-face -> {var}.")
         except FileNotFoundError:
-            raise FileNotFoundError(f"NEMO T-grid file not found at: {T_paths}.")
-
+            raise FileNotFoundError(f"NEMO T-grid file not found at: {T_paths[var]}.")
+        
         # Extract V-point temperature and salinity:
         _process_Tv = partial(process_Tv,
-                              vars=['temp', 'sal'],
+                              var=var,
                               var_map=var_map,
                               x_index=x_index[vmask],
                               y_index=y_index[vmask],
@@ -870,57 +717,15 @@ def extract_section(section_lon: np.ndarray,
                               latitudes=latitudes[vmask]
                               )
         try:
-            ds_Tv = xr.open_mfdataset(T_paths, preprocess=_process_Tv).load()
+            with xr.open_mfdataset(T_paths[var], preprocess=_process_Tv) as ds:
+                T_list.append(ds.load())
             if log:
-                logging.info("Completed: Extracted Tv variables -> temp, sal.")
+                logging.info(f"Completed: Extracted T variable on V-face -> {var}.")
         except FileNotFoundError:
-            raise FileNotFoundError(f"NEMO T-grid file not found at: {T_paths}.")
-
-    # All T variables are stored in separate output files:
-    else:
-        # Extract U-point temperature and salinity:
-        Tu_list = []
-        for var in T_paths.keys():
-            _process_Tu = partial(process_Tu,
-                                  vars=[var],
-                                  var_map=var_map,
-                                  x_index=x_index[umask],
-                                  y_index=y_index[umask],
-                                  stations=station_umask,
-                                  longitudes=longitudes[umask],
-                                  latitudes=latitudes[umask]
-                                  )
-            try:
-                Tu_list.append(xr.open_mfdataset(T_paths[var], preprocess=_process_Tu).load())
-                if log:
-                    logging.info(f"Completed: Extracted Tu variable -> {var}.")
-            except FileNotFoundError:
-                raise FileNotFoundError(f"NEMO T-grid file not found at: {T_paths[var]}.")
-            
-        # Extract V-point temperature and salinity:
-        Tv_list = []
-        for var in T_paths.keys():
-            _process_Tv = partial(process_Tv,
-                                  vars=[var],
-                                  var_map=var_map,
-                                  x_index=x_index[vmask],
-                                  y_index=y_index[vmask],
-                                  stations=station_vmask,
-                                  longitudes=longitudes[vmask],
-                                  latitudes=latitudes[vmask]
-                                  )
-            try:
-                Tv_list.append(xr.open_mfdataset(T_paths[var], preprocess=_process_Tv).load())
-                if log:
-                    logging.info(f"Completed: Extracted Tv variable -> {var}.")
-            except FileNotFoundError:
-                raise FileNotFoundError(f"NEMO T-grid file not found at: {T_paths[var]}.")
+            raise FileNotFoundError(f"NEMO T-grid file not found at: {T_paths[var]}.")
         
-        ds_Tu = xr.merge(Tu_list)
-        ds_Tv = xr.merge(Tv_list)
-
     # Merge temperature and salinity into a single dataset:
-    ds_ts = xr.merge([ds_Tu, ds_Tv], combine_attrs='drop_conflicts')
+    ds_ts = xr.merge(T_list, combine_attrs='drop_conflicts')
 
     # Merge velocity and tracers variables into a single Dataset:
     ds_section = xr.merge([ds_uv, ds_ts], combine_attrs='drop_conflicts')
