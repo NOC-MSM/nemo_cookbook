@@ -14,13 +14,13 @@ import xarray as xr
 
 def _get_child_indices(imin, imax, jmin, jmax, rx, ry):
     """
-    Get the indices within the child domain which define
-    the nest within the parent domain.
+    Get the child domain indices which define the nest
+    within the parent domain.
     
     Parameters
     ----------
     imin, imax, jmin, jmax : int
-        Indices defining the child domain (nest) within the parent domain.
+        Indices defining the child domain within the parent domain.
     rx, ry : int
         Horizontal refinement factors.
     
@@ -37,7 +37,7 @@ def _get_child_indices(imin, imax, jmin, jmax, rx, ry):
     jmax_c = (jmax - jmin) * ry + nbghost_s + nbghost_n
 
     ist1 = imin_c + nbghost_w - 1
-    iend1 = imax_c - nbghost_w -1
+    iend1 = imax_c - nbghost_w - 1
 
     jst1 = jmin_c + nbghost_s - 1
     jend1 = jmax_c - nbghost_s - 1
@@ -45,7 +45,7 @@ def _get_child_indices(imin, imax, jmin, jmax, rx, ry):
     return (ist1, iend1, jst1, jend1)
 
 
-def _process_grid_datasets(
+def _open_grid_datasets(
     d_in: dict[str, str]
 ) -> dict[str, xr.Dataset]:
     """
@@ -201,6 +201,94 @@ def _add_domain_vars(
     return d_grids
 
 
+def _process_grid(
+    d_grids: dict[str, xr.Dataset],
+    grid: str,
+    label: str,
+    i_slice: slice,
+    j_slice: slice,
+    i_name: str,
+    j_name: str,
+    k_name: str | None = None,
+) -> xr.Dataset:
+    """
+    Process grid of a NEMO model domain.
+
+    Parameters
+    ----------
+    d_grids : dict[str, xr.Dataset]
+        Dictionary of grid datasets for NEMO model domain.
+    grid : str
+        Name of the grid to process (e.g., 'gridT', 'gridU', 'gridV').
+    label : str
+        Label to prepend to grid variable names.
+    i_slice : slice
+        Slice defining i-coordinate domain.
+    j_slice : slice
+        Slice defining the j-coordinate domain.
+    i_name : str
+        Name of i-coordinate.
+    j_name : str
+        Name of j-coordinate.
+    k_name : str | None
+        Name of k-coordinate. Default is None, meaning the grid dataset
+        does not include a k-coordinate.
+    """
+    # Define variable names and dim mappings:
+    grid_type = grid[-1].lower()
+    hgrid_type = grid_type if grid_type in ('t', 'u', 'v', 'f') else 't'
+    mask_name = f"{label}{grid_type}mask"
+    d_dims = {"y": j_name, "x": i_name}
+    if k_name is not None:
+        d_dims.update({f"depth{grid_type}": k_name})
+
+    # Rename grid coord variables:
+    data = d_grids[grid].rename_dims(d_dims)
+    d_vars = {f"gphi{hgrid_type}": f"{label}gphi{hgrid_type}",
+              f"glam{hgrid_type}": f"{label}glam{hgrid_type}"
+              }
+    # Rename depth variable if it exists:
+    if k_name is not None:
+        d_vars.update({f"depth{grid_type}": f"{label}depth{grid_type}"})
+    # Rename mask variable if it exists:
+    if mask_name in data.data_vars:
+        d_vars.update({mask_name: f"{label}{mask_name}"})
+    data = data.rename(d_vars)
+
+    # Drop invalid coords:
+    for coord in ('nav_lat', 'nav_lon'):
+        if coord in data:
+            data = data.drop_vars(coord)
+
+    # Define domain size:
+    data = data.isel({i_name: i_slice, j_name: j_slice})
+
+    # Define NEMO grid coord offsets:
+    match grid:
+        case 'gridT':
+            i_offset, j_offset, k_offset = 1, 1, 1
+        case 'gridU':
+            i_offset, j_offset, k_offset = 1.5, 1, 1
+        case 'gridV':
+            i_offset, j_offset, k_offset = 1, 1.5, 1
+        case 'gridW':
+            i_offset, j_offset, k_offset = 1, 1, 0.5
+        case 'gridF':
+            i_offset, j_offset = 1.5, 1.5
+
+    # Re-define to NEMO grid coords:
+    d_coords = {j_name: data[j_name] + j_offset,
+                i_name: data[i_name] + i_offset,
+                f"{label}gphi{hgrid_type}": data[f"{label}gphi{hgrid_type}"],
+                f"{label}glam{hgrid_type}": data[f"{label}glam{hgrid_type}"]
+                }
+    if k_name is not None:
+        d_coords.update({k_name: data[k_name] + k_offset})
+    data = data.assign_coords(d_coords)
+    
+    return data
+
+
 def _process_parent(
     d_parent: dict[str, str]
 ) -> dict[str, xr.Dataset]:
@@ -222,7 +310,7 @@ def _process_parent(
     Returns
     -------
     dict[str, xr.Dataset]
-        A dictionary containing NEMO parent grid output datasets, structured as:
+        A dictionary containing processed NEMO parent grid datasets, structured as:
         {
             '/': xr.Dataset,
             '/gridT': xr.Dataset,
@@ -233,73 +321,34 @@ def _process_parent(
         }
     """
     # -- Open NEMO domain and grid datasets -- #
-    d_grids = _process_grid_datasets(d_parent)
+    d_grids = _open_grid_datasets(d_parent)
 
     # -- Append domain variables to each grid dataset -- #
     d_grids = _add_domain_vars(d_grids)
 
-    d_rename = {"y": "j", "x": "i"}
+    # -- Process T / U / V / W / F grids -- #
+    d_proc_grids = {}
+    for grid in ['gridT', 'gridU', 'gridV', 'gridW', 'gridF']:        
+        k_name = "k" if grid != 'gridF' else None
+        d_proc_grids[grid] = _process_grid(d_grids=d_grids,
+                                           grid=grid,
+                                           label="",
+                                           i_slice=slice(None),
+                                           j_slice=slice(None),
+                                           i_name="i",
+                                           j_name= "j",
+                                           k_name=k_name,
+                                           )
 
-    # -- Construct T / U / V / W / F grids -- #
-    gridT = d_grids["gridT"].rename_dims({**d_rename , **{"deptht": "k"}})
-    for coord in ('nav_lat', 'nav_lon'):
-        if coord in gridT:
-            gridT = gridT.drop_vars(coord)
-    gridT = gridT.assign_coords({"k": gridT["k"] + 1,
-                                 "j": gridT["j"] + 1,
-                                 "i": gridT["i"] + 1,
-                                 "gphit": gridT.gphit,
-                                 "glamt": gridT.glamt
-                                 })
-
-    gridU = d_grids["gridU"].rename_dims({**d_rename , **{"depthu": "k"}})
-    for coord in ('nav_lat', 'nav_lon'):
-        if coord in gridU:
-            gridU = gridU.drop_vars(coord)
-    gridU = gridU.assign_coords({"k": gridU["k"] + 1,
-                                 "j": gridU["j"] + 1,
-                                 "i": gridU["i"] + 1.5,
-                                 "gphiu": gridU.gphiu,
-                                 "glamu": gridU.glamu
-                                 })
-
-    gridV = d_grids["gridV"].rename_dims({**d_rename , **{"depthv": "k"}})
-    for coord in ('nav_lat', 'nav_lon'):
-        if coord in gridV:
-            gridV = gridV.drop_vars(coord)
-    gridV = gridV.assign_coords({"k": gridV["k"] + 1,
-                                 "j": gridV["j"] + 1.5,
-                                 "i": gridV["i"] + 1,
-                                 "gphiv": gridV.gphiv,
-                                 "glamv": gridV.glamv
-                                 })
-
-    gridW = d_grids["gridW"].rename_dims({**d_rename , **{"depthw": "k"}})
-    for coord in ('nav_lat', 'nav_lon'):
-        if coord in gridW:
-            gridW = gridW.drop_vars(coord)
-    gridW = gridW.assign_coords({"k": gridW["k"] + 0.5,
-                                 "j": gridW["j"] + 1,
-                                 "i": gridW["i"] + 1,
-                                 "gphit": gridT.gphit,
-                                 "glamt": gridT.glamt
-                                 })
-
-    gridF = d_grids["gridF"].rename_dims(d_rename)
-    gridF = gridF.assign_coords({"j": gridF["j"] + 1.5,
-                                 "i": gridF["i"] + 1.5,
-                                 "gphif": gridF.gphif,
-                                 "glamf": gridF.glamf
-                                 })
-
+    # -- Construct DataTree node dictionary -- #
     d_out = {
-        "/": gridT.drop_dims(["j", "i", "k"]),
-        "/gridT": gridT,
-        "/gridU": gridU,
-        "/gridV": gridV,
-        "/gridW": gridW,
-        "/gridF": gridF
-            } 
+        "/": d_proc_grids['gridT'].drop_dims(["j", "i", "k"]),
+        "/gridT": d_proc_grids['gridT'],
+        "/gridU": d_proc_grids['gridU'],
+        "/gridV": d_proc_grids['gridV'],
+        "/gridW": d_proc_grids['gridW'],
+        "/gridF": d_proc_grids['gridF']
+            }
 
     return d_out
 
@@ -352,7 +401,7 @@ def _process_child(
 
     """
     # -- Open NEMO domain and grid datasets -- #
-    d_grids = _process_grid_datasets(d_child)
+    d_grids = _open_grid_datasets(d_child)
 
     # -- Append domain variables to each grid dataset -- #
     d_grids = _add_domain_vars(d_grids)
@@ -365,106 +414,32 @@ def _process_child(
                                    jmin=d_nests['jmin'],
                                    jmax=d_nests['jmax']
                                    )
-    print(f"Child domain indices: {ind_child}")
     i_slice = slice(ind_child[0], ind_child[1] + 1)
     j_slice = slice(ind_child[2], ind_child[3] + 1)
 
-    i_name = f"i{label}"
-    j_name = f"j{label}"
-    k_name = f"k{label}"
-    d_rename = {"y": j_name, "x": i_name}
-
-    # -- Construct T / U / V / W / F grids -- #
-    gridT = d_grids["gridT"].rename_dims({**d_rename , **{"deptht": k_name}})
-    d_vars = {'deptht': f"{label}_deptht", 'gphit': f"{label}_gphit", 'glamt': f"{label}_glamt"}
-    if 'tmask' in gridT.data_vars:
-        d_vars['tmask'] = f"{label}_tmask"
-    gridT = gridT.rename(d_vars)
-
-    for coord in ('nav_lat', 'nav_lon'):
-        if coord in gridT:
-            gridT = gridT.drop_vars(coord)
-    gridT = gridT.isel({i_name: i_slice, j_name: j_slice})
-    gridT = gridT.assign_coords({k_name: gridT[k_name] + 1,
-                                 j_name: gridT[j_name] + 1,
-                                 i_name: gridT[i_name] + 1,
-                                 f"{label}_gphit": gridT[f"{label}_gphit"],
-                                 f"{label}_glamt": gridT[f"{label}_glamt"]
-                                 })
-
-    gridU = d_grids["gridU"].rename_dims({**d_rename , **{"depthu": k_name}})
-    d_vars = {'depthu': f"{label}_depthu", 'gphiu': f"{label}_gphiu", 'glamu': f"{label}_glamu"}
-    if 'umask' in gridU.data_vars:
-        d_vars['umask'] = f"{label}_umask"
-    gridU = gridU.rename(d_vars)
-
-    for coord in ('nav_lat', 'nav_lon'):
-        if coord in gridU:
-            gridU = gridU.drop_vars(coord)
-    gridU = gridU.isel({i_name: i_slice, j_name: j_slice})
-    gridU = gridU.assign_coords({k_name: gridU[k_name] + 1,
-                                 j_name: gridU[j_name] + 1,
-                                 i_name: gridU[i_name] + 1.5,
-                                 f"{label}_gphiu": gridU[f"{label}_gphiu"],
-                                 f"{label}_glamu": gridU[f"{label}_glamu"]
-                                 })
-
-    gridV = d_grids["gridV"].rename_dims({**d_rename , **{"depthv": k_name}})
-    d_vars = {'depthv': f"{label}_depthv", 'gphiv': f"{label}_gphiv", 'glamv': f"{label}_glamv"}
-    if 'vmask' in gridV.data_vars:
-        d_vars['vmask'] = f"{label}_vmask"
-    gridV = gridV.rename(d_vars)
-
-    for coord in ('nav_lat', 'nav_lon'):
-        if coord in gridV:
-            gridV = gridV.drop_vars(coord)
-    gridV = gridV.isel({i_name: i_slice, j_name: j_slice})
-    gridV = gridV.assign_coords({k_name: gridV[k_name] + 1,
-                                 j_name: gridV[j_name] + 1.5,
-                                 i_name: gridV[i_name] + 1,
-                                 f"{label}_gphiv": gridV[f"{label}_gphiv"],
-                                 f"{label}_glamv": gridV[f"{label}_glamv"]
-                                 })
-
-    gridW = d_grids["gridW"].rename_dims({**d_rename , **{"depthw": k_name}})
-    d_vars = {'depthw': f"{label}_depthw", 'gphit': f"{label}_gphit", 'glamt': f"{label}_glamt"}
-    if 'wmask' in gridW.data_vars:
-        d_vars['wmask'] = f"{label}_wmask"
-    gridW = gridW.rename(d_vars)
-
-    for coord in ('nav_lat', 'nav_lon'):
-        if coord in gridW:
-            gridW = gridW.drop_vars(coord)
-    gridW = gridW.isel({i_name: i_slice, j_name: j_slice})
-    gridW = gridW.assign_coords({k_name: gridW[k_name] + 0.5,
-                                 j_name: gridW[j_name] + 1,
-                                 i_name: gridW[i_name] + 1,
-                                 f"{label}_gphit": gridT[f"{label}_gphit"],
-                                 f"{label}_glamt": gridT[f"{label}_glamt"]
-                                 })
-
-    gridF = d_grids["gridF"].rename_dims(d_rename)
-    d_vars = {'gphif': f"{label}_gphif", 'glamf': f"{label}_glamf"}
-    if 'fmask' in gridF.data_vars:
-        d_vars['fmask'] = f"{label}_fmask"
-    gridF = gridF.rename(d_vars)
-    gridF = gridF.isel({i_name: i_slice, j_name: j_slice})
-    gridF = gridF.assign_coords({j_name: gridF[j_name] + 1.5,
-                                 i_name: gridF[i_name] + 1.5,
-                                 f"{label}_gphif": gridF[f"{label}_gphif"],
-                                 f"{label}_glamf": gridF[f"{label}_glamf"]
-                                 })
+    # -- Process T / U / V / W / F grids -- #
+    d_proc_grids = {}
+    for grid in ['gridT', 'gridU', 'gridV', 'gridW', 'gridF']:        
+        k_name = f"k{label}" if grid != 'gridF' else None
+        d_proc_grids[grid] = _process_grid(d_grids=d_grids,
+                                           grid=grid,
+                                           label=f"{label}_",
+                                           i_slice=i_slice,
+                                           j_slice=j_slice,
+                                           i_name=f"i{label}",
+                                           j_name=f"j{label}",
+                                           k_name=k_name,
+                                           )
 
     d_out = {
-        f"/gridT/{label}_gridT": gridT,
-        f"/gridU/{label}_gridU": gridU,
-        f"/gridV/{label}_gridV": gridV,
-        f"/gridW/{label}_gridW": gridW,
-        f"/gridF/{label}_gridF": gridF
+        f"/gridT/{label}_gridT": d_proc_grids['gridT'],
+        f"/gridU/{label}_gridU": d_proc_grids['gridU'],
+        f"/gridV/{label}_gridV": d_proc_grids['gridV'],
+        f"/gridW/{label}_gridW": d_proc_grids['gridW'],
+        f"/gridF/{label}_gridF": d_proc_grids['gridF']
             } 
 
     return d_out
-
 
 def _process_grandchild(
     d_grandchild: dict[dict[str, str]],
@@ -521,12 +496,13 @@ def _process_grandchild(
         }
     """
     # -- Open NEMO domain and grid datasets -- #
-    d_grids = _process_grid_datasets(d_grandchild)
+    d_grids = _open_grid_datasets(d_grandchild)
 
     # -- Append domain variables to each grid dataset -- #
     d_grids = _add_domain_vars(d_grids)
 
     # -- Get child domain indices -- #
+    # TODO: Check if this is also correct for real grandchild domain.
     ind_child = _get_child_indices(rx=d_nests['rx'],
                                    ry=d_nests['ry'],
                                    imin=d_nests['imin'],
@@ -534,98 +510,29 @@ def _process_grandchild(
                                    jmin=d_nests['jmin'],
                                    jmax=d_nests['jmax']
                                    )
-    i_name = f"i{label}"
-    j_name = f"j{label}"
-    k_name = f"k{label}"
-    d_rename = {"y": j_name, "x": i_name}
+    i_slice = slice(ind_child[0], ind_child[1] + 1)
+    j_slice = slice(ind_child[2], ind_child[3] + 1)
 
-    # -- Construct T / U / V / W / F grids -- #
-    gridT = d_grids["gridT"].rename_dims({**d_rename , **{"deptht": k_name}})
-    d_vars = {'deptht': f"{label}_deptht", 'gphit': f"{label}_gphit", 'glamt': f"{label}_glamt"}
-    if 'tmask' in gridT.data_vars:
-        d_vars['tmask'] = f"{label}_tmask"
-    gridT = gridT.rename(d_vars)
-
-    for coord in ('nav_lat', 'nav_lon'):
-        if coord in gridT:
-            gridT = gridT.drop_vars(coord)
-    gridT = gridT.isel({i_name: slice(*ind_child[:2]), j_name: slice(*ind_child[2:])})
-    gridT = gridT.assign_coords({k_name: gridT[k_name] + 1,
-                                 j_name: gridT[j_name] + 1,
-                                 i_name: gridT[i_name] + 1,
-                                 f"{label}_gphit": gridT[f"{label}_gphit"],
-                                 f"{label}_glamt": gridT[f"{label}_glamt"]
-                                 })
-
-    gridU = d_grids["gridU"].rename_dims({**d_rename , **{"depthu": k_name}})
-    d_vars = {'depthu': f"{label}_depthu", 'gphiu': f"{label}_gphiu", 'glamu': f"{label}_glamu"}
-    if 'umask' in gridU.data_vars:
-        d_vars['umask'] = f"{label}_umask"
-    gridU = gridU.rename(d_vars)
-
-    for coord in ('nav_lat', 'nav_lon'):
-        if coord in gridU:
-            gridU = gridU.drop_vars(coord)
-    gridU = gridU.isel({i_name: slice(*ind_child[:2]), j_name: slice(*ind_child[2:])})
-    gridU = gridU.assign_coords({k_name: gridU[k_name] + 1,
-                                 j_name: gridU[j_name] + 1,
-                                 i_name: gridU[i_name] + 1.5,
-                                 f"{label}_gphiu": gridU[f"{label}_gphiu"],
-                                 f"{label}_glamu": gridU[f"{label}_glamu"]
-                                 })
-
-    gridV = d_grids["gridV"].rename_dims({**d_rename , **{"depthv": k_name}})
-    d_vars = {'depthv': f"{label}_depthv", 'gphiv': f"{label}_gphiv", 'glamv': f"{label}_glamv"}
-    if 'vmask' in gridV.data_vars:
-        d_vars['vmask'] = f"{label}_vmask"
-    gridV = gridV.rename(d_vars)
-
-    for coord in ('nav_lat', 'nav_lon'):
-        if coord in gridV:
-            gridV = gridV.drop_vars(coord)
-    gridV = gridV.isel({i_name: slice(*ind_child[:2]), j_name: slice(*ind_child[2:])})
-    gridV = gridV.assign_coords({k_name: gridV[k_name] + 1,
-                                 j_name: gridV[j_name] + 1.5,
-                                 i_name: gridV[i_name] + 1,
-                                 f"{label}_gphiv": gridV[f"{label}_gphiv"],
-                                 f"{label}_glamv": gridV[f"{label}_glamv"]
-                                 })
-
-    gridW = d_grids["gridW"].rename_dims({**d_rename , **{"depthw": k_name}})
-    d_vars = {'depthw': f"{label}_depthw", 'gphit': f"{label}_gphit", 'glamt': f"{label}_glamt"}
-    if 'wmask' in gridW.data_vars:
-        d_vars['wmask'] = f"{label}_wmask"
-    gridW = gridW.rename(d_vars)
-
-    for coord in ('nav_lat', 'nav_lon'):
-        if coord in gridW:
-            gridW = gridW.drop_vars(coord)
-    gridW = gridW.isel({i_name: slice(*ind_child[:2]), j_name: slice(*ind_child[2:])})
-    gridW = gridW.assign_coords({k_name: gridW[k_name] + 0.5,
-                                 j_name: gridW[j_name] + 1,
-                                 i_name: gridW[i_name] + 1,
-                                 f"{label}_gphit": gridT[f"{label}_gphit"],
-                                 f"{label}_glamt": gridT[f"{label}_glamt"]
-                                 })
-
-    gridF = d_grids["gridF"].rename_dims(d_rename)
-    d_vars = {'gphif': f"{label}_gphif", 'glamf': f"{label}_glamf"}
-    if 'fmask' in gridF.data_vars:
-        d_vars['fmask'] = f"{label}_fmask"
-    gridF = gridF.rename(d_vars)
-    gridF = gridF.isel({i_name: slice(*ind_child[:2]), j_name: slice(*ind_child[2:])})
-    gridF = gridF.assign_coords({j_name: gridF[j_name] + 1.5,
-                                 i_name: gridF[i_name] + 1.5,
-                                 f"{label}_gphif": gridF[f"{label}_gphif"],
-                                 f"{label}_glamf": gridF[f"{label}_glamf"]
-                                 })
+    # -- Process T / U / V / W / F grids -- #
+    d_proc_grids = {}
+    for grid in ['gridT', 'gridU', 'gridV', 'gridW', 'gridF']:        
+        k_name = f"k{label}" if grid != 'gridF' else None
+        d_proc_grids[grid] = _process_grid(d_grids=d_grids,
+                                           grid=grid,
+                                           label=f"{label}_",
+                                           i_slice=i_slice,
+                                           j_slice=j_slice,
+                                           i_name=f"i{label}",
+                                           j_name=f"j{label}",
+                                           k_name=k_name,
+                                           )
 
     d_out = {
-        f"/gridT/{parent_label}_gridT/{label}_gridT": gridT,
-        f"/gridU/{parent_label}_gridU/{label}_gridU": gridU,
-        f"/gridV/{parent_label}_gridV/{label}_gridV": gridV,
-        f"/gridW/{parent_label}_gridW/{label}_gridW": gridW,
-        f"/gridF/{parent_label}_gridF/{label}_gridF": gridF
+        f"/gridT/{parent_label}_gridT/{label}_gridT": d_proc_grids['gridT'],
+        f"/gridU/{parent_label}_gridU/{label}_gridU": d_proc_grids['gridU'],
+        f"/gridV/{parent_label}_gridV/{label}_gridV": d_proc_grids['gridV'],
+        f"/gridW/{parent_label}_gridW/{label}_gridW": d_proc_grids['gridW'],
+        f"/gridF/{parent_label}_gridF/{label}_gridF": d_proc_grids['gridF']
             } 
 
     return d_out
