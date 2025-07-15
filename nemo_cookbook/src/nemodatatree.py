@@ -102,7 +102,6 @@ class NEMODataTree(xr.DataTree):
 
         d_child, d_grandchild = None, None
 
-        # TODO: Add NEMO mask variables to grids.
         if 'parent' in paths.keys() and isinstance(paths['parent'], dict):
             for key in paths.keys():
                 if key not in ('parent', 'child', 'grandchild'):
@@ -173,7 +172,7 @@ class NEMODataTree(xr.DataTree):
                    dom: str,
                    ) -> xr.DataArray:
         """
-        Add mask variables for model domain to NEMODataTree.
+        Add mask variables for NEMO model domain to DataTree.
 
         Parameters
         ----------
@@ -260,6 +259,7 @@ class NEMODataTree(xr.DataTree):
         w_mask.coords[depth_name[0]] = t_mask.coords[depth_name[0]]
 
         # -- f_mask -- #
+        # TODO: Handle zonally periodic and closed domains.
         f_mask = (
             t_mask.isel({f"i{dom_str}": slice(None, -1)}) * t_mask.isel({f"i{dom_str}": slice(1, None)}) *
             t_mask.isel({f"j{dom_str}": slice(None, -1)}) * t_mask.isel({f"j{dom_str}": slice(1, None)})
@@ -302,12 +302,12 @@ class NEMODataTree(xr.DataTree):
             Dimension along which to calculate gradient (e.g., 'i', 'j', 'k').
         dom : str, optional
             Prefix of NEMO domain in the DataTree (e.g., '1', '2', '3', etc.).
-            Use '.' for the parent domain.
+            Default is '.' for the parent domain.
 
         Returns
         -------
         xr.DataArray
-            Gradient of chosen scalar variable stored on the NEMO model grid.
+            Gradient of scalar variable defined on a NEMO model grid.
         """
         # -- Define path to T-grid -- #
         if dom == ".":
@@ -394,21 +394,23 @@ class NEMODataTree(xr.DataTree):
         dom: str = '.',
     ) -> xr.DataArray:
         """
-        Calculate the horizontal divergence of a vector variable on a NEMO model grid.
+        Calculate the horizontal divergence of a vector field defined
+        on a NEMO model grid.
 
         Parameters
         ----------
-        vars : str
-            Name of the vector variables, structured as: ['u', 'v'], where 'u' and 'v' are
-            the i and j components of the vector variable, respectively.
+        vars : list[str]
+            Name of the vector variables, structured as: ['u', 'v'], where
+            'u' and 'v' are the i and j components of the vector field,
+            respectively.
         dom : str, optional
             Prefix of NEMO domain in the DataTree (e.g., '1', '2', '3', etc.).
-            Use '.' for the parent domain.
+            Default is '.' for the parent domain.
 
         Returns
         -------
         xr.DataArray
-            Horizontal divergence of chosen vector variable stored on the NEMO model grid.
+            Horizontal divergence of vector field defined on a NEMO model grid.
         """
         # -- Define path to U/V-grids -- #
         if dom == ".":
@@ -477,21 +479,21 @@ class NEMODataTree(xr.DataTree):
         dom: str = '.',
     ) -> xr.DataArray:
         """
-        Calculate the vertical (k) curl component of a vector variable on a NEMO model grid.
+        Calculate the vertical (k) curl component of a vector field on a NEMO model grid.
 
         Parameters
         ----------
-        vars : str
+        vars : list[str]
             Name of the vector variables, structured as: ['u', 'v'], where 'u' and 'v' are
-            the i and j components of the vector variable, respectively.
+            the i and j components of the vector field, respectively.
         dom : str, optional
             Prefix of NEMO domain in the DataTree (e.g., '1', '2', '3', etc.).
-            Use '.' for the parent domain.
+            Default is '.' for the parent domain.
 
         Returns
         -------
         xr.DataArray
-            Vertical curl component of a vector variable stored on the NEMO model grid.
+            Vertical curl component of vector field defined on a NEMO model grid.
         """
         # -- Define path to U/V-grids -- #
         if dom == ".":
@@ -562,10 +564,12 @@ class NEMODataTree(xr.DataTree):
 
     # TODO: Add 'vertical_average' method to calculate vertical averages of scalar variables.
 
-    # TODO: Add 'integrate' method to calculate integrals of scalar or vector variables.
+    # TODO: Add 'integral' method to calculate integrals of scalar or vector variables.
 
     # TODO: Add 'cumintegral' method to calculate accumulative integrals of scalar or vector variables.
 
     # TODO: Add 'transform' method to transform variables between grids (e.g., from T to U grid).
 
     # TODO: Add 'vertical_transform' method to transform variables between vertical coordinates (e.g., from z to sigma).
+
+    # TODO: Add 'degrade' method to conservatively coarsen a variable on a NEMO model grid.
