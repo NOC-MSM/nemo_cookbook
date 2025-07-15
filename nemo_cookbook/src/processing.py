@@ -11,6 +11,7 @@ Ollie Tooth (oliver.tooth@noc.ac.uk)
 
 import xarray as xr
 
+
 def _get_child_indices(imin, imax, jmin, jmax, rx, ry):
     """
     Get the indices within the child domain which define
@@ -159,24 +160,34 @@ def _add_domain_vars(
     d_grids['gridT']['e2t'] = domain.e2t
     d_grids['gridT']['gphit'] = domain.gphit
     d_grids['gridT']['glamt'] = domain.glamt
+    d_grids['gridT']['top_level'] = domain.top_level
+    d_grids['gridT']['bottom_level'] = domain.bottom_level
+    if 'tmask' in domain.data_vars:
+        d_grids['gridT']['tmask'] = domain.tmask
 
     # U-grid:
     d_grids['gridU']['e1u'] = domain.e1u
     d_grids['gridU']['e2u'] = domain.e2u
     d_grids['gridU']['gphiu'] = domain.gphiu
     d_grids['gridU']['glamu'] = domain.glamu
+    if 'umask' in domain.data_vars:
+        d_grids['gridU']['umask'] = domain.umask
 
     # V-grid:
     d_grids['gridV']['e1v'] = domain.e1v
     d_grids['gridV']['e2v'] = domain.e2v
     d_grids['gridV']['gphiv'] = domain.gphiv
     d_grids['gridV']['glamv'] = domain.glamv
+    if 'vmask' in domain.data_vars:
+        d_grids['gridV']['vmask'] = domain.vmask
 
     # W-grid:
     d_grids['gridW']['e1t'] = domain.e1t
     d_grids['gridW']['e2t'] = domain.e2t
     d_grids['gridW']['gphit'] = domain.gphit
     d_grids['gridW']['glamt'] = domain.glamt
+    if 'wmask' in domain.data_vars:
+        d_grids['gridW']['wmask'] = domain.wmask
 
     # F-grid:
     d_grids['gridF'] = xr.Dataset()
@@ -184,6 +195,8 @@ def _add_domain_vars(
     d_grids['gridF']['e2f'] = domain.e2f
     d_grids['gridF']['gphif'] = domain.gphif
     d_grids['gridF']['glamf'] = domain.glamf
+    if 'fmask' in domain.data_vars:
+        d_grids['gridF']['fmask'] = domain.fmask
     
     return d_grids
 
@@ -363,21 +376,28 @@ def _process_child(
 
     # -- Construct T / U / V / W / F grids -- #
     gridT = d_grids["gridT"].rename_dims({**d_rename , **{"deptht": k_name}})
-    gridT = gridT.rename({'deptht': f"{label}_deptht"})
+    d_vars = {'deptht': f"{label}_deptht", 'gphit': f"{label}_gphit", 'glamt': f"{label}_glamt"}
+    if 'tmask' in gridT.data_vars:
+        d_vars['tmask'] = f"{label}_tmask"
+    gridT = gridT.rename(d_vars)
+
     for coord in ('nav_lat', 'nav_lon'):
         if coord in gridT:
             gridT = gridT.drop_vars(coord)
-    print(f"GridT shape: {gridT.sizes}")
     gridT = gridT.isel({i_name: i_slice, j_name: j_slice})
     gridT = gridT.assign_coords({k_name: gridT[k_name] + 1,
                                  j_name: gridT[j_name] + 1,
                                  i_name: gridT[i_name] + 1,
-                                 f"{label}_gphit": gridT.gphit,
-                                 f"{label}_glamt": gridT.glamt
+                                 f"{label}_gphit": gridT[f"{label}_gphit"],
+                                 f"{label}_glamt": gridT[f"{label}_glamt"]
                                  })
 
     gridU = d_grids["gridU"].rename_dims({**d_rename , **{"depthu": k_name}})
-    gridU = gridU.rename({'depthu': f"{label}_depthu"})
+    d_vars = {'depthu': f"{label}_depthu", 'gphiu': f"{label}_gphiu", 'glamu': f"{label}_glamu"}
+    if 'umask' in gridU.data_vars:
+        d_vars['umask'] = f"{label}_umask"
+    gridU = gridU.rename(d_vars)
+
     for coord in ('nav_lat', 'nav_lon'):
         if coord in gridU:
             gridU = gridU.drop_vars(coord)
@@ -385,12 +405,16 @@ def _process_child(
     gridU = gridU.assign_coords({k_name: gridU[k_name] + 1,
                                  j_name: gridU[j_name] + 1,
                                  i_name: gridU[i_name] + 1.5,
-                                 f"{label}_gphiu": gridU.gphiu,
-                                 f"{label}_glamu": gridU.glamu
+                                 f"{label}_gphiu": gridU[f"{label}_gphiu"],
+                                 f"{label}_glamu": gridU[f"{label}_glamu"]
                                  })
 
     gridV = d_grids["gridV"].rename_dims({**d_rename , **{"depthv": k_name}})
-    gridV = gridV.rename({'depthv': f"{label}_depthv"})
+    d_vars = {'depthv': f"{label}_depthv", 'gphiv': f"{label}_gphiv", 'glamv': f"{label}_glamv"}
+    if 'vmask' in gridV.data_vars:
+        d_vars['vmask'] = f"{label}_vmask"
+    gridV = gridV.rename(d_vars)
+
     for coord in ('nav_lat', 'nav_lon'):
         if coord in gridV:
             gridV = gridV.drop_vars(coord)
@@ -398,12 +422,16 @@ def _process_child(
     gridV = gridV.assign_coords({k_name: gridV[k_name] + 1,
                                  j_name: gridV[j_name] + 1.5,
                                  i_name: gridV[i_name] + 1,
-                                 f"{label}_gphiv": gridV.gphiv,
-                                 f"{label}_glamv": gridV.glamv
+                                 f"{label}_gphiv": gridV[f"{label}_gphiv"],
+                                 f"{label}_glamv": gridV[f"{label}_glamv"]
                                  })
 
     gridW = d_grids["gridW"].rename_dims({**d_rename , **{"depthw": k_name}})
-    gridW = gridW.rename({'depthw': f"{label}_depthw"})
+    d_vars = {'depthw': f"{label}_depthw", 'gphit': f"{label}_gphit", 'glamt': f"{label}_glamt"}
+    if 'wmask' in gridW.data_vars:
+        d_vars['wmask'] = f"{label}_wmask"
+    gridW = gridW.rename(d_vars)
+
     for coord in ('nav_lat', 'nav_lon'):
         if coord in gridW:
             gridW = gridW.drop_vars(coord)
@@ -411,16 +439,20 @@ def _process_child(
     gridW = gridW.assign_coords({k_name: gridW[k_name] + 0.5,
                                  j_name: gridW[j_name] + 1,
                                  i_name: gridW[i_name] + 1,
-                                 f"{label}_gphit": gridT.gphit,
-                                 f"{label}_glamt": gridT.glamt
+                                 f"{label}_gphit": gridT[f"{label}_gphit"],
+                                 f"{label}_glamt": gridT[f"{label}_glamt"]
                                  })
 
     gridF = d_grids["gridF"].rename_dims(d_rename)
+    d_vars = {'gphif': f"{label}_gphif", 'glamf': f"{label}_glamf"}
+    if 'fmask' in gridF.data_vars:
+        d_vars['fmask'] = f"{label}_fmask"
+    gridF = gridF.rename(d_vars)
     gridF = gridF.isel({i_name: i_slice, j_name: j_slice})
     gridF = gridF.assign_coords({j_name: gridF[j_name] + 1.5,
                                  i_name: gridF[i_name] + 1.5,
-                                 f"{label}_gphif": gridF.gphif,
-                                 f"{label}_glamf": gridF.glamf
+                                 f"{label}_gphif": gridF[f"{label}_gphif"],
+                                 f"{label}_glamf": gridF[f"{label}_glamf"]
                                  })
 
     d_out = {
@@ -509,7 +541,11 @@ def _process_grandchild(
 
     # -- Construct T / U / V / W / F grids -- #
     gridT = d_grids["gridT"].rename_dims({**d_rename , **{"deptht": k_name}})
-    gridT = gridT.rename({'deptht': f"{label}_deptht"})
+    d_vars = {'deptht': f"{label}_deptht", 'gphit': f"{label}_gphit", 'glamt': f"{label}_glamt"}
+    if 'tmask' in gridT.data_vars:
+        d_vars['tmask'] = f"{label}_tmask"
+    gridT = gridT.rename(d_vars)
+
     for coord in ('nav_lat', 'nav_lon'):
         if coord in gridT:
             gridT = gridT.drop_vars(coord)
@@ -517,12 +553,16 @@ def _process_grandchild(
     gridT = gridT.assign_coords({k_name: gridT[k_name] + 1,
                                  j_name: gridT[j_name] + 1,
                                  i_name: gridT[i_name] + 1,
-                                 f"{label}_gphit": gridT.gphit,
-                                 f"{label}_glamt": gridT.glamt
+                                 f"{label}_gphit": gridT[f"{label}_gphit"],
+                                 f"{label}_glamt": gridT[f"{label}_glamt"]
                                  })
 
     gridU = d_grids["gridU"].rename_dims({**d_rename , **{"depthu": k_name}})
-    gridU = gridU.rename({'depthu': f"{label}_depthu"})
+    d_vars = {'depthu': f"{label}_depthu", 'gphiu': f"{label}_gphiu", 'glamu': f"{label}_glamu"}
+    if 'umask' in gridU.data_vars:
+        d_vars['umask'] = f"{label}_umask"
+    gridU = gridU.rename(d_vars)
+
     for coord in ('nav_lat', 'nav_lon'):
         if coord in gridU:
             gridU = gridU.drop_vars(coord)
@@ -530,12 +570,16 @@ def _process_grandchild(
     gridU = gridU.assign_coords({k_name: gridU[k_name] + 1,
                                  j_name: gridU[j_name] + 1,
                                  i_name: gridU[i_name] + 1.5,
-                                 f"{label}_gphiu": gridU.gphiu,
-                                 f"{label}_glamu": gridU.glamu
+                                 f"{label}_gphiu": gridU[f"{label}_gphiu"],
+                                 f"{label}_glamu": gridU[f"{label}_glamu"]
                                  })
 
     gridV = d_grids["gridV"].rename_dims({**d_rename , **{"depthv": k_name}})
-    gridV = gridV.rename({'depthv': f"{label}_depthv"})
+    d_vars = {'depthv': f"{label}_depthv", 'gphiv': f"{label}_gphiv", 'glamv': f"{label}_glamv"}
+    if 'vmask' in gridV.data_vars:
+        d_vars['vmask'] = f"{label}_vmask"
+    gridV = gridV.rename(d_vars)
+
     for coord in ('nav_lat', 'nav_lon'):
         if coord in gridV:
             gridV = gridV.drop_vars(coord)
@@ -543,12 +587,16 @@ def _process_grandchild(
     gridV = gridV.assign_coords({k_name: gridV[k_name] + 1,
                                  j_name: gridV[j_name] + 1.5,
                                  i_name: gridV[i_name] + 1,
-                                 f"{label}_gphiv": gridV.gphiv,
-                                 f"{label}_glamv": gridV.glamv
+                                 f"{label}_gphiv": gridV[f"{label}_gphiv"],
+                                 f"{label}_glamv": gridV[f"{label}_glamv"]
                                  })
 
     gridW = d_grids["gridW"].rename_dims({**d_rename , **{"depthw": k_name}})
-    gridW = gridW.rename({'depthw': f"{label}_depthw"})
+    d_vars = {'depthw': f"{label}_depthw", 'gphit': f"{label}_gphit", 'glamt': f"{label}_glamt"}
+    if 'wmask' in gridW.data_vars:
+        d_vars['wmask'] = f"{label}_wmask"
+    gridW = gridW.rename(d_vars)
+
     for coord in ('nav_lat', 'nav_lon'):
         if coord in gridW:
             gridW = gridW.drop_vars(coord)
@@ -556,16 +604,20 @@ def _process_grandchild(
     gridW = gridW.assign_coords({k_name: gridW[k_name] + 0.5,
                                  j_name: gridW[j_name] + 1,
                                  i_name: gridW[i_name] + 1,
-                                 f"{label}_gphit": gridT.gphit,
-                                 f"{label}_glamt": gridT.glamt
+                                 f"{label}_gphit": gridT[f"{label}_gphit"],
+                                 f"{label}_glamt": gridT[f"{label}_glamt"]
                                  })
 
     gridF = d_grids["gridF"].rename_dims(d_rename)
+    d_vars = {'gphif': f"{label}_gphif", 'glamf': f"{label}_glamf"}
+    if 'fmask' in gridF.data_vars:
+        d_vars['fmask'] = f"{label}_fmask"
+    gridF = gridF.rename(d_vars)
     gridF = gridF.isel({i_name: slice(*ind_child[:2]), j_name: slice(*ind_child[2:])})
     gridF = gridF.assign_coords({j_name: gridF[j_name] + 1.5,
                                  i_name: gridF[i_name] + 1.5,
-                                 f"{label}_gphif": gridF.gphif,
-                                 f"{label}_glamf": gridF.glamf
+                                 f"{label}_gphif": gridF[f"{label}_gphif"],
+                                 f"{label}_glamf": gridF[f"{label}_glamf"]
                                  })
 
     d_out = {

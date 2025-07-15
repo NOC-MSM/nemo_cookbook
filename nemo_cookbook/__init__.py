@@ -9,4 +9,4 @@ from nemo_cookbook.src.wmt import compute_volume_census, compute_sfoc_sigma0, co
 from nemo_cookbook.src.extract import extract_section
 from nemo_cookbook.src.transform import transform_vertical_coords
 
-from nemo_cookbook.src.nemo_datatree import NEMODataTree
+from nemo_cookbook.src.nemodatatree import NEMODataTree
