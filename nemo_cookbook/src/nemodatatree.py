@@ -1,5 +1,5 @@
 """
-nemo_datatree.py
+nemodatatree.py
 
 Description:
 This module defines the NEMODataTree class, a hierarchical data structure
@@ -10,10 +10,11 @@ Author:
 Ollie Tooth (oliver.tooth@noc.ac.uk)
 """
 
+from unittest import case
 import xarray as xr
 from typing import Self
 
-from .processing import _process_parent, _process_child, _process_grandchild
+from .processing import _create_datatree_dict
 
 
 class NEMODataTree(xr.DataTree):
@@ -49,7 +50,6 @@ class NEMODataTree(xr.DataTree):
         cls,
         paths: dict[str, str],
         nests: dict[str, str] | None = None,
-        global_parent: bool = True,
     ) -> Self:
         """
         Create a NEMODataTree from a dictionary of paths to NEMO model output files,
@@ -83,11 +83,6 @@ class NEMODataTree(xr.DataTree):
             where `rx` and `ry` are the horizontal refinement factors, and `imin`, `imax`, `jmin`, `jmax`
             define the indices of the child (grandchild) domain within the parent (child) domain.
 
-        global_parent : bool, optional
-            If True, the parent domain is treated as a global domain with zonal periodicity and a closed
-            southern boundary.
-            If False, the parent domain is treated as a closed (regional) domain without periodicity.
-
         Returns
         -------
         NEMODataTree
@@ -97,11 +92,9 @@ class NEMODataTree(xr.DataTree):
             raise TypeError("paths must be a dictionary or nested dictionary.")
         if not isinstance(nests, (dict, type(None))):
             raise TypeError("nests must be a dictionary or None.")
-        if not isinstance(global_parent, bool):
-            raise TypeError("global_parent must be a boolean value.")
 
+        # Define parent, child, grandchild filepath collections:
         d_child, d_grandchild = None, None
-
         if 'parent' in paths.keys() and isinstance(paths['parent'], dict):
             for key in paths.keys():
                 if key not in ('parent', 'child', 'grandchild'):
@@ -115,173 +108,90 @@ class NEMODataTree(xr.DataTree):
         else:
             raise ValueError("Invalid paths structure. Expected a nested dictionary defining NEMO 'parent', 'child' and 'grandchild' domains.")
 
-        # Assign the parent domain:
-        d_tree = _process_parent(d_parent)
+        # Construct DataTree from parent / child / grandchild domains:
+        d_tree = _create_datatree_dict(d_parent=d_parent,
+                                       d_child=d_child,
+                                       d_grandchild=d_grandchild,
+                                       nests=nests,
+                                       )
 
-        # Update dict with child domains:
-        if d_child is not None:
-            if all(isinstance(d_child[key], dict) for key in d_child.keys()):
-                for key in d_child.keys():
-                    if key in nests.keys():
-                        d_nests = nests[key]
-                        if 'parent' in d_nests.keys():
-                            d_tree = {**d_tree, **_process_child(d_child=d_child[key],
-                                                                 d_nests=d_nests,
-                                                                 label=int(key)
-                                                                 )}
-                        else:
-                            raise KeyError(f"Child nest dict '{key}' does not specify a parent domain.")
-                    else:
-                        raise KeyError(f"Child domain '{key}' not found in nests dict.")
-            else:
-                raise ValueError("Invalid child domain structure. Expected a nested dict defining NEMO child domain(s).")
+        datatree = super().from_dict(d_tree)
 
-        # Update dict with grandchild domains:
-        if d_grandchild is not None:
-            if all(isinstance(d_grandchild[key], dict) for key in d_grandchild.keys()):
-                for key in d_grandchild.keys():
-                    if key in nests.keys():
-                        d_nests = nests[key]
-                        if 'parent' in d_nests.keys():
-                            if d_nests['parent'] in d_child.keys():
-                                parent_label = d_nests['parent']
-                                d_tree = {**d_tree, **_process_grandchild(d_grandchild[key],
-                                                                          d_nests=d_nests,
-                                                                          label=int(key),
-                                                                          parent_label=int(parent_label)
-                                                                          )}
-                            else:
-                                raise KeyError(f"Parent domain '{parent_label}' not found in child domains.")
-                        else:
-                            raise KeyError(f"Grandchild nest dict '{key}' does not specify a parent domain.")
-                    else:
-                        raise KeyError(f"Grandchild domain '{key}' not found in nests dict.")
-            else:
-                raise ValueError("Invalid grandchild domain structure. Expected a nested dict defining NEMO grandchild domain(s).")
-                
-        # Define DataTree from parent / child / grandchild domains:
-        dt = super().from_dict(d_tree)
-
-        # Set parent domain type attribute:
-        dt["/"].attrs["global"] = global_parent
-
-        return dt
+        return datatree
 
 
-    def _add_masks(cls,
-                   dom: str,
-                   ) -> xr.DataArray:
+    @classmethod
+    def from_datasets(
+        cls,
+        datasets: dict[str, xr.Dataset],
+        nests: dict[str, str] | None = None,
+    ) -> Self:
         """
-        Add mask variables for NEMO model domain to DataTree.
+        Create a NEMODataTree from a dictionary of xarray.Dataset objects created from NEMO model output files,
+        organised into a hierarchy of domains (i.e., 'parent', 'child', 'grandchild').
 
         Parameters
         ----------
-        dom : str
-            Prefix of NEMO domain in the DataTree (e.g., '1', '2', '3', etc.).
-            Use '.' for the parent domain.
+        datasets : dict[str, xr.Dataset]
+            A dictionary containing xarray.Datasets created from NEMO grid files, structured as:
+            {
+                'parent': {'domain': ds_domain, 'gridT': ds_gridT, ...},
+                'child': {'1': {'domain': ds_domain_1, 'gridT': d_gridT_1, ...},
+                          },
+                'grandchild': {'2': {'domain': ds_domain_2, 'gridT': ds_gridT_2, ...},
+                               }
+            }
+
+        nests : dict[str, str], optional
+            A dictionary describing the properties of nested domains, structured as:
+            {
+                "1": {
+                    "parent": "/",
+                    "rx": rx,
+                    "ry": ry,
+                    "imin": imin,
+                    "imax": imax,
+                    "jmin": jmin,
+                    "jmax": jmax,
+                    },
+            }
+            where `rx` and `ry` are the horizontal refinement factors, and `imin`, `imax`, `jmin`, `jmax`
+            define the indices of the child (grandchild) domain within the parent (child) domain.
+
+        Returns
+        -------
+        NEMODataTree
+            A hierarchical data tree of NEMO model outputs.
         """
-        # Define T-grid path in DataTree:
-        if dom == ".":
-            gridT = "/gridT"
-            dom_str = ""
-            dom_global = cls["/"].attrs.get("global", True)
+        if not isinstance(datasets, dict):
+            raise TypeError("datasets must be a dictionary or nested dictionary.")
+        if not isinstance(nests, (dict, type(None))):
+            raise TypeError("nests must be a dictionary or None.")
+
+        # Define parent, child, grandchild dataset collections:
+        d_child, d_grandchild = None, None
+        if 'parent' in datasets.keys() and isinstance(datasets['parent'], dict):
+            for key in datasets.keys():
+                if key not in ('parent', 'child', 'grandchild'):
+                    raise ValueError(f"Unexpected key '{key}' in datasets dictionary.")
+                if key == 'parent':
+                    d_parent = datasets['parent']
+                elif key == 'child':
+                    d_child = datasets['child']
+                elif key == 'grandchild':
+                    d_grandchild = datasets['grandchild']
         else:
-            nodes = [n[0] for n in cls.subtree_with_keys if dom in n[0]]
-            gridT = [n for n in nodes if "gridT" in n][0]
-            dom_str = dom
-            dom_global = False
+            raise ValueError("Invalid datasets structure. Expected a nested dictionary defining NEMO 'parent', 'child' and 'grandchild' domains.")
 
-        # -- Define t_mask from top/bottom_level -- #
-        ka = cls[gridT][f"k{dom_str}"].expand_dims({f"i{dom_str}": cls[gridT][f"i{dom_str}"],
-                                                    f"j{dom_str}": cls[gridT][f"j{dom_str}"]
-                                                    })
-        # Exclude land points:
-        mask_1 = ~(ka < cls[gridT].top_level)
-        # Keep wet cells between top and bottom levels:
-        mask_2 = (ka >= cls[gridT].top_level) & (cls[gridT].bottom_level >= ka)
-        # Exclude points below the sea floor:
-        mask_3 = ~(cls[gridT].bottom_level < ka)
+        # Construct DataTree from parent / child / grandchild domains:
+        d_tree = _create_datatree_dict(d_parent=d_parent,
+                                       d_child=d_child,
+                                       d_grandchild=d_grandchild,
+                                       nests=nests,
+                                       )
+        datatree = super().from_dict(d_tree)
 
-        # -- t_mask -- #
-        t_mask = (mask_1 & mask_2 & mask_3).T
-
-        # -- u_mask -- #
-        if dom_global:
-            # Zonally Periodic Parent Domain:
-            tmask_end = t_mask.isel(i=0)
-            tmask_end["i"] = t_mask["i"].max() + 1
-            tmask = xr.concat([t_mask, tmask_end], dim="i")
-
-            tmask_1 = tmask.isel({f"i{dom_str}": slice(None, -1)})
-            tmask_2 = tmask.isel({f"i{dom_str}": slice(1, None)})
-            tmask_2.coords["i"] = tmask_2.coords["i"] - 1
-
-            u_mask = tmask_1 * tmask_2
-            u_mask.coords[f"i{dom_str}"] = u_mask.coords[f"i{dom_str}"] + 0.5
-
-        else:
-            # Closed Parent / Child Domain - masked at first and last U-points:
-            tmask_1 = t_mask.isel({f"i{dom_str}": slice(None, -1)})
-            tmask_2 = t_mask.isel({f"i{dom_str}": slice(1, None)})
-            tmask_2.coords[f"i{dom_str}"] = tmask_2.coords[f"i{dom_str}"] - 1
-
-            umask = tmask_1 * tmask_2
-            umask_end = umask.isel({f"i{dom_str}": 0})
-            umask_end.coords[f"i{dom_str}"] = umask[f"i{dom_str}"].max() + 1
-
-            u_mask = xr.concat([umask, umask_end], dim=f"i{dom_str}").astype('bool')
-            u_mask.coords[f"i{dom_str}"] = u_mask.coords[f"i{dom_str}"] + 0.5
-
-        # -- v_mask -- #
-        tmask_1 = t_mask.isel({f"j{dom_str}": slice(None, -1)})
-        tmask_2 = t_mask.isel({f"j{dom_str}": slice(1, None)})
-        tmask_2.coords[f"j{dom_str}"] = tmask_2.coords[f"j{dom_str}"] - 1
-
-        vmask = tmask_1 * tmask_2
-        vmask_end = t_mask.isel({f"j{dom_str}": -1})
-        vmask_end.coords[f"j{dom_str}"] = vmask[f"j{dom_str}"].max() + 1
-
-        v_mask = xr.concat([vmask, vmask_end], dim=f"j{dom_str}").astype('bool')
-        v_mask.coords[f"j{dom_str}"] = v_mask.coords[f"j{dom_str}"] + 0.5
-
-        # -- w_mask -- #
-        # NEMO Manual pp.36: At k=1 -> sea surface, w_mask(i, j, 1) = tmask(i, j, 1)
-        w_mask = t_mask.isel({f"k{dom_str}": slice(1, None)}) * t_mask.isel({f"k{dom_str}": slice(None, -1)})
-        w_mask.coords[f"k{dom_str}"] = w_mask.coords[f"k{dom_str}"] + 0.5
-        depth_name = [var for var in w_mask.coords if var.endswith("deptht")]
-        w_mask = w_mask.drop_vars(depth_name)
-
-        tmask_st = t_mask.isel({f"k{dom_str}": 0})
-        tmask_st = tmask_st.drop_vars(depth_name)
-
-        tmask_st.coords[f"k{dom_str}"] = t_mask.coords[f"k{dom_str}"].min() - 1
-        w_mask = xr.concat([w_mask, tmask_st], dim=f"k{dom_str}").astype('bool')
-        w_mask.coords[depth_name[0]] = t_mask.coords[depth_name[0]]
-
-        # -- f_mask -- #
-        # TODO: Handle zonally periodic and closed domains.
-        f_mask = (
-            t_mask.isel({f"i{dom_str}": slice(None, -1)}) * t_mask.isel({f"i{dom_str}": slice(1, None)}) *
-            t_mask.isel({f"j{dom_str}": slice(None, -1)}) * t_mask.isel({f"j{dom_str}": slice(1, None)})
-            )
-        
-        f_mask = f_mask.astype('bool')
-        f_mask.coords[f"i{dom_str}"] = f_mask.coords[f"i{dom_str}"] + 0.5
-        f_mask.coords[f"j{dom_str}"] = f_mask.coords[f"j{dom_str}"] + 0.5
-
-        # -- Add mask variables to DataTree -- #
-        if dom == ".":
-            dom_str = ""
-        else:
-            dom_str = f"{dom}_"
-
-        cls[gridT][f"{dom_str}tmask"] = t_mask
-        cls[gridT.replace("T", "U")][f"{dom_str}umask"] = u_mask
-        cls[gridT.replace("T", "V")][f"{dom_str}vmask"] = v_mask
-        cls[gridT.replace("T", "W")][f"{dom_str}wmask"] = w_mask
-        cls[gridT.replace("T", "F")][f"{dom_str}fmask"] = f_mask
-        
-        return cls
+        return datatree
 
 
     def gradient(
@@ -326,44 +236,55 @@ class NEMODataTree(xr.DataTree):
         da = cls[grid][var]
         if dim not in da.dims:
             raise KeyError(f"Dimension '{dim}' not found in variable '{var}'. Dimensions available: {da.dims}.")
-        
-        # -- Zonal periodcity for parent domain -- #
+
         if dom == ".":
-            iperio = cls["/"].attrs.get("global", True)
+            iperio = cls[grid].attrs.get("Iperio", False)
+            nfold = cls[grid].attrs.get("Nfold", False)
         else:
             iperio = False
+            nfold = False
 
         if "i" in dim:
             gridU = grid.replace("T", "U")
             if iperio:
-                da_end = da.isel(i=0)
-                da_end["i"] = da["i"].max() + 1
-                da = xr.concat([da, da_end], dim="i")
+                # Zonally Periodic: add initial T-grid point
+                # values to the end of array before differencing:
+                da_end = da.isel(dim=0)
+                da_end[dim] = da[dim].max() + 1
+                da = xr.concat([da, da_end], dim=dim)
+                dvar = da.diff(dim=dim, label="lower")
             else:
-                da = da.pad({dim: (0, 1)})
-            dvar = (da
-                    # TODO: Add mask to avoid NaN values in gradient calculation.
-                    .where(da != 0)
-                    .diff(dim=dim, label="lower")
-                    )
+                # Non-Periodic: pad with NaN values after differencing:
+                dvar = (da
+                        .diff(dim=dim, label="lower")
+                        .pad({dim: (0, 1)})
+                        )
+            # Transform coords & apply u-mask -> calculate gradient:
             dvar.coords[dim] = dvar.coords[dim] + 0.5
-            gradient = dvar / cls[gridU]["e1u"]
+            if f"{dom_str}deptht" in dvar.coords:
+                gradient = dvar.where(cls[gridU]["umask"]) / cls[gridU]["e1u"]
+            else:
+                gradient = dvar.where(cls[gridU]["umask"].isel({f"{dim.replace("i", "k")}": 0})) / cls[gridU]["e1u"]
+
             if f"{dom_str}deptht" in gradient.coords:
                 gradient = (gradient
                             .drop_vars([f"{dom_str}deptht"])
                             .assign_coords({f"{dom_str}depthu": cls[gridU][f"{dom_str}depthu"]})
                             )
-
         elif "j" in dim:
             gridV = grid.replace("T", "V")
+            # TODO: Handle North Folding (NFold) Lateral Boundary Conditions:
             dvar = (da
-                    # TODO: Add mask to avoid NaN values in gradient calculation.
-                    .where(da != 0)
-                    .pad({dim: (0, 1)})
                     .diff(dim=dim, label="lower")
+                    .pad({dim: (0, 1)})
                     )
+            # Transform coords & apply v-mask -> calculate gradient:
             dvar.coords[dim] = dvar.coords[dim] + 0.5
-            gradient = dvar / cls[gridV]["e2v"]
+            if f"{dom_str}deptht" in dvar.coords:
+                gradient = dvar.where(cls[gridV]["vmask"]) / cls[gridV]["e2v"]
+            else:
+                gradient = dvar.where(cls[gridV]["vmask"].isel({f"{dim.replace("j", "k")}": 0})) / cls[gridV]["e2v"]
+
             if f"{dom_str}deptht" in gradient.coords:
                 gradient = (gradient
                             .drop_vars([f"{dom_str}deptht"])
@@ -372,14 +293,15 @@ class NEMODataTree(xr.DataTree):
 
         elif "k" in dim:
             gridW = grid.replace("T", "W")
-            dvar = (da
-                    # TODO: Add mask to avoid NaN values in gradient calculation.
-                    .where(da != 0)
-                    .diff(dim=dim, label="lower")
-                    )
+            dvar = da.diff(dim=dim, label="lower")
+            # Transform coords & apply u-mask -> calculate gradient:
             dvar.coords[dim] = dvar.coords[dim] + 0.5
-            gradient = - dvar / cls[gridW]["e3w"].isel({dim: slice(1, None)})
-            gradient = gradient.drop_vars([f"{dom_str}deptht"])
+            dvar = dvar.where(cls[gridW]["wmask"].isel({dim: slice(1, None)}))
+            try:
+                gradient = - dvar / cls[gridW]["e3w"].isel({dim: slice(1, None)})
+                gradient = gradient.drop_vars([f"{dom_str}deptht"])
+            except KeyError:
+                raise KeyError(f"NEMO model grid: '{gridW}' does not contain vertical scale factor 'e3w' required to calculate gradients along the k-dimension.")
 
         # Update DataArray properties:
         gradient.name = f"grad_{var}_{dim}"
