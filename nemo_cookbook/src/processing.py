@@ -8,9 +8,8 @@ ocean general circulation model grids.
 Author:
 Ollie Tooth (oliver.tooth@noc.ac.uk)
 """
-
 import xarray as xr
-from .mask import _add_dom_msk
+from .mask import add_dom_msk
 
 
 def _get_child_indices(
@@ -64,7 +63,7 @@ def _check_grid_datasets(
     Parameters
     ----------
     d: dict[str, xr.Dataset]
-        A dictionary of xarray Datasets, including the domain and one or more
+        Dictionary of xarray Datasets, including the domain and one or more
         NEMO model grids, structured as:
         {
             'domain': 'path/to/domain.nc',
@@ -75,7 +74,7 @@ def _check_grid_datasets(
     Returns
     -------
     dict[str, xr.Dataset]
-        A dictionary of compatible xarray Datasets corresponding to the domain
+        Dictionary of compatible xarray Datasets corresponding to the domain
         and T/U/V/W NEMO model grids.
     """
     # Check dict keys and value dtypes:
@@ -98,12 +97,12 @@ def _open_grid_datasets(
     d_in: dict[str, str]
 ) -> dict[str, xr.Dataset]:
     """
-    Create a dictionary of grid datasets defining a NEMO model domain.
+    Create Dictionary of grid datasets defining a NEMO model domain.
 
     Parameters
     ----------
     d_in : dict[str, str]
-        A dictionary containing paths to NEMO grid output files, structured as:
+        Dictionary containing paths to NEMO grid output files, structured as:
         {
             'domain': 'path/to/domain.nc',
             'gridT': 'path/to/gridT.nc',
@@ -115,7 +114,7 @@ def _open_grid_datasets(
     Returns
     -------
     dict[str, xr.Dataset]
-        A dictionary containing NEMO grid output datasets, structured as:
+        Dictionary containing NEMO grid output datasets, structured as:
         {
             'domain': xr.Dataset,
             'gridT': xr.Dataset,
@@ -169,16 +168,18 @@ def _open_grid_datasets(
 
 
 def _add_domain_vars(
-    d_grids: dict[str, xr.Dataset]
+    d_grids: dict[str, xr.Dataset],
+    iperio: bool = False,
+    nftype: str | None = None
 ) -> dict[str, xr.Dataset]:
     """
-    Append domain variables to each grid dataset
+    Append domain & mask variables to each grid dataset
     defining a NEMO model domain.
 
     Parameters
     ----------
     d_grids : dict[str, xr.Dataset]
-        A dictionary containing NEMO grid datasets, structured as:
+        Dictionary containing NEMO grid datasets, structured as:
         {
             'domain': xr.Dataset,
             'gridT': xr.Dataset,
@@ -187,10 +188,17 @@ def _add_domain_vars(
             'gridW': xr.Dataset
         }
 
+    iperio: bool = False
+        Zonal periodicity of the domain.
+
+    nftype: str | None = None
+        Type of north fold lateral boundary condition to apply to domain. Options are 'T' for T-point pivot
+        or 'F' for F-point pivot. By default, no north fold lateral boundary condition is applied (None).
+
     Returns
     -------
     dict[str, xr.Dataset]
-        A dictionary containing NEMO grid datasets including domain variables, structured as:
+        Dictionary containing NEMO grid datasets including domain variables, structured as:
         {
             'gridT': xr.Dataset,
             'gridU': xr.Dataset,
@@ -204,112 +212,110 @@ def _add_domain_vars(
     else:
         raise KeyError("Missing 'domain' key in grid datasets dictionary.")
 
+    # Determine if closed seas should be masked:
+    if "mask_opensea" in domain.data_vars:
+        mask_opensea = domain["mask_opensea"]
+    else:
+        mask_opensea = None
+
     # T-grid:
     try:
-        d_grids['gridT']['e1t'] = domain.e1t
-        d_grids['gridT']['e2t'] = domain.e2t
-        d_grids['gridT']['gphit'] = domain.gphit
-        d_grids['gridT']['glamt'] = domain.glamt
-        d_grids['gridT']['top_level'] = domain.top_level
-        d_grids['gridT']['bottom_level'] = domain.bottom_level
+        d_grids['gridT']['e1t'] = domain["e1t"]
+        d_grids['gridT']['e2t'] = domain["e2t"]
+        d_grids['gridT']['gphit'] = domain["gphit"]
+        d_grids['gridT']['glamt'] = domain["glamt"]
+        d_grids['gridT']['top_level'] = domain["top_level"]
+        d_grids['gridT']['bottom_level'] = domain["bottom_level"]
     except AttributeError as e:
         raise AttributeError(f"Missing required T-grid variable in domain dataset -> {e}")
-    if 'tmask' in domain.data_vars:
-        d_grids['gridT']['tmask'] = domain.tmask
-    else:
-        d_grids['gridT'].attrs['Iperio'] = domain.attrs.get('Iperio', False).astype(bool)
-        d_grids['gridT'].attrs['NFold'] = domain.attrs.get('NFold', False).astype(bool)
-        d_grids['gridT']['tmask'] = _add_dom_msk(ka=domain.nav_lev,
-                                                 top_level=domain.top_level,
-                                                 bottom_level=domain.bottom_level,
-                                                 msk="T",
-                                                 iperio=d_grids['gridT'].attrs['Iperio'],
-                                                 nfold=d_grids['gridT'].attrs['NFold']
-                                                 )
+
+    d_grids['gridT']['tmask'] = add_dom_msk(ka=domain["nav_lev"]["nav_lev"],
+                                            top_level=domain["top_level"],
+                                            bottom_level=domain["bottom_level"],
+                                            cd_nat="T",
+                                            c_NFtype=nftype,
+                                            iperio=iperio,
+                                            mask_opensea=mask_opensea
+                                            )
+    d_grids['gridT'] = d_grids['gridT'].assign_attrs(nftype=nftype, iperio=iperio)
 
     # U-grid:
     try:
-        d_grids['gridU']['e1u'] = domain.e1u
-        d_grids['gridU']['e2u'] = domain.e2u
-        d_grids['gridU']['gphiu'] = domain.gphiu
-        d_grids['gridU']['glamu'] = domain.glamu
+        d_grids['gridU']['e1u'] = domain["e1u"]
+        d_grids['gridU']['e2u'] = domain["e2u"]
+        d_grids['gridU']['gphiu'] = domain["gphiu"]
+        d_grids['gridU']['glamu'] = domain["glamu"]
     except AttributeError as e:
         raise AttributeError(f"Missing required U-grid variable in domain dataset -> {e}")
-    if 'umask' in domain.data_vars:
-        d_grids['gridU']['umask'] = domain.umask
-    else:
-        d_grids['gridU'].attrs['Iperio'] = domain.attrs.get('Iperio', False).astype(bool)
-        d_grids['gridU'].attrs['NFold'] = domain.attrs.get('NFold', False).astype(bool)
-        d_grids['gridU']['umask'] = _add_dom_msk(ka=domain.nav_lev,
-                                                 top_level=domain.top_level,
-                                                 bottom_level=domain.bottom_level,
-                                                 msk="U",
-                                                 iperio=d_grids['gridU'].attrs['Iperio'],
-                                                 nfold=d_grids['gridU'].attrs['NFold']
-                                                 )
+
+    d_grids['gridU']['umask'] = add_dom_msk(ka=domain["nav_lev"]["nav_lev"],
+                                            top_level=domain["top_level"],
+                                            bottom_level=domain["bottom_level"],
+                                            cd_nat="U",
+                                            c_NFtype=nftype,
+                                            iperio=iperio,
+                                            mask_opensea=mask_opensea
+                                            )
+    d_grids['gridU'] = d_grids['gridU'].assign_attrs(nftype=nftype, iperio=iperio)
+
     # V-grid:
     try:
-        d_grids['gridV']['e1v'] = domain.e1v
-        d_grids['gridV']['e2v'] = domain.e2v
-        d_grids['gridV']['gphiv'] = domain.gphiv
-        d_grids['gridV']['glamv'] = domain.glamv
+        d_grids['gridV']['e1v'] = domain["e1v"]
+        d_grids['gridV']['e2v'] = domain["e2v"]
+        d_grids['gridV']['gphiv'] = domain["gphiv"]
+        d_grids['gridV']['glamv'] = domain["glamv"]
     except AttributeError as e:
         raise AttributeError(f"Missing required V-grid variable in domain dataset -> {e}")
-    if 'vmask' in domain.data_vars:
-        d_grids['gridV']['vmask'] = domain.vmask
-    else:
-        d_grids['gridV'].attrs['Iperio'] = domain.attrs.get('Iperio', False).astype(bool)
-        d_grids['gridV'].attrs['NFold'] = domain.attrs.get('NFold', False).astype(bool)
-        d_grids['gridV']['vmask'] = _add_dom_msk(ka=domain.nav_lev,
-                                                 top_level=domain.top_level,
-                                                 bottom_level=domain.bottom_level,
-                                                 msk="V",
-                                                 iperio=d_grids['gridV'].attrs['Iperio'],
-                                                 nfold=d_grids['gridV'].attrs['NFold']
-                                                 )
+
+    d_grids['gridV']['vmask'] = add_dom_msk(ka=domain["nav_lev"]["nav_lev"],
+                                            top_level=domain["top_level"],
+                                            bottom_level=domain["bottom_level"],
+                                            cd_nat="V",
+                                            c_NFtype=nftype,
+                                            iperio=iperio,
+                                            mask_opensea=mask_opensea
+                                            )
+    d_grids['gridV'] = d_grids['gridV'].assign_attrs(nftype=nftype, iperio=iperio)
 
     # W-grid:
     try:
-        d_grids['gridW']['e1t'] = domain.e1t
-        d_grids['gridW']['e2t'] = domain.e2t
-        d_grids['gridW']['gphit'] = domain.gphit
-        d_grids['gridW']['glamt'] = domain.glamt
+        d_grids['gridW']['e1t'] = domain["e1t"]
+        d_grids['gridW']['e2t'] = domain["e2t"]
+        d_grids['gridW']['gphit'] = domain["gphit"]
+        d_grids['gridW']['glamt'] = domain["glamt"]
     except AttributeError as e:
         raise AttributeError(f"Missing required W-grid variable in domain dataset -> {e}")
-    if 'wmask' in domain.data_vars:
-        d_grids['gridW']['wmask'] = domain.wmask
-    else:
-        d_grids['gridW'].attrs['Iperio'] = domain.attrs.get('Iperio', False).astype(bool)
-        d_grids['gridW'].attrs['NFold'] = domain.attrs.get('NFold', False).astype(bool)
-        d_grids['gridW']['wmask'] = _add_dom_msk(ka=domain.nav_lev,
-                                                 top_level=domain.top_level,
-                                                 bottom_level=domain.bottom_level,
-                                                 msk="W",
-                                                 iperio=d_grids['gridW'].attrs['Iperio'],
-                                                 nfold=d_grids['gridW'].attrs['NFold']
-                                                 )
+
+    d_grids['gridW']['wmask'] = add_dom_msk(ka=domain["nav_lev"]["nav_lev"],
+                                            top_level=domain["top_level"],
+                                            bottom_level=domain["bottom_level"],
+                                            cd_nat="W",
+                                            c_NFtype=nftype,
+                                            iperio=iperio,
+                                            mask_opensea=mask_opensea
+                                            )
+    d_grids['gridW'] = d_grids['gridW'].assign_attrs(nftype=nftype, iperio=iperio)
 
     # F-grid:
     d_grids['gridF'] = xr.Dataset()
     try:
-        d_grids['gridF']['e1f'] = domain.e1f
-        d_grids['gridF']['e2f'] = domain.e2f
-        d_grids['gridF']['gphif'] = domain.gphif
-        d_grids['gridF']['glamf'] = domain.glamf
+        d_grids['gridF']['e1f'] = domain["e1f"]
+        d_grids['gridF']['e2f'] = domain["e2f"]
+        d_grids['gridF']['gphif'] = domain["gphif"]
+        d_grids['gridF']['glamf'] = domain["glamf"]
     except AttributeError as e:
         raise AttributeError(f"Missing required F-grid variable in domain dataset -> {e}")
-    if 'fmask' in domain.data_vars:
-        d_grids['gridF']['fmask'] = domain.fmask
-    else:
-        d_grids['gridF'].attrs['Iperio'] = domain.attrs.get('Iperio', False).astype(bool)
-        d_grids['gridF'].attrs['NFold'] = domain.attrs.get('NFold', False).astype(bool)
-        d_grids['gridF']['fmask'] = _add_dom_msk(ka=domain.nav_lev,
-                                                 top_level=domain.top_level,
-                                                 bottom_level=domain.bottom_level,
-                                                 msk="F",
-                                                 iperio=d_grids['gridF'].attrs['Iperio'],
-                                                 nfold=d_grids['gridF'].attrs['NFold']
-                                                 )
+
+    d_grids['gridF']['fmask'] = add_dom_msk(ka=domain["nav_lev"]["nav_lev"],
+                                            top_level=domain["top_level"],
+                                            bottom_level=domain["bottom_level"],
+                                            cd_nat="F",
+                                            c_NFtype=nftype,
+                                            iperio=iperio,
+                                            mask_opensea=mask_opensea
+                                            )
+
+    d_grids['gridF'] = d_grids['gridF'].assign_attrs(nftype=nftype, iperio=iperio)
 
     return d_grids
 
@@ -414,15 +420,17 @@ def _process_grid(
 
 
 def _process_parent(
-    d_parent: dict[str, str] | dict[str, xr.Dataset]
+    d_parent: dict[str, str] | dict[str, xr.Dataset],
+    iperio: bool = False,
+    nftype: str | None = None
 ) -> dict[str, xr.Dataset]:
     """
-    Create a dictionary of grid datasets defining a NEMO model parent domain.
+    Create Dictionary of grid datasets defining a NEMO model parent domain.
 
     Parameters
     ----------
     d_parent : dict[str, str] | dict[str, xr.Dataset]
-        A dictionary containing paths to or xarray Datasets created from NEMO parent grid output files,
+        Dictionary containing paths to or xarray Datasets created from NEMO parent grid output files,
         structured as:
         {
             'domain': 'path/to/parent_domain.nc',
@@ -440,10 +448,17 @@ def _process_parent(
             'gridW': xr.Dataset,
         }
 
+    iperio: bool = False
+        Zonal periodicity of the parent domain.
+
+    nftype: str | None = None
+        Type of north fold lateral boundary condition to apply to parent domain. Options are 'T' for T-point
+        pivot or 'F' for F-point pivot. By default, no north fold lateral boundary condition is applied (None).
+
     Returns
     -------
     dict[str, xr.Dataset]
-        A dictionary containing processed NEMO parent grid datasets, structured as:
+        Dictionary containing processed NEMO parent grid datasets, structured as:
         {
             '/': xr.Dataset,
             '/gridT': xr.Dataset,
@@ -462,7 +477,7 @@ def _process_parent(
         raise TypeError("d_parent must be a dictionary of only paths or xarray Datasets.")
 
     # Add domain variables to each grid dataset:
-    d_grids = _add_domain_vars(d_grids)
+    d_grids = _add_domain_vars(d_grids=d_grids, iperio=iperio, nftype=nftype)
 
     # Process T / U / V / W / F grids:
     d_proc_grids = {}
@@ -473,7 +488,7 @@ def _process_parent(
                                            i_slice=slice(None),
                                            j_slice=slice(None),
                                            i_name="i",
-                                           j_name= "j",
+                                           j_name="j",
                                            k_name="k",
                                            )
 
@@ -498,12 +513,12 @@ def _process_child(
     parent_label: int
 ) -> dict[str, xr.Dataset]:
     """
-    Create a dictionary of grid datasets defining a NEMO model (grand)child domain.
+    Create Dictionary of grid datasets defining a NEMO model (grand)child domain.
 
     Parameters
     ----------
     d_child : dict[dict[str, str]] | dict[dict[str, xr.Dataset]]
-        A dictionary containing paths to or xarray Datasets created from NEMO (grand)child grid output files,
+        Dictionary containing paths to or xarray Datasets created from NEMO (grand)child grid output files,
         structured as:
         {
             'domain': 'path/to/child_domain.nc',
@@ -522,7 +537,7 @@ def _process_child(
         }
     
     d_nests : dict[str, int]
-        A dictionary describing the properties of the (grand)child domain, structured as:
+        Dictionary describing the properties of the (grand)child domain, structured as:
         {
             'rx': rx,
             'ry': ry,
@@ -530,6 +545,7 @@ def _process_child(
             'imax': imax,
             'jmin': jmin,
             'jmax': jmax,
+            'iperio': iperio
         }
 
     label : int
@@ -542,7 +558,7 @@ def _process_child(
     Returns
     -------
     dict[str, xr.Dataset]
-        A dictionary containing NEMO (grand)child grid output datasets, structured as:
+        Dictionary containing NEMO (grand)child grid output datasets, structured as:
         {
             f"/gridT/{label}_gridT": xr.Dataset,
             f"/gridU/{label}_gridU": xr.Dataset,
@@ -569,7 +585,7 @@ def _process_child(
         raise TypeError("d_child must be a dictionary of only paths or xarray Datasets.")
 
     # Add child domain variables to each grid:
-    d_grids = _add_domain_vars(d_grids)
+    d_grids = _add_domain_vars(d_grids=d_grids, iperio=d_nests['iperio'], nftype=None)
 
     # Get child domain indices excluding ghost cells:
     ind_child = _get_child_indices(rx=d_nests['rx'],
@@ -623,21 +639,28 @@ def _create_datatree_dict(
     d_child: dict[str, dict[str, xr.Dataset]] | None = None,
     d_grandchild: dict[str, dict[str, xr.Dataset]] | None = None,
     nests: dict[str, dict[str, str]] | None = None,
+    iperio: bool = False,
+    nftype: str | None = None
 ) -> dict[str, xr.Dataset]:
     """
-    Create a dictionary of DataTree paths (key) and xarray Datasets (values)
+    Create Dictionary of DataTree paths (key) and xarray Datasets (values)
     representing a collection of NEMO model grids.
 
     Parameters
     ----------
     d_parent : dict[str, xr.Dataset] | dict[str, str]
-        A dictionary containing paths to or xarray Datasets created from NEMO parent grid output files.
+        Dictionary containing paths to or xarray Datasets created from NEMO parent grid output files.
     d_child : dict[str, dict[str, xr.Dataset]] | None, optional
-        A dictionary containing paths to or xarray Datasets created from NEMO child grid output files.
+        Dictionary containing paths to or xarray Datasets created from NEMO child grid output files.
     d_grandchild : dict[str, dict[str, xr.Dataset]] | None, optional
-        A dictionary containing paths to or xarray Datasets created from NEMO grandchild grid output files.
+        Dictionary containing paths to or xarray Datasets created from NEMO grandchild grid output files.
     nests : dict[str, dict[str, str]] | None, optional
-        A dictionary describing the properties of nested domains.
+        Dictionary describing the properties of nested domains.
+    iperio: bool = False
+        Zonal periodicity of the parent domain.
+    nftype: str | None = None
+        Type of north fold lateral boundary condition to apply to parent domain. Options are 'T' for T-point
+        pivot or 'F' for F-point pivot. By default, no north fold lateral boundary condition is applied (None).
 
     Returns
     -------
@@ -645,7 +668,7 @@ def _create_datatree_dict(
         Dictionary of DataTree paths and processed NEMO grids defining a hierarchical DataTree.
     """
     # -- Assign the parent domain -- #
-    d_tree = _process_parent(d_parent)
+    d_tree = _process_parent(d_parent=d_parent, iperio=iperio, nftype=nftype)
 
     # -- Assign all child domains -- #
     if d_child is not None:
