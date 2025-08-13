@@ -9,24 +9,21 @@ model domains.
 Author:
 Ollie Tooth (oliver.tooth@noc.ac.uk)
 """
-
-from unittest import case
 import xarray as xr
 from typing import Self
-
 from .processing import _create_datatree_dict
 
 
 class NEMODataTree(xr.DataTree):
     """
-    A hierarchical data structure for collections of NEMO ocean model outputs.
+    A hierarchical data structure containing collections of NEMO ocean model outputs.
 
     This class extends xarray.DataTree to provide methods for processing
     and analysing NEMO output xarray objects defining one or more model domains.
     
-    It supports NEMO discrete operators such as gradient, Laplacian, divergence,
-    curl, vertical averages, integrals, cumulative integrals, and transforming
-    variables between grids.
+    It supports NEMO discrete scalar and vector operators such as computing gradients,
+    divergence, curl, weighted averages, integrals, cumulative integrals, and
+    transforming variables between grids.
     """
     def __init__(self, *args, **kwargs):
         """
@@ -50,6 +47,8 @@ class NEMODataTree(xr.DataTree):
         cls,
         paths: dict[str, str],
         nests: dict[str, str] | None = None,
+        iperio: bool = False,
+        nftype: str | None = None
     ) -> Self:
         """
         Create a NEMODataTree from a dictionary of paths to NEMO model output files,
@@ -58,7 +57,7 @@ class NEMODataTree(xr.DataTree):
         Parameters
         ----------
         paths : dict[str, str]
-            A dictionary containing paths to NEMO grid files, structured as:
+            Dictionary containing paths to NEMO grid files, structured as:
             {
                 'parent': {'domain': 'path/to/domain.nc', 'gridT': 'path/to/gridT.nc', ...},
                 'child': {'1': {'domain': 'path/to/child_domain.nc', 'gridT': 'path/to/child_gridT.nc', ...},
@@ -68,7 +67,7 @@ class NEMODataTree(xr.DataTree):
             }
 
         nests : dict[str, str], optional
-            A dictionary describing the properties of nested domains, structured as:
+            Dictionary describing the properties of nested domains, structured as:
             {
                 "1": {
                     "parent": "/",
@@ -78,10 +77,19 @@ class NEMODataTree(xr.DataTree):
                     "imax": imax,
                     "jmin": jmin,
                     "jmax": jmax,
+                    "iperio": iperio,
                     },
             }
             where `rx` and `ry` are the horizontal refinement factors, and `imin`, `imax`, `jmin`, `jmax`
-            define the indices of the child (grandchild) domain within the parent (child) domain.
+            define the indices of the child (grandchild) domain within the parent (child) domain. Zonally
+            periodic nested domains should be specified with `iperio=True`.
+
+        iperio: bool = False
+            Zonal periodicity of the parent domain.
+
+        nftype: str, optional
+            Type of north fold lateral boundary condition to apply. Options are 'T' for T-point pivot or 'F' for F-point
+            pivot. By default, no north fold lateral boundary condition is applied (None).
 
         Returns
         -------
@@ -92,6 +100,10 @@ class NEMODataTree(xr.DataTree):
             raise TypeError("paths must be a dictionary or nested dictionary.")
         if not isinstance(nests, (dict, type(None))):
             raise TypeError("nests must be a dictionary or None.")
+        if not isinstance(iperio, bool):
+            raise TypeError("zonal periodicity of parent domain must be a boolean.")
+        if nftype is not None and nftype not in ('T', 'F'):
+            raise ValueError("north fold type of parent domain must be 'T' (T-pivot fold), 'F' (F-pivot fold), or None.")
 
         # Define parent, child, grandchild filepath collections:
         d_child, d_grandchild = None, None
@@ -113,6 +125,8 @@ class NEMODataTree(xr.DataTree):
                                        d_child=d_child,
                                        d_grandchild=d_grandchild,
                                        nests=nests,
+                                       iperio=iperio,
+                                       nftype=nftype
                                        )
 
         datatree = super().from_dict(d_tree)
@@ -125,6 +139,8 @@ class NEMODataTree(xr.DataTree):
         cls,
         datasets: dict[str, xr.Dataset],
         nests: dict[str, str] | None = None,
+        iperio: bool = False,
+        nftype: str | None = None
     ) -> Self:
         """
         Create a NEMODataTree from a dictionary of xarray.Dataset objects created from NEMO model output files,
@@ -133,7 +149,7 @@ class NEMODataTree(xr.DataTree):
         Parameters
         ----------
         datasets : dict[str, xr.Dataset]
-            A dictionary containing xarray.Datasets created from NEMO grid files, structured as:
+            Dictionary containing xarray.Datasets created from NEMO grid files, structured as:
             {
                 'parent': {'domain': ds_domain, 'gridT': ds_gridT, ...},
                 'child': {'1': {'domain': ds_domain_1, 'gridT': d_gridT_1, ...},
@@ -143,7 +159,7 @@ class NEMODataTree(xr.DataTree):
             }
 
         nests : dict[str, str], optional
-            A dictionary describing the properties of nested domains, structured as:
+            Dictionary describing the properties of nested domains, structured as:
             {
                 "1": {
                     "parent": "/",
@@ -158,6 +174,13 @@ class NEMODataTree(xr.DataTree):
             where `rx` and `ry` are the horizontal refinement factors, and `imin`, `imax`, `jmin`, `jmax`
             define the indices of the child (grandchild) domain within the parent (child) domain.
 
+        iperio: bool = False
+            Zonal periodicity of the parent domain.
+
+        nftype: str, optional
+            Type of north fold lateral boundary condition to apply. Options are 'T' for T-point pivot or 'F' for F-point
+            pivot. By default, no north fold lateral boundary condition is applied (None).
+
         Returns
         -------
         NEMODataTree
@@ -167,6 +190,10 @@ class NEMODataTree(xr.DataTree):
             raise TypeError("datasets must be a dictionary or nested dictionary.")
         if not isinstance(nests, (dict, type(None))):
             raise TypeError("nests must be a dictionary or None.")
+        if not isinstance(iperio, bool):
+            raise TypeError("zonal periodicity of parent domain must be a boolean.")
+        if nftype is not None and nftype not in ('T', 'F'):
+            raise ValueError("north fold type of parent domain must be 'T' (T-pivot fold), 'F' (F-pivot fold), or None.")
 
         # Define parent, child, grandchild dataset collections:
         d_child, d_grandchild = None, None
@@ -188,6 +215,8 @@ class NEMODataTree(xr.DataTree):
                                        d_child=d_child,
                                        d_grandchild=d_grandchild,
                                        nests=nests,
+                                       iperio=iperio,
+                                       nftype=nftype
                                        )
         datatree = super().from_dict(d_tree)
 
@@ -234,77 +263,82 @@ class NEMODataTree(xr.DataTree):
             raise KeyError(f"Variable '{var}' not found in grid '{grid}'.")
 
         da = cls[grid][var]
-        if dim not in da.dims:
-            raise KeyError(f"Dimension '{dim}' not found in variable '{var}'. Dimensions available: {da.dims}.")
+        dim_name = f"{dim}{dom}" if dom != '.' else dim
+        if dim_name not in da.dims:
+            raise KeyError(f"Dimension '{dim_name}' not found in variable '{var}'. Dimensions available: {da.dims}.")
 
-        if dom == ".":
-            iperio = cls[grid].attrs.get("Iperio", False)
-            nfold = cls[grid].attrs.get("Nfold", False)
-        else:
-            iperio = False
-            nfold = False
+        match dim:
+            case "i":
+                gridU = grid.replace("T", "U")
+                if f"{dom_str}deptht" in da.coords:
+                    # 3-dimensional umask:
+                    umask = cls[gridU]["umask"]
+                else:
+                    # 2-dimensional umask:
+                    umask = cls[gridU]["umask"].isel({f"{dim_name.replace("i", "k")}": 0})
+                    umask = umask.drop_vars([f"{dom_str}depthu"])
 
-        if "i" in dim:
-            gridU = grid.replace("T", "U")
-            if iperio:
-                # Zonally Periodic: add initial T-grid point
-                # values to the end of array before differencing:
-                da_end = da.isel(dim=0)
-                da_end[dim] = da[dim].max() + 1
-                da = xr.concat([da, da_end], dim=dim)
-                dvar = da.diff(dim=dim, label="lower")
-            else:
-                # Non-Periodic: pad with NaN values after differencing:
+                # Zonally Periodic Domain:
+                if cls[grid].attrs.get("iperio", False):
+                    da_end = da.isel(dim_name=0)
+                    da_end[dim_name] = da[dim_name].max() + 1
+                    da = xr.concat([da, da_end], dim=dim_name)
+                    dvar = da.diff(dim=dim_name, label="lower")
+                else:
+                    # Non-Periodic: pad with NaN values after differencing:
+                    dvar = (da
+                            .diff(dim=dim_name, label="lower")
+                            .pad({dim_name: (0, 1)})
+                            )
+                # Apply u-mask & transform coords -> calculate gradient:
+                dvar.coords[dim_name] = dvar.coords[dim_name] + 0.5
+                gradient = dvar.where(umask) / cls[gridU]["e1u"]
+
+                # Remove redundant depth coordinates:
+                if f"{dom_str}deptht" in gradient.coords:
+                    gradient = (gradient
+                                .drop_vars([f"{dom_str}deptht"])
+                                .assign_coords({f"{dom_str}depthu": cls[gridU][f"{dom_str}depthu"]})
+                                )
+            case "j":
+                gridV = grid.replace("T", "V")
+                # 3-dimensional vmask:
+                if f"{dom_str}deptht" in da.coords:
+                    vmask = cls[gridV]["vmask"]
+                else:
+                    # 2-dimensional vmask:
+                    vmask = cls[gridV]["vmask"].isel({f"{dim_name.replace("j", "k")}": 0})
+                    vmask = vmask.drop_vars([f"{dom_str}depthv"])
+
+                # Pad with zeros after differencing (zero gradient at jmaxdom):
                 dvar = (da
-                        .diff(dim=dim, label="lower")
-                        .pad({dim: (0, 1)})
+                        .diff(dim=dim_name, label="lower")
+                        .pad({dim_name: (0, 1)}, constant_values=0)
                         )
-            # Transform coords & apply u-mask -> calculate gradient:
-            dvar.coords[dim] = dvar.coords[dim] + 0.5
-            if f"{dom_str}deptht" in dvar.coords:
-                gradient = dvar.where(cls[gridU]["umask"]) / cls[gridU]["e1u"]
-            else:
-                gradient = dvar.where(cls[gridU]["umask"].isel({f"{dim.replace("i", "k")}": 0})) / cls[gridU]["e1u"]
+                # Apply vmask & transform coords -> calculate gradient:
+                dvar.coords[dim_name] = dvar.coords[dim_name] + 0.5
+                gradient = dvar.where(vmask) / cls[gridV]["e2v"]
 
-            if f"{dom_str}deptht" in gradient.coords:
-                gradient = (gradient
-                            .drop_vars([f"{dom_str}deptht"])
-                            .assign_coords({f"{dom_str}depthu": cls[gridU][f"{dom_str}depthu"]})
-                            )
-        elif "j" in dim:
-            gridV = grid.replace("T", "V")
-            # TODO: Handle North Folding (NFold) Lateral Boundary Conditions:
-            dvar = (da
-                    .diff(dim=dim, label="lower")
-                    .pad({dim: (0, 1)})
-                    )
-            # Transform coords & apply v-mask -> calculate gradient:
-            dvar.coords[dim] = dvar.coords[dim] + 0.5
-            if f"{dom_str}deptht" in dvar.coords:
-                gradient = dvar.where(cls[gridV]["vmask"]) / cls[gridV]["e2v"]
-            else:
-                gradient = dvar.where(cls[gridV]["vmask"].isel({f"{dim.replace("j", "k")}": 0})) / cls[gridV]["e2v"]
+                if f"{dom_str}deptht" in gradient.coords:
+                    gradient = (gradient
+                                .drop_vars([f"{dom_str}deptht"])
+                                .assign_coords({f"{dom_str}depthv": cls[gridV][f"{dom_str}depthv"]})
+                                )
 
-            if f"{dom_str}deptht" in gradient.coords:
-                gradient = (gradient
-                            .drop_vars([f"{dom_str}deptht"])
-                            .assign_coords({f"{dom_str}depthv": cls[gridV][f"{dom_str}depthv"]})
-                            )
-
-        elif "k" in dim:
-            gridW = grid.replace("T", "W")
-            dvar = da.diff(dim=dim, label="lower")
-            # Transform coords & apply u-mask -> calculate gradient:
-            dvar.coords[dim] = dvar.coords[dim] + 0.5
-            dvar = dvar.where(cls[gridW]["wmask"].isel({dim: slice(1, None)}))
-            try:
-                gradient = - dvar / cls[gridW]["e3w"].isel({dim: slice(1, None)})
-                gradient = gradient.drop_vars([f"{dom_str}deptht"])
-            except KeyError:
-                raise KeyError(f"NEMO model grid: '{gridW}' does not contain vertical scale factor 'e3w' required to calculate gradients along the k-dimension.")
+            case "k":
+                gridW = grid.replace("T", "W")
+                dvar = da.diff(dim=dim_name, label="lower")
+                # Transform coords & apply w-mask -> calculate gradient:
+                dvar.coords[dim_name] = dvar.coords[dim_name] + 0.5
+                dvar = dvar.where(cls[gridW]["wmask"].isel({dim_name: slice(1, None)}))
+                try:
+                    gradient = - dvar / cls[gridW]["e3w"].isel({dim_name: slice(1, None)})
+                    gradient = gradient.drop_vars([f"{dom_str}deptht"])
+                except KeyError:
+                    raise KeyError(f"NEMO model grid: '{gridW}' does not contain vertical scale factor 'e3w' required to calculate gradients along the k-dimension.")
 
         # Update DataArray properties:
-        gradient.name = f"grad_{var}_{dim}"
+        gradient.name = f"grad_{var}_{dim_name}"
         gradient = gradient.drop_vars([f"{dom_str}glamt", f"{dom_str}gphit"])
 
         return gradient
@@ -336,18 +370,16 @@ class NEMODataTree(xr.DataTree):
         """
         # -- Define path to U/V-grids -- #
         if dom == ".":
+            i_name, j_name = "i", "j"
             grid_i = "/gridU"
             grid_j = "/gridV"
+            dom_str = ""
         else:
+            i_name, j_name = f"i{dom}", f"j{dom}"
             nodes = [n[0] for n in cls.subtree_with_keys if dom in n[0]]
             grid_i = [n for n in nodes if "gridU" in n][0]
             grid_j = [n for n in nodes if "gridV" in n][0]
-
-        # -- Define i,j coord names -- #
-        if dom == ".":
-            i_name, j_name = "i", "j"
-        else:
-            i_name, j_name = f"i{dom}", f"j{dom}"
+            dom_str = f"{dom}_"
 
         if (grid_i not in cls.subtree) or (grid_j not in cls.subtree):
             raise KeyError(f"Path '{grid_i}' or '{grid_j}' not found in the NEMODataTree.")
@@ -362,6 +394,14 @@ class NEMODataTree(xr.DataTree):
         da_i = cls[grid_i][var_i]
         da_j = cls[grid_j][var_j]
 
+        # -- Collect mask -- #
+        if (f"{dom_str}depthu" in da_i.coords) & (f"{dom_str}depthv" in da_j.coords):
+            # 3-dimensional tmask:
+            tmask = cls[grid_i.replace("U", "T")]["tmask"]
+        else:
+            # 2-dimensional tmask:
+            tmask = cls[grid_i.replace("U", "T")]["tmask"].isel({f"{i_name.replace("i", "k")}": 0})
+
         # -- Neglecting the first T-grid points along i, j dimensions -- #
         gridT = cls[grid_i.replace("U", "T")]
         e1t = gridT["e1t"].isel({i_name: slice(1, None), j_name: slice(1, None)})
@@ -372,20 +412,15 @@ class NEMODataTree(xr.DataTree):
         e1v, e3v = cls[grid_j]["e1v"], cls[grid_j]["e3v"]
 
         # -- Calculate divergence on T-points -- #
-        # TODO: Add mask to avoid NaN values in divergence calculation.
         dvar_i = (e2u * e3u * da_i).diff(dim=i_name, label="lower")
         dvar_i.coords[i_name] = dvar_i.coords[i_name] + 0.5
 
         dvar_j = (e1v * e3v * da_j).diff(dim=j_name, label="lower")
         dvar_j.coords[j_name] = dvar_j.coords[j_name] + 0.5
 
-        divergence = (1 / (e1t * e2t * e3t)) * (dvar_i + dvar_j)
+        divergence = (1 / (e1t * e2t * e3t)) * (dvar_i + dvar_j).where(tmask)
 
         # -- Update DataArray properties -- #
-        if dom != '.':
-            dom_str = f"{dom}_"
-        else:
-            dom_str = ""
         divergence.name = f"div_{var_i}_{var_j}"
         divergence = divergence.drop_vars([f"{dom_str}glamu", f"{dom_str}gphiu",
                                            f"{dom_str}glamv", f"{dom_str}gphiv",
@@ -419,18 +454,16 @@ class NEMODataTree(xr.DataTree):
         """
         # -- Define path to U/V-grids -- #
         if dom == ".":
+            i_name, j_name = "i", "j"
             grid_i = "/gridU"
             grid_j = "/gridV"
+            dom_str = ""
         else:
+            i_name, j_name = f"i{dom}", f"j{dom}"
             nodes = [n[0] for n in cls.subtree_with_keys if dom in n[0]]
             grid_i = [n for n in nodes if "gridU" in n][0]
             grid_j = [n for n in nodes if "gridV" in n][0]
-
-        # -- Define i,j coord names -- #
-        if dom == ".":
-            i_name, j_name = "i", "j"
-        else:
-            i_name, j_name = f"i{dom}", f"j{dom}"
+            dom_str = f"{dom}_"
 
         if (grid_i not in cls.subtree) or (grid_j not in cls.subtree):
             raise KeyError(f"Path '{grid_i}' or '{grid_j}' not found in the NEMODataTree.")
@@ -445,6 +478,14 @@ class NEMODataTree(xr.DataTree):
         da_i = cls[grid_i][var_i]
         da_j = cls[grid_j][var_j]
 
+        # -- Collect mask -- #
+        if (f"{dom_str}depthu" in da_i.coords) & (f"{dom_str}depthv" in da_j.coords):
+            # 3-dimensional fmask
+            fmask = cls[grid_i.replace("U", "F")]["fmask"]
+        else:
+            # 2-dimensional fmask:
+            fmask = cls[grid_i.replace("U", "F")]["fmask"].isel({f"{i_name.replace("i", "k")}": 0})
+
         # -- Neglecting the final F-grid points along i, j dimensions -- #
         gridF = cls[grid_i.replace("U", "F")]
         e1f = gridF["e1f"].isel({i_name: slice(None, -1), j_name: slice(None, -1)})
@@ -454,30 +495,19 @@ class NEMODataTree(xr.DataTree):
         e2v = cls[grid_j]["e2v"]
 
         # -- Calculate vertical curl component on F-points -- #
-        # TODO: Add mask to avoid NaN values in curl calculation.
         dvar_i = (e2v * da_j).diff(dim=i_name, label="lower")
         dvar_i.coords[i_name] = dvar_i.coords[i_name] + 0.5
 
         dvar_j = (e1u * da_i).diff(dim=j_name, label="lower")
         dvar_j.coords[j_name] = dvar_j.coords[j_name] + 0.5
 
-        curl = (1 / (e1f * e2f)) * (dvar_i - dvar_j)
+        curl = (1 / (e1f * e2f)) * (dvar_i - dvar_j).where(fmask)
 
         # -- Update DataArray properties -- #
-        if dom != '.':
-            dom_str = f"{dom}_"
-        else:
-            dom_str = ""
-
-        if f"{dom_str}depthu" in curl.coords:
-            curl = curl.drop_vars([f"{dom_str}depthu"])
-        if f"{dom_str}depthv" in curl.coords:
-            curl = curl.drop_vars([f"{dom_str}depthv"])
-
+        curl.name = f"curl_{var_i}_{var_j}"
         curl = curl.drop_vars([f"{dom_str}glamu", f"{dom_str}gphiu",
                                f"{dom_str}glamv", f"{dom_str}gphiv",
                                ])
-        curl.name = f"curl_{var_i}_{var_j}"
                 
 
         return curl
@@ -490,8 +520,63 @@ class NEMODataTree(xr.DataTree):
 
     # TODO: Add 'cumintegral' method to calculate accumulative integrals of scalar or vector variables.
 
-    # TODO: Add 'transform' method to transform variables between grids (e.g., from T to U grid).
+    # TODO: Add 'transform' method to transform scalar variables between grids (e.g., from T to U grid).
+    def hinterp(
+            cls,
+            var: str,
+            grid: str = 'T',
+            dom: str = '.',
+    ) -> xr.DataArray:
+        """
+        Conservatively interpolate variable from T-grid onto U/V/W/F-grid.
+
+        This method uses linear interpolation to transform
+        one or more variables onto the target grid.
+
+        Parameters
+        ----------
+        var : str
+            Name of the variable to interpolate onto the target grid.
+        grid : str
+            Horizontal grid to interpolate variable onto. Options are 'U', 'V', 'W', or 'F'.
+        dom : str, optional
+            Prefix of NEMO domain in the DataTree (e.g., '1', '2', '3', etc.).
+            Default is '.' for the parent domain.
+
+        Returns
+        -------
+        xr.DataArray
+            Transformed variables on the specified grid.
+        """
 
     # TODO: Add 'vertical_transform' method to transform variables between vertical coordinates (e.g., from z to sigma).
+    def vinterp(
+            cls,
+            var: xr.DataArray,
+            e3_in: xr.DataArray,
+            e3_target: xr.DataArray,
+            dom: str = '.',
+    ) -> tuple[xr.DataArray, xr.DataArray]:
+        """
+        Conservatively interpolate variable onto a new vertical grid.
+
+        Parameters
+        ----------
+        var : xarray.DataArray
+            Variable defined at the centre of each vertical grid cell on the input grid.
+        e3_in : xarray.DataArray
+            Vertical grid cell thicknesses of the input grid.
+        e3_target : xarray.DataArray
+            Vertical grid cell thicknesses of the target grid.
+        dom : str, optional
+            Prefix of NEMO domain in the DataTree (e.g., '1', '2', '3', etc.).
+            Default is '.' for the parent domain.
+
+        Returns
+        -------
+        tuple[xr.DataArray, xr.DataArray]
+            Values of variable defined at the centre of each vertical grid cell on the target grid,
+            and the adjusted vertical grid cell thicknesses.
+        """
 
     # TODO: Add 'degrade' method to conservatively coarsen a variable on a NEMO model grid.
