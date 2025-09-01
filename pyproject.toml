@@ -1,48 +1,45 @@
-[build-system]
-build-backend = "setuptools.build_meta"
-requires = [
-  "setuptools>=42",
-  "setuptools-scm>=7",
-]
-
-[tool.setuptools]
-packages = ["nemo_cookbook"]
-
 [project]
 name = "nemo_cookbook"
-description = "Python recipes for reproducible analysis of NEMO ocean general circulation model outputs."
-requires-python = ">=3.10"
+description = "Recipes for reproducible analysis of NEMO ocean general circulation model outputs using xarray."
+requires-python = ">=3.11"
 keywords = ["NEMO", "oceanography", "modelling", "analysis", "data", "noc"]
+dynamic = ["version"]
 authors = [{email = "oliver.tooth@noc.ac.uk"},{name = "Ollie Tooth"}]
 maintainers = [{name = "Ollie Tooth", email = "oliver.tooth@noc.ac.uk"}]
 classifiers = [
+  "Operating System :: OS Independent",
+  "Intended Audience :: Science/Research",
+  "Programming Language :: Python",
   "Programming Language :: Python :: 3",
-  "Intended Audience :: Science/Research"
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering",
 ]
+
 dependencies = [
-  "aiohttp>=3.11.18",
-  "dask[complete]>=2024.10.0",
+  "aiohttp>=3.11.18", 
   "flox>=0.10.6",
-  "gsw>=3.6.20",
-  "h5netcdf>=1.4.0",
-  "jupyter>=1.1.1",
-  "notebook>=7.4.1",
-  "ipykernel>=6.29.5",
-  "matplotlib>=3.10",
-  "xarray[io,accel,viz]>=2025.3.1",
-  "xoak>=0.1.1",
-  "s3fs>=2025.3.2",
+  "fsspec>=2025.3.2",
+  "matplotlib",
+  "numbagg>=0.8",
+  "numba>=0.59",
+  "numpy<2.3",    # numba has not updated yet: https://github.com/numba/numba/issues/10105
+  "netCDF4>=1.6.0",
+  "requests>=2.32.3",
   "scikit-learn>=1.7.1",
   "scikit-image>=0.25.2",
-  "fsspec>=2025.3.2",
-  "requests>=2.32.3",
-  "numpy>=2.2.5",
-  "numba>=0.61.2",
-  "numbagg>=0.9.0",
+  "xarray>=2025.07.1",
   "zarr>=3.0.7",
   ]
 
-dynamic = ["version"]
+[project.optional-dependencies]
+
+complete = ["nemo_cookbook[parallel,viz,interactive]"]
+parallel = ["dask[complete]"]
+viz = ["cartopy>=0.23", "matplotlib", "nc-time-axis"]
+interactive = ["jupyter>=1.1.1", "notebook>=7.4.1", "ipykernel>=6.29.5"]
+test = ["pytest >=8.3.3"]
 
 [project.readme]
 file = "README.md"
@@ -52,8 +49,13 @@ content-type = "text/markdown"
 file = "LICENSE.md"
 content-type = "text/markdown"
 
-[project.optional-dependencies]
-test = ["pytest >=8.3.3"]
-
 [project.urls]
-repository = "https://github.com/NOC-MSM/nemo_cookbook"
+Repository = "https://github.com/NOC-MSM/nemo_cookbook"
+Documentation = "https://noc-msm.github.io/nemo_cookbook/"
+
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = ["setuptools>=77.0.3", "setuptools-scm>=8"]
+
+[tool.setuptools.packages.find]
+include = ["nemo_cookbook*"]

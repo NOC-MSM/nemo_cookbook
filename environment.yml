@@ -2,19 +2,18 @@ name: env_nemo_cookbook
 channels:
   - conda-forge
 dependencies:
-  - python=3.13
-  - flox
-  - gsw
-  - h5netcdf
-  - ipykernel
-  - jupyter
-  - netcdf4
-  - notebook
-  - xarray[io,accel,viz]
-  - xoak
-  - zarr
-  - aiohttp
-  - fsspec
-  - requests
-  - s3fs
-  - pys2index
+- python>=3.11
+- aiohttp>=3.11.18
+- flox>=0.10.6
+- fsspec>=2025.3.2
+- matplotlib
+- numbagga>=0.8
+- numba>=0.59
+- numpy<2.3, # numba has not updated yet: https://github.com/numba/numba/issues/10105
+- netCDF4>=1.6.0
+- pkg_resources
+- requests>=2.32.3
+- scikit-learn>=1.7.1
+- scikit-image>=0.25.2
+- xarray>=2025.07.1
+- zarr>=3.0.7
