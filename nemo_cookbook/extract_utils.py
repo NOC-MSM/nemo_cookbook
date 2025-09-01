@@ -9,11 +9,12 @@ Date Created: 20/04/2025
 """
 
 # -- Import dependencies -- #
-import xoak
 import heapq
 import numpy as np
 import xarray as xr
 from math import sqrt
+from xarray.indexes import NDPointIndex
+from xarray.indexes.nd_point_index import ScipyKDTreeAdapter
 
 # -- Define function to find nearest NEMO eORCA grid coords to observed coords -- #
 def _nearest_ji_coords(glamt:xr.DataArray,
@@ -49,9 +50,9 @@ def _nearest_ji_coords(glamt:xr.DataArray,
     ds = ds.squeeze(drop=True)
 
     # Set the index for BallTree search:
-    ds.xoak.set_index(("lat", "lon"), "sklearn_geo_balltree")
+    ds = ds.set_xindex(("lat", "lon"), NDPointIndex, tree_adapter_cls=ScipyKDTreeAdapter)
     # Select the nearest grid points to obs points:
-    ds_mdl = ds.xoak.sel(lat=xr.DataArray(target_lat), lon=xr.DataArray(target_lon))
+    ds_mdl = ds.sel(lat=target_lat, lon=target_lon, method="nearest")
 
     # Find the (j,i) coordinates of the nearest grid points:
     n_obs_points = len(target_lat)
