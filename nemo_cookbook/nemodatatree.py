@@ -16,8 +16,8 @@ from typing import Self
 from flox.xarray import xarray_reduce
 
 from .masks import add_polygon_msk, get_mask_boundary
-from .processing import _create_datatree_dict
-from .transform import _transform_vertical_coords
+from .processing import create_datatree_dict
+from .transform import transform_vertical_coords
 
 
 class NEMODataTree(xr.DataTree):
@@ -127,13 +127,13 @@ class NEMODataTree(xr.DataTree):
             raise ValueError("Invalid paths structure. Expected a nested dictionary defining NEMO 'parent', 'child' and 'grandchild' domains.")
 
         # Construct DataTree from parent / child / grandchild domains:
-        d_tree = _create_datatree_dict(d_parent=d_parent,
-                                       d_child=d_child,
-                                       d_grandchild=d_grandchild,
-                                       nests=nests,
-                                       iperio=iperio,
-                                       nftype=nftype
-                                       )
+        d_tree = create_datatree_dict(d_parent=d_parent,
+                                      d_child=d_child,
+                                      d_grandchild=d_grandchild,
+                                      nests=nests,
+                                      iperio=iperio,
+                                      nftype=nftype
+                                      )
 
         datatree = super().from_dict(d_tree)
 
@@ -217,13 +217,13 @@ class NEMODataTree(xr.DataTree):
             raise ValueError("invalid dataset structure. Expected a nested dictionary defining NEMO 'parent', 'child' and 'grandchild' domains.")
 
         # Construct DataTree from parent / child / grandchild domains:
-        d_tree = _create_datatree_dict(d_parent=d_parent,
-                                       d_child=d_child,
-                                       d_grandchild=d_grandchild,
-                                       nests=nests,
-                                       iperio=iperio,
-                                       nftype=nftype
-                                       )
+        d_tree = create_datatree_dict(d_parent=d_parent,
+                                      d_child=d_child,
+                                      d_grandchild=d_grandchild,
+                                      nests=nests,
+                                      iperio=iperio,
+                                      nftype=nftype
+                                      )
         datatree = super().from_dict(d_tree)
 
         return datatree
@@ -1228,14 +1228,14 @@ class NEMODataTree(xr.DataTree):
             raise ValueError(f"e3_new must sum to at least the maximum depth ({cls[grid][f"depth{grid_str}"].max(dim=k_name).item()} m) of the original vertical grid.")
 
         # -- Transform variable to target vertical grid -- #
-        var_out, e3_out = xr.apply_ufunc(_transform_vertical_coords,
-                                            e3_in.astype(np.float64),
-                                            var_in.astype(np.float64),
-                                            e3_new.astype(np.float64),
-                                            input_core_dims=[[k_name], [k_name], ["k_new"]],
-                                            output_core_dims=[["k_new"], ["k_new"]],
-                                            dask="allowed"
-                                            )
+        var_out, e3_out = xr.apply_ufunc(transform_vertical_coords,
+                                         e3_in,
+                                         var_in,
+                                         e3_new.astype(e3_in.dtype),
+                                         input_core_dims=[[k_name], [k_name], ["k_new"]],
+                                         output_core_dims=[["k_new"], ["k_new"]],
+                                         dask="allowed"
+                                         )
 
         # -- Create transformed variable Dataset -- #
         t_name = var_in.dims[0]

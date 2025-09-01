@@ -634,7 +634,7 @@ def _process_child(
     return d_out
 
 
-def _create_datatree_dict(
+def create_datatree_dict(
     d_parent: dict[str, xr.Dataset] | dict[str, str],
     d_child: dict[str, dict[str, xr.Dataset]] | None = None,
     d_grandchild: dict[str, dict[str, xr.Dataset]] | None = None,
@@ -643,7 +643,7 @@ def _create_datatree_dict(
     nftype: str | None = None
 ) -> dict[str, xr.Dataset]:
     """
-    Create Dictionary of DataTree paths (key) and xarray Datasets (values)
+    Create Dictionary of DataTree paths (keys) and xarray Datasets (values)
     representing a collection of NEMO model grids.
 
     Parameters
