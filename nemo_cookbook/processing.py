@@ -9,7 +9,7 @@ Author:
 Ollie Tooth (oliver.tooth@noc.ac.uk)
 """
 import xarray as xr
-from .mask import add_dom_msk
+from .masks import add_dom_msk
 
 
 def _get_child_indices(
