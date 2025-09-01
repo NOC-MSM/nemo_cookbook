@@ -49,7 +49,7 @@ def _nearest_ji_coords(glamt:xr.DataArray,
     ds = ds.squeeze(drop=True)
 
     # Set the index for BallTree search:
-    ds.xoak.set_index(("lat", "lon"), "s2point")
+    ds.xoak.set_index(("lat", "lon"), "sklearn_geo_balltree")
     # Select the nearest grid points to obs points:
     ds_mdl = ds.xoak.sel(lat=xr.DataArray(target_lat), lon=xr.DataArray(target_lon))
 
