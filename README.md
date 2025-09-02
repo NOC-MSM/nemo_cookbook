@@ -47,30 +47,34 @@ conda activate env_nemo_cookbook
 pip install -e .
 ```
 
-## **Recipes**
+### **Recipes**
 
-We are steadily adding more recipes to the NEMO Cookbook. Here, we include a list of currently available recipes & several more that are in development.
+#### **Available:**
 
-**Available:**
+The following recipes are available on the **Recipes** page:
 
-1. Meridional Overturning Stream Function in an arbitrary tracer coordinates.
+1. Meridional overturning stream function in an arbitrary tracer coordinates.
 
-2. Meridional Overturning Stream Function in depth coordinates (z/z*).
+2. Meridional overturning stream function in depth coordinates (z/z*).
 
-3. Meridional Heat & Salt Transports.
+3. Meridional heat & salt transports.
 
-4. Surface-Forced Water Mass Transformation in potential density coordinates.
+4. Surface-forced water mass transformation in potential density coordinates.
 
-5. Volume census in temperature - salinity coordinates.
+5. Volume census in T-S coordinates.
 
-**In Development:**
+6. Masked statistics using bounding boxes and polygons.
 
-1. Barotropic Stream Functions.
+6. Extracting volume transports and properties along the Overturning in the Subpolar North Atlantic array.
 
-2. Meridional Overturning Stream Functions in depth coordinates (MES).
+#### **In Development:**
 
-3. Ocean Heat Content & Mixed Layer Heat Content. 
+1. Barotropic stream functions.
 
-4. Sea Ice Diagnostics.
+2. Meridional overturning stream functions in depth coordinates (MES).
 
-5. Vorticity Diagnostics.
+3. Ocean heat content & mixed layer heat content. 
+
+4. Sea ice diagnostics.
+
+5. Vorticity diagnostics.

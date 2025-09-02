@@ -3,13 +3,13 @@
 **Welcome to the documentation for the NEMO Cookbook :wave:**
 
 ## What is the NEMO Cookbook? :cook: :book:
-**NEMO Cookbook** is a collection of Python recipes for performing reproducible analyses of [**NEMO**](https://www.nemo-ocean.eu) ocean general circulation model outputs.
+NEMO Cookbook is a collection of recipes for performing reproducible analyses of the Nucleus for European Modelling of the Ocean ([**NEMO**](https://www.nemo-ocean.eu)) ocean general circulation model outputs.
 
-Our aim is to provide Python implementations of the post-processing & analysis functions available in [**CDFTOOLS**](https://github.com/meom-group/CDFTOOLS/tree/master) alongside new diagnostics (e.g., surface-forced water mass transformation), which are compatible with generalised vertical coordinate systems (e.g., MES).
+Our aim is to provide Python implementations of the post-processing & analysis functions available in [**CDFTOOLS**](https://github.com/meom-group/CDFTOOLS) alongside new diagnostics (e.g., surface-forced water mass transformation), which are compatible with generalised vertical coordinate systems (e.g., MES).
 
-Importantly, the **NEMO Cookbook** does aim to be a generic ocean circulation model analysis framework such as [**xgcm**](https://xgcm.readthedocs.io/en/latest/). As such, recipes do not require users to generate grid objects in advance of their calculations; only the necessary NEMO grid variables are required similar to CDFTOOLS.
+NEMO Cookbook introduces the `NEMODataTree` structure, which is an extension of the `xarray.DataTree` object and an alternative to the [**xgcm**](https://xgcm.readthedocs.io/en/latest/) grid object.
 
-Each recipe comprises of one or more functions built using the [**xarray**](https://xarray.dev), [**flox**](https://flox.readthedocs.io/en/latest/) & [**dask**](https://www.dask.org) libraries (think of these are your cooking utensils!) & the raw ingredients (ocean model outputs) - that's where you come in!
+Each recipe uses `NEMODataTree` to leverage [**xarray**](https://xarray.dev), [**flox**](https://flox.readthedocs.io/en/latest/) & [**dask**](https://www.dask.org) libraries (think of these are your cooking utensils) to calculate a diagnostic with NEMO ocean model outputs (the raw ingredients - that's where you come in!).
 
 ---
 
@@ -17,23 +17,22 @@ Each recipe comprises of one or more functions built using the [**xarray**](http
 
 ### Installation
 
-We recommend downloading and installing **NEMO Cookbook** into a new virtual environment via GitHub
+Users are recommended to installing **NEMO Cookbook** into a new virtual environment via GitHub:
 
-First, clone the latest version of the nemo_cookbook repository using Git:
+```{bash}
+pip install git+https://github.com/NOC-MSM/nemo_cookbook.git
+```
+
+Alternatively, users can clone the latest version of the nemo_cookbook repository using Git:
 ```{bash}
 git clone git@github.com:NOC-MSM/nemo_cookbook.git
 ```
 
-Next, install the dependencies in a new conda virtual environment:
+Then, install the dependencies in a new conda virtual environment and pip install **NEMO Cookbook** in editable mode:
 ```{bash}
 cd nemo_cookbook
 
 conda env create -f environment.yml
-```
-
-Finally, activate your new virtual environment and pip install **NEMO Cookbook** in editable mode:
-
-```{bash}
 conda activate env_nemo_cookbook
 
 pip install -e .
@@ -57,35 +56,37 @@ pip install -e .
 
 ---
 
-### Current Recipes
+### **Recipes**
 
-The following recipes are currently available in the **NEMO Cookbook** and be explored on the **Recipes** page:
+#### **Available:**
 
-1. Meridional Overturning Stream Function in an arbitrary tracer coordinates.
+The following recipes are available on the **Recipes** page:
 
-2. Meridional Overturning Stream Function in depth coordinates (z/z*).
+1. Meridional overturning stream function in an arbitrary tracer coordinates.
 
-3. Meridional Heat & Salt Transports.
+2. Meridional overturning stream function in depth coordinates (z/z*).
 
-4. Surface-Forced Overturning Stream Functions in potential density coordinates.
+3. Meridional heat & salt transports.
 
-5. Volume census in temperature - salinity coordinates.
+4. Surface-forced water mass transformation in potential density coordinates.
 
-6. Extracting the Overturning in the Subpolar North Atlantic array.
+5. Volume census in T-S coordinates.
 
-### Recipe Wishlist
+6. Masked statistics using bounding boxes and polygons.
 
-The following recipes are in development:
+6. Extracting volume transports and properties along the Overturning in the Subpolar North Atlantic array.
 
-1. Barotropic Stream Functions.
+#### **In Development:**
 
-2. Meridional Overturning Stream Functions in depth coordinates (MES).
+1. Barotropic stream functions.
 
-3. Ocean Heat Content & Mixed Layer Heat Content. 
+2. Meridional overturning stream functions in depth coordinates (MES).
 
-4. Sea Ice Diagnostics.
+3. Ocean heat content & mixed layer heat content. 
 
-5. Vorticity Diagnostics.
+4. Sea ice diagnostics.
+
+5. Vorticity diagnostics.
 
 ### Learning More...
 
