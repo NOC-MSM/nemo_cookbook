@@ -272,8 +272,7 @@ class NEMODataTree(xr.DataTree):
         else:
             raise RuntimeError(f"weights missing for dimensions {dims} of NEMO model grid {grid}.")
 
-        if np.isnan(weights).any():
-            weights = weights.fillna(value=0)
+        weights = weights.fillna(value=0)
 
         return weights
 
@@ -666,6 +665,7 @@ class NEMODataTree(xr.DataTree):
         dims : list,
         cum_dims : list | None = None,
         dir : str | None = None,
+        mask : xr.DataArray | None = None
     ) -> xr.DataArray:
         """
         Integrate a variable along one or more dimensions of a NEMO model grid.
@@ -685,6 +685,9 @@ class NEMODataTree(xr.DataTree):
         dir : str, optional
             Direction of cumulative integration. Options are '+1' (along
             increasing cum_dims) or '-1' (along decreasing cum_dims).
+        mask: xr.DataArray, optional
+            Boolean mask identifying NEMO model grid points to be included (1)
+            and neglected (0) from integration.
 
         Returns
         -------
@@ -703,33 +706,39 @@ class NEMODataTree(xr.DataTree):
                     raise ValueError(f"cumulative integration dimension '{dim}' not included in `dims`.")
             if dir not in ['+1', '-1']:
                 raise ValueError(f"invalid direction of cumulative integration '{dir}'. Expected '+1' or '-1'.")
-            
+        if mask is not None:
+            if not isinstance(mask, xr.DataArray):
+                raise ValueError("mask must be an xarray.DataArray.")
+            if any(dim not in ['i', 'j'] for dim in mask.dims):
+                raise ValueError("mask must have dimensions 'i' and 'j'.")
+
         # -- Prepare variable & weights -- #
         dom_inds = [char for char in grid if char.isdigit()]
         dom_str = f"{dom_inds[-1]}_" if len(dom_inds) != 0 else ""
         grid_str = f"{grid.lower()[-1]}"
 
-        da = cls[grid][var]
+        da = cls[grid][var].where(mask) if mask is not None else cls[grid][var]
+
         weights = cls._get_weights(grid=grid, dims=dims)
 
         if f"{dom_str}depth{grid_str}" in da.coords:
-            # Apply 3-dimensional mask:
-            mask = cls[grid][f"{grid_str}mask"]
+            # Apply 3-dimensional t/u/v/f/w mask:
+            dom_mask = cls[grid][f"{grid_str}mask"]
         else:
-            # Apply 2-dimensional mask:
-            mask = cls[grid][f"{grid_str}mask"][0, :, :]
-            mask = mask.drop_vars([f"{dom_str}depth{grid_str}"])
+            # Apply 2-dimensional t/u/v/f/w mask:
+            dom_mask = cls[grid][f"{grid_str}mask"][0, :, :]
+            dom_mask = dom_mask.drop_vars([f"{dom_str}depth{grid_str}"])
 
         # -- Perform integration -- #
         if cum_dims is not None:
             sum_dims = [dim for dim in dims if dim not in cum_dims]
             if dir == '+1':
                 # Cumulative integration along ordered dimension:
-                result = cls[grid][var].where(mask).weighted(weights).sum(dim=sum_dims, skipna=True).cumsum(dim=cum_dims, skipna=True)
+                result = da.where(dom_mask).weighted(weights).sum(dim=sum_dims, skipna=True).cumsum(dim=cum_dims, skipna=True)
             elif dir == '-1':
                 # Cumulative integration along reversed dimension:
-                result = (cls[grid][var]
-                            .where(mask)
+                result = (da
+                            .where(dom_mask)
                             .weighted(weights)
                             .sum(dim=sum_dims, skipna=True)
                             .reindex({dim: cls[grid][dim][::-1] for dim in cum_dims})
@@ -737,7 +746,7 @@ class NEMODataTree(xr.DataTree):
                             )
         else:
             # Integration only:
-            result = cls[grid][var].weighted(weights).sum(dim=dims, skipna=True)
+            result = da.weighted(weights).sum(dim=dims, skipna=True)
 
         return result
    
