@@ -687,7 +687,7 @@ class NEMODataTree(xr.DataTree):
             increasing cum_dims) or '-1' (along decreasing cum_dims).
         mask: xr.DataArray, optional
             Boolean mask identifying NEMO model grid points to be included (1)
-            and neglected (0) from integration.
+            or neglected (0) from integration.
 
         Returns
         -------
@@ -709,8 +709,8 @@ class NEMODataTree(xr.DataTree):
         if mask is not None:
             if not isinstance(mask, xr.DataArray):
                 raise ValueError("mask must be an xarray.DataArray.")
-            if any(dim not in ['i', 'j'] for dim in mask.dims):
-                raise ValueError("mask must have dimensions 'i' and 'j'.")
+            if any(dim not in cls[grid].dims for dim in mask.dims):
+                raise ValueError(f"mask must have dimensions subset from {cls[grid].dims}.")
 
         # -- Prepare variable & weights -- #
         dom_inds = [char for char in grid if char.isdigit()]
@@ -1105,6 +1105,7 @@ class NEMODataTree(xr.DataTree):
         keep_dims : list[str] | None,
         bins : list[list | np.ndarray],
         statistic : str,
+        mask : xr.DataArray | None
         ) -> xr.DataArray:
         """
         Calculate binned statistics for a given xarray DataArray.
@@ -1126,6 +1127,9 @@ class NEMODataTree(xr.DataTree):
             Statistic to calculate (e.g., 'count', 'sum', 'nansum', 'mean', 'nanmean',
             'max', 'nanmax', 'min', 'nanmin'). See flox.xarray.xarray_reduce for a
             complete list of aggregation statistics.
+        mask : xr.DataArray | None
+            Boolean mask identifying NEMO model grid points to be included (1)
+            or neglected (0) from calculation.
 
         Returns
         -------
@@ -1148,13 +1152,20 @@ class NEMODataTree(xr.DataTree):
                             "nanargmin", "quantile", "nanquantile", "median", "nanmedian",
                             "mode", "nanmode", "first", "nanfirst", "last", "nanlast"]:
             raise ValueError(f"statistic '{statistic}' is not supported.")
+        if mask is not None:
+            if not isinstance(mask, xr.DataArray):
+                raise ValueError("mask must be an xarray.DataArray.")
+            if mask.dtype != bool:
+                raise TypeError("mask dtype must be boolean.")
+            if any(dim not in cls[grid].dims for dim in mask.dims):
+                raise ValueError(f"mask must have dimensions subset from {cls[grid].dims}.")
 
         # -- Define input variables & apply grid mask -- #
         grid_str = f"{grid.lower()[-1]}"
-        mask = cls[grid][f"{grid_str}mask"]
+        dom_mask = cls[grid][f"{grid_str}mask"]
 
-        values_data = cls[grid][values].where(mask)
-        var_data = [cls[grid][var].where(mask) for var in vars]
+        values_data = cls[grid][values].where(mask & dom_mask) if mask is not None else cls[grid][values].where(dom_mask)
+        var_data = [cls[grid][var].where(mask & dom_mask) if mask is not None else cls[grid][var].where(dom_mask) for var in vars]
         keep_vars_data = [cls[grid][dim] for dim in keep_dims]
 
         expected_groups = [None for _ in keep_dims]
@@ -1256,3 +1267,63 @@ class NEMODataTree(xr.DataTree):
             )
 
         return ds_out
+
+
+    def transform_scalar_to(
+        cls,
+        grid: str,
+        var: str,
+        to: str
+    ) -> xr.DataArray:
+        """
+        Transform scalar variable defined on a NEMO model grid to
+        a neighbouring horizontal grid using linear interpolation.
+
+        Parameters
+        ----------
+        grid : str
+            Path to NEMO model grid where variable is stored
+            (e.g., '/gridT').
+        var : str
+            Name of the variable to transform.
+        to : str
+            Suffix of the neighbouring horizontal NEMO model grid to
+            transform variable to. Options are 'U', 'V'.
+
+        Returns
+        -------
+        xr.DataArray
+            Values of variable linearly interpolated onto a neighbouring
+            horizontal grid.
+        """
+        # -- Validate input -- #
+        if grid not in list(cls.subtree):
+            raise KeyError(f"grid '{grid}' not found in the NEMODataTree.")
+        if var not in cls[grid].data_vars:
+            raise KeyError(f"variable '{var}' not found in grid '{grid}'.")
+        if not isinstance(to, str):
+            raise TypeError(f"'to' must be a string, got {type(to)}.")
+        if to not in ['U', 'V']:
+            raise ValueError(f"'to' must be one of ['U', 'V'], got {to}.")
+
+        # -- Identify grid & domain -- #
+        to_grid = f"{grid.replace(grid[-1], to)}"
+        fill_dim_name = "i" if to == "U" else "j"
+        dom_inds = [char for char in grid if char.isdigit()]
+        dom_str = dom_inds[-1] if len(dom_inds) != 0 else "."
+
+        if dom_str == ".":
+            i_name, j_name = "i", "j"
+        else:
+            i_name, j_name = f"i{dom_str}", f"j{dom_str}"
+
+        # -- Perform interpolation -- #
+        result = (cls[grid][var]
+                  .interpolate_na(dim=fill_dim_name, method='nearest', fill_value="extrapolate")
+                  .interp({i_name: cls[grid.replace(grid[-1], to)][i_name],
+                           j_name: cls[grid.replace(grid[-1], to)][j_name]},
+                           method='linear')
+                  .where(cls[to_grid][f'{to.lower()}mask'])
+                  )
+
+        return result
