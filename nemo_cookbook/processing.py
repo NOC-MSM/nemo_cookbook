@@ -495,12 +495,14 @@ def _process_parent(
                                            k_name="k",
                                            )
 
-    # Define root node inheritable coords from first non-domain grid.
+    # Define root node inheritable coords & attrs from first non-domain grid.
     root_name = [grid for grid in d_parent.keys() if grid != 'domain'][0]
+    d_root = d_proc_grids[root_name].drop_dims(["j", "i", "k"])
+    d_root.attrs = {'nftype': nftype, 'iperio': iperio}
 
     # Construct DataTree node dictionary:
     d_out = {
-        "/": d_proc_grids[root_name].drop_dims(["j", "i", "k"]),
+        "/": d_root,
         "/gridT": d_proc_grids['gridT'],
         "/gridU": d_proc_grids['gridU'],
         "/gridV": d_proc_grids['gridV'],
