@@ -79,12 +79,13 @@ def _check_grid_datasets(
     """
     # Check dict keys and value dtypes:
     if 'domain' not in d.keys():
-        raise KeyError("Missing 'domain': xarray Dataset in dictionary.")    
+        raise KeyError("missing 'domain': xarray Dataset in dictionary.")
+
     grid_keys = ['domain', 'gridT', 'gridU', 'gridV', 'gridW']
     if not all([key in grid_keys for key in d.keys()]):
-        raise KeyError(f"Incompatible key in {d.keys()}. Expecting {grid_keys}.")
+        raise KeyError(f"incompatible key in {d.keys()}. Expecting {grid_keys}.")
     if not all(isinstance(val, xr.Dataset) for val in d.values()):
-        raise TypeError("Input dictionary should contain only (str: xarray Dataset) entries.")
+        raise TypeError("input dictionary should contain only (str: xarray Dataset) entries.")
 
     # Populate missing NEMO grid keys with empty xarray Datasets:
     for key in grid_keys:
@@ -128,9 +129,9 @@ def _open_grid_datasets(
         try:
             domain_cfg = xr.open_dataset(d_in['domain'])
         except FileNotFoundError as e:
-            raise FileNotFoundError(f"Could not open domain configuration file: {e}")
+            raise FileNotFoundError(f"could not open domain configuration file: {e}")
     else:
-        raise KeyError("Missing 'domain' key in parent dictionary.")
+        raise KeyError("missing 'domain' key in parent dictionary.")
 
     # T / U / V / W Grids:
     for key in ['gridT', 'gridU', 'gridV', 'gridW']:
@@ -146,7 +147,7 @@ def _open_grid_datasets(
                 elif key == 'gridW':
                     gridW = dataset
             except FileNotFoundError as e:
-                raise FileNotFoundError(f"Could not open {key} file: {e}")
+                raise FileNotFoundError(f"could not open {key} file: {e}")
         else:
             if key == 'gridT':
                 gridT = xr.Dataset()
@@ -208,9 +209,11 @@ def _add_domain_vars(
         }
     """
     if 'domain' in d_grids:
-        domain = d_grids['domain']
+        domain = d_grids['domain'].squeeze()
+        if "nav_lev" not in domain.dims:
+            raise KeyError("missing 'nav_lev' dimension in domain dataset.")
     else:
-        raise KeyError("Missing 'domain' key in grid datasets dictionary.")
+        raise KeyError("missing 'domain' key in grid datasets dictionary.")
 
     # Determine if closed seas should be masked:
     if "mask_opensea" in domain.data_vars:
@@ -227,7 +230,7 @@ def _add_domain_vars(
         d_grids['gridT']['top_level'] = domain["top_level"]
         d_grids['gridT']['bottom_level'] = domain["bottom_level"]
     except AttributeError as e:
-        raise AttributeError(f"Missing required T-grid variable in domain dataset -> {e}")
+        raise AttributeError(f"missing required T-grid variable in domain dataset -> {e}")
 
     d_grids['gridT']['tmask'] = add_dom_msk(ka=domain["nav_lev"]["nav_lev"],
                                             top_level=domain["top_level"],
@@ -246,7 +249,7 @@ def _add_domain_vars(
         d_grids['gridU']['gphiu'] = domain["gphiu"]
         d_grids['gridU']['glamu'] = domain["glamu"]
     except AttributeError as e:
-        raise AttributeError(f"Missing required U-grid variable in domain dataset -> {e}")
+        raise AttributeError(f"missing required U-grid variable in domain dataset -> {e}")
 
     d_grids['gridU']['umask'] = add_dom_msk(ka=domain["nav_lev"]["nav_lev"],
                                             top_level=domain["top_level"],
@@ -265,7 +268,7 @@ def _add_domain_vars(
         d_grids['gridV']['gphiv'] = domain["gphiv"]
         d_grids['gridV']['glamv'] = domain["glamv"]
     except AttributeError as e:
-        raise AttributeError(f"Missing required V-grid variable in domain dataset -> {e}")
+        raise AttributeError(f"missing required V-grid variable in domain dataset -> {e}")
 
     d_grids['gridV']['vmask'] = add_dom_msk(ka=domain["nav_lev"]["nav_lev"],
                                             top_level=domain["top_level"],
@@ -284,7 +287,7 @@ def _add_domain_vars(
         d_grids['gridW']['gphit'] = domain["gphit"]
         d_grids['gridW']['glamt'] = domain["glamt"]
     except AttributeError as e:
-        raise AttributeError(f"Missing required W-grid variable in domain dataset -> {e}")
+        raise AttributeError(f"missing required W-grid variable in domain dataset -> {e}")
 
     d_grids['gridW']['wmask'] = add_dom_msk(ka=domain["nav_lev"]["nav_lev"],
                                             top_level=domain["top_level"],
@@ -304,7 +307,7 @@ def _add_domain_vars(
         d_grids['gridF']['gphif'] = domain["gphif"]
         d_grids['gridF']['glamf'] = domain["glamf"]
     except AttributeError as e:
-        raise AttributeError(f"Missing required F-grid variable in domain dataset -> {e}")
+        raise AttributeError(f"missing required F-grid variable in domain dataset -> {e}")
 
     d_grids['gridF']['fmask'] = add_dom_msk(ka=domain["nav_lev"]["nav_lev"],
                                             top_level=domain["top_level"],
@@ -492,10 +495,12 @@ def _process_parent(
                                            k_name="k",
                                            )
 
+    # Define root node inheritable coords from first non-domain grid.
+    root_name = [grid for grid in d_parent.keys() if grid != 'domain'][0]
+
     # Construct DataTree node dictionary:
-    # Define root node using only inheritable coords.
     d_out = {
-        "/": d_proc_grids['gridT'].drop_dims(["j", "i", "k"]),
+        "/": d_proc_grids[root_name].drop_dims(["j", "i", "k"]),
         "/gridT": d_proc_grids['gridT'],
         "/gridU": d_proc_grids['gridU'],
         "/gridV": d_proc_grids['gridV'],
@@ -673,13 +678,13 @@ def create_datatree_dict(
     # -- Assign all child domains -- #
     if d_child is not None:
         if not all(isinstance(d_child[key], dict) for key in d_child.keys()):
-            raise ValueError("Invalid child domain structure. Expected a nested dict defining NEMO child domain(s).")
+            raise ValueError("invalid child domain structure. Expected a nested dict defining NEMO child domain(s).")
         for key in d_child.keys():
             if key not in nests.keys():
-                raise KeyError(f"Child domain '{key}' not found in nests dict.")
+                raise KeyError(f"child domain '{key}' not found in nests dict.")
             d_nests = nests[key]
             if 'parent' not in d_nests.keys():
-                raise KeyError(f"Child nest dict '{key}' does not specify a parent domain.")
+                raise KeyError(f"child nest dict '{key}' does not specify a parent domain.")
             d_tree.update(_process_child(d_child=d_child[key],
                                          d_nests=d_nests,
                                          label=int(key),
@@ -689,15 +694,15 @@ def create_datatree_dict(
     # -- Assign all grandchild domains -- #
     if d_grandchild is not None:
         if not all(isinstance(d_grandchild[key], dict) for key in d_grandchild.keys()):
-            raise ValueError("Invalid grandchild domain structure. Expected a nested dict defining NEMO grandchild domain(s).")
+            raise ValueError("invalid grandchild domain structure. Expected a nested dict defining NEMO grandchild domain(s).")
         for key in d_grandchild.keys():
             if key not in nests.keys():
-                raise KeyError(f"Grandchild domain '{key}' not found in nests dict.")
+                raise KeyError(f"grandchild domain '{key}' not found in nests dict.")
             d_nests = nests[key]
             if 'parent' not in d_nests.keys():
-                raise KeyError(f"Grandchild nest dict '{key}' does not specify a parent domain.")
+                raise KeyError(f"grandchild nest dict '{key}' does not specify a parent domain.")
             if d_nests['parent'] not in d_child.keys():
-                raise KeyError(f"Parent domain '{d_nests['parent']}' not found in child domains.")
+                raise KeyError(f"parent domain '{d_nests['parent']}' not found in child domains.")
             d_tree.update(_process_child(d_child=d_grandchild[key],
                                          d_nests=d_nests,
                                          label=int(key),
