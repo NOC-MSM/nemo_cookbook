@@ -409,7 +409,6 @@ class NEMODataTree(xr.DataTree):
                 else:
                     # 2-dimensional umask:
                     umask = cls[gridU]["umask"][0, :, :]
-                    umask = umask.drop_vars([f"{dom_str}depthu"])
 
                 # Zonally Periodic Domain:
                 if cls[grid].attrs.get("iperio", False):
@@ -441,7 +440,6 @@ class NEMODataTree(xr.DataTree):
                 else:
                     # 2-dimensional vmask:
                     vmask = cls[gridV]["vmask"][0, :, :]
-                    vmask = vmask.drop_vars([f"{dom_str}depthv"])
 
                 # Pad with zeros after differencing (zero gradient at jmaxdom):
                 dvar = (da
@@ -540,7 +538,6 @@ class NEMODataTree(xr.DataTree):
         else:
             # 2-dimensional tmask:
             tmask = cls[grid_i.replace("U", "T")]["tmask"][0, :, :]
-            tmask = tmask.drop_vars([f"{dom_str}deptht"])
 
         # -- Neglecting the first T-grid points along i, j dimensions -- #
         gridT = cls[grid_i.replace("U", "T")]
@@ -727,7 +724,6 @@ class NEMODataTree(xr.DataTree):
         else:
             # Apply 2-dimensional t/u/v/f/w mask:
             dom_mask = cls[grid][f"{grid_str}mask"][0, :, :]
-            dom_mask = dom_mask.drop_vars([f"{dom_str}depth{grid_str}"])
 
         # -- Perform integration -- #
         if cum_dims is not None:
@@ -777,12 +773,15 @@ class NEMODataTree(xr.DataTree):
 
         # -- Clip the grid to given bounding box -- #
         grid_str = f"{grid.lower()[-1]}"
+        # Indexing with a mask requires eager loading:
+        glam = cls[grid][f"glam{grid_str}"].load()
+        gphi = cls[grid][f"gphi{grid_str}"].load()
 
         grid_clipped = cls[grid].dataset.where(
-            (cls[grid][f"glam{grid_str}"] >= bbox[0]) &
-            (cls[grid][f"glam{grid_str}"] <= bbox[1]) &
-            (cls[grid][f"gphi{grid_str}"] >= bbox[2]) &
-            (cls[grid][f"gphi{grid_str}"] <= bbox[3]),
+            (glam >= bbox[0]) &
+            (glam <= bbox[1]) &
+            (gphi >= bbox[2]) &
+            (gphi <= bbox[3]),
             drop=True
             )
 
@@ -834,12 +833,15 @@ class NEMODataTree(xr.DataTree):
             for grid in grid_paths:
                 # Use (glamt, gphit) coords for W-grids:
                 grid_str = f"{grid.lower()[-1]}" if 'W' not in grid else 't'
+                # Indexing with a mask requires eager loading:
+                glam = cls[grid][f"glam{grid_str}"].load()
+                gphi = cls[grid][f"gphi{grid_str}"].load()
 
                 grid_clipped = cls[grid].dataset.where(
-                    (cls[grid][f"glam{grid_str}"] >= bbox[0]) &
-                    (cls[grid][f"glam{grid_str}"] <= bbox[1]) &
-                    (cls[grid][f"gphi{grid_str}"] >= bbox[2]) &
-                    (cls[grid][f"gphi{grid_str}"] <= bbox[3]),
+                    (glam >= bbox[0]) &
+                    (glam <= bbox[1]) &
+                    (gphi >= bbox[2]) &
+                    (gphi <= bbox[3]),
                     drop=True
                     )
 
@@ -953,9 +955,18 @@ class NEMODataTree(xr.DataTree):
                                           )
 
         # -- Apply masks & calculate statistic -- #
+        dom_inds = [char for char in grid if char.isdigit()]
+        dom_str = f"{dom_inds[-1]}_" if len(dom_inds) != 0 else ""
         grid_str = f"{grid.lower()[-1]}"
-        mask = cls[grid][f"{grid_str}mask"]
-        da = cls[grid][var].where(mask & mask_poly)
+
+        if f"{dom_str}depth{grid_str}" in cls[grid][var].coords:
+            # Apply 3-dimensional t/u/v/f/w mask:
+            dom_mask = cls[grid][f"{grid_str}mask"]
+        else:
+            # Apply 2-dimensional t/u/v/f/w mask:
+            dom_mask = cls[grid][f"{grid_str}mask"][0, :, :]
+
+        da = cls[grid][var].where(dom_mask.astype(bool) & mask_poly)
 
         match statistic:
             case "mean":
