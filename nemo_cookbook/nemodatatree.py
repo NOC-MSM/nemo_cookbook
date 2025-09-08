@@ -65,10 +65,22 @@ class NEMODataTree(xr.DataTree):
         paths : dict[str, str]
             Dictionary containing paths to NEMO grid files, structured as:
             {
-                'parent': {'domain': 'path/to/domain.nc', 'gridT': 'path/to/gridT.nc', ...},
-                'child': {'1': {'domain': 'path/to/child_domain.nc', 'gridT': 'path/to/child_gridT.nc', ...},
+                'parent': {'domain': 'path/to/domain.nc',
+                           'gridT': 'path/to/gridT.nc',
+                            , ... ,
+                            'icemod': 'path/to/icemod.nc',
+                            },
+                'child': {'1': {'domain': 'path/to/child_domain.nc',
+                                'gridT': 'path/to/child_gridT.nc',
+                                , ... ,
+                                'icemod': 'path/to/child_icemod.nc',
+                                },
                           },
-                'grandchild': {'2': {'domain': 'path/to/grandchild_domain.nc', 'gridT': 'path/to/grandchild_gridT.nc', ...},
+                'grandchild': {'2': {'domain': 'path/to/grandchild_domain.nc',
+                                     'gridT': 'path/to/grandchild_gridT.nc',
+                                     , ...,
+                                     'icemod': 'path/to/grandchild_icemod.nc',
+                                     },
                                }
             }
 
@@ -154,17 +166,15 @@ class NEMODataTree(xr.DataTree):
 
         Parameters
         ----------
-        datasets : dict[str, xr.Dataset]
+        datasets : dict[str, dict[str, xr.Dataset]]
             Dictionary containing xarray.Datasets created from NEMO grid files, structured as:
             {
-                'parent': {'domain': ds_domain, 'gridT': ds_gridT, ...},
-                'child': {'1': {'domain': ds_domain_1, 'gridT': d_gridT_1, ...},
-                          },
-                'grandchild': {'2': {'domain': ds_domain_2, 'gridT': ds_gridT_2, ...},
-                               }
+                'parent': {'domain': ds_domain, 'gridT': ds_gridT, ... , 'icemod': ds_icemod.nc},
+                'child': {'1': {'domain': ds_domain_1, 'gridT': d_gridT_1, ...}},
+                'grandchild': {'2': {'domain': ds_domain_2, 'gridT': ds_gridT_2, ...}}
             }
 
-        nests : dict[str, str], optional
+        nests : dict[str, dict[st, str]], optional
             Dictionary describing the properties of nested domains, structured as:
             {
                 "1": {
@@ -723,7 +733,7 @@ class NEMODataTree(xr.DataTree):
             dom_mask = cls[grid][f"{grid_str}mask"]
         else:
             # Apply 2-dimensional t/u/v/f/w mask:
-            dom_mask = cls[grid][f"{grid_str}mask"][0, :, :]
+            dom_mask = cls[grid][f"{grid_str}mask"][0, :, :].drop_vars("k")
 
         # -- Perform integration -- #
         if cum_dims is not None:
@@ -772,10 +782,13 @@ class NEMODataTree(xr.DataTree):
             raise ValueError("bounding box must be a tuple (lon_min, lon_max, lat_min, lat_max).")
 
         # -- Clip the grid to given bounding box -- #
+        dom_inds = [char for char in grid if char.isdigit()]
+        dom_str = f"{dom_inds[-1]}_" if len(dom_inds) != 0 else ""
         grid_str = f"{grid.lower()[-1]}"
+
         # Indexing with a mask requires eager loading:
-        glam = cls[grid][f"glam{grid_str}"].load()
-        gphi = cls[grid][f"gphi{grid_str}"].load()
+        glam = cls[grid][f"{dom_str}glam{grid_str}"].load()
+        gphi = cls[grid][f"{dom_str}gphi{grid_str}"].load()
 
         grid_clipped = cls[grid].dataset.where(
             (glam >= bbox[0]) &
@@ -822,8 +835,10 @@ class NEMODataTree(xr.DataTree):
         grid_paths = [path[0] for path in list(cls.subtree_with_keys)]
 
         if dom == '.':
+            dom_str = ""
             grid_paths = [path for path in grid_paths if ("_" not in path) & ("grid" in path)]
         else:
+            dom_str = f"{dom}_"
             grid_paths = [path for path in grid_paths if dom in path]
 
         # -- Clip grids to given bounding box -- #
@@ -834,8 +849,8 @@ class NEMODataTree(xr.DataTree):
                 # Use (glamt, gphit) coords for W-grids:
                 grid_str = f"{grid.lower()[-1]}" if 'W' not in grid else 't'
                 # Indexing with a mask requires eager loading:
-                glam = cls[grid][f"glam{grid_str}"].load()
-                gphi = cls[grid][f"gphi{grid_str}"].load()
+                glam = cls[grid][f"{dom_str}glam{grid_str}"].load()
+                gphi = cls[grid][f"{dom_str}gphi{grid_str}"].load()
 
                 grid_clipped = cls[grid].dataset.where(
                     (glam >= bbox[0]) &
@@ -892,13 +907,14 @@ class NEMODataTree(xr.DataTree):
 
         if dom_str == ".":
             i_name, j_name = "i", "j"
+            lon_name = f"glam{grid.lower()[-1]}"
+            lat_name = f"gphi{grid.lower()[-1]}"
         else:
             i_name, j_name = f"i{dom_str}", f"j{dom_str}"
+            lon_name = f"{dom_str}_glam{grid.lower()[-1]}"
+            lat_name = f"{dom_str}_gphi{grid.lower()[-1]}"
 
         # -- Create mask using polygon coordinates -- #
-        lon_name = f"glam{grid.lower()[-1]}"
-        lat_name = f"gphi{grid.lower()[-1]}"
-
         mask = add_polygon_msk(lon_grid=cls[grid][lon_name],
                                lat_grid=cls[grid][lat_name],
                                lon_poly=lon_poly,
@@ -964,9 +980,9 @@ class NEMODataTree(xr.DataTree):
             dom_mask = cls[grid][f"{grid_str}mask"]
         else:
             # Apply 2-dimensional t/u/v/f/w mask:
-            dom_mask = cls[grid][f"{grid_str}mask"][0, :, :]
+            dom_mask = cls[grid][f"{grid_str}mask"][0, :, :].drop_vars("k")
 
-        da = cls[grid][var].where(dom_mask.astype(bool) & mask_poly)
+        da = cls[grid][var].where(dom_mask & mask_poly)
 
         match statistic:
             case "mean":
@@ -1172,8 +1188,16 @@ class NEMODataTree(xr.DataTree):
                 raise ValueError(f"mask must have dimensions subset from {cls[grid].dims}.")
 
         # -- Define input variables & apply grid mask -- #
+        dom_inds = [char for char in grid if char.isdigit()]
+        dom_str = f"{dom_inds[-1]}_" if len(dom_inds) != 0 else ""
         grid_str = f"{grid.lower()[-1]}"
-        dom_mask = cls[grid][f"{grid_str}mask"]
+
+        if f"{dom_str}depth{grid_str}" in cls[grid][values].coords:
+            # Apply 3-dimensional t/u/v/f/w mask:
+            dom_mask = cls[grid][f"{grid_str}mask"]
+        else:
+            # Apply 2-dimensional t/u/v/f/w mask:
+            dom_mask = cls[grid][f"{grid_str}mask"][0, :, :].drop_vars("k")
 
         values_data = cls[grid][values].where(mask & dom_mask) if mask is not None else cls[grid][values].where(dom_mask)
         var_data = [cls[grid][var].where(mask & dom_mask) if mask is not None else cls[grid][var].where(dom_mask) for var in vars]
@@ -1210,7 +1234,7 @@ class NEMODataTree(xr.DataTree):
         grid: str,
         var: str,
         e3_new: xr.DataArray
-    ) -> tuple[xr.DataArray, xr.DataArray]:
+    ) -> xr.Dataset:
         """
         Transform variable defined on a NEMO model grid to a
         new vertical grid using conservative interpolation.
@@ -1245,6 +1269,7 @@ class NEMODataTree(xr.DataTree):
         # -- Define input variables -- #
         dom_inds = [char for char in grid if char.isdigit()]
         dom = dom_inds[-1] if len(dom_inds) != 0 else "."
+
         if dom == ".":
             i_name, j_name, k_name = "i", "j", "k"
         else:
