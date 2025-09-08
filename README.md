@@ -1,15 +1,14 @@
-
-<h1 align="center">NEMO Cookbook</h1>
-<p align="center">
+# NEMO Cookbook
+<p align="left">
 <strong>Recipes for reproducible analysis of NEMO ocean general circulation model outputs using xarray.<strong>
 </a>
 <br />
 <br />
--
+:rocket:
 <a href="https://noc-msm.github.io/nemo_cookbook/"><strong>Documentation</strong></a>
--
+- 
 <a href="https://github.com/NOC-MSM/nemo_cookbook/issues"><strong>Report an Issue</strong></a>
--
+:grey_exclamation: :grey_question:
 </p>
 
 ## **About**
@@ -65,7 +64,9 @@ The following recipes are available on the **Recipes** page:
 
 6. Masked statistics using bounding boxes and polygons.
 
-6. Extracting volume transports and properties along the Overturning in the Subpolar North Atlantic array.
+7. Extracting volume transports and properties along the Overturning in the Subpolar North Atlantic array.
+
+8. Vertical coordinate transformations.
 
 #### **In Development:**
 
@@ -78,3 +79,11 @@ The following recipes are available on the **Recipes** page:
 4. Sea ice diagnostics.
 
 5. Vorticity diagnostics.
+
+## **Documentation**
+
+To learn more about NEMO Cookbook & to start exploring our current recipes, visit our documentation [here](https://noc-msm.github.io/nemo_cookbook/).
+
+## **Contact**
+
+Ollie Tooth (oliver.tooth@noc.ac.uk)

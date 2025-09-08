@@ -1,5 +1,8 @@
 # **Getting Started**
 
+<img src="./assets/icons/noc_logo.png" alt="drawing" width="150"/>
+<img src="./assets/icons/NEMO_blue.png" alt="drawing" width="150"/>
+
 **Welcome to the documentation for the NEMO Cookbook :wave:**
 
 ## What is the NEMO Cookbook? :cook: :book:
@@ -74,7 +77,9 @@ The following recipes are available on the **Recipes** page:
 
 6. Masked statistics using bounding boxes and polygons.
 
-6. Extracting volume transports and properties along the Overturning in the Subpolar North Atlantic array.
+7. Extracting volume transports and properties along the Overturning in the Subpolar North Atlantic array.
+
+8. Vertical coordinate transformations.
 
 #### **In Development:**
 
@@ -90,7 +95,7 @@ The following recipes are available on the **Recipes** page:
 
 ### Learning More...
 
-To learn more about the NEMO Cookbook, including how to contribute your own recipes, see the [User Guide] and [Contributing] pages.
+To learn more about the NEMO Cookbook, including how to contribute your own recipes, see the [NEMODataTree] user guide and [Contributing] pages.
 
-[User Guide]: user_guide.md
+[NEMODataTree]: user_guide.md
 [Contributing]: contributing.md
