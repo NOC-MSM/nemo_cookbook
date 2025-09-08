@@ -25,7 +25,7 @@ The root node sits at the top of the DataTree ('/') and each of its child nodes 
 In summary, an `xarray.DataTree` can help ocean modellers organise complex outputs (nested domains, groups of variables) in a natural, hierarchical way by acting as a container for a collection of related  `xarray.Datasets`.
 
 
-## What is a NEMODataTree? :ocean: x :fontawesome-solid-folder-tree:
+## What is a NEMODataTree? :ocean:  |  :fontawesome-solid-folder-tree:
 
 `NEMODataTree` is an extension of the `xarray.DataTree` structure designed to store NEMO model output datasets as nodes in a hierarchical tree.
 

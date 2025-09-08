@@ -66,11 +66,11 @@ nav:
   - Getting started: index.md
   - NEMODataTree: nemodatatree.md
   - Recipes:
-    - Meridional Overturning Stream Function - Depth: recipe_moc_z.ipynb
-    - Meridional Overturning Stream Function - Tracer: recipe_moc_tracer.ipynb
+    - Meridional Overturning - Depth Space: recipe_moc_z.ipynb
+    - Meridional Overturning - Tracer Space: recipe_moc_tracer.ipynb
     - Masked Statistics: recipe_masked_stats.ipynb
     - Volume Census in T-S Space: recipe_volume_census.ipynb
-    - Surface-Forced Water Mass Transformation: recipe_sfoc_sigma0.ipynb
+    - Surface-Forced Water Mass Transformation: recipe_sfwmt_sigma0.ipynb
     - Extracting the OSNAP Section: recipe_extract_osnap.ipynb
   - API: reference.md
   - Contributing: contributing.md
