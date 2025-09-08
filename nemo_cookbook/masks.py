@@ -282,11 +282,14 @@ def add_dom_msk(
                 mask["y"] = np.arange(1, mask["y"].size + 1)
 
     # Update coordinates to use zero-based indexing:
-    mask = mask.assign_coords(
-        {"nav_lev": mask["nav_lev"] - 1,
-         "y": mask["y"] - 1,
-         "x": mask["x"] - 1
-         })
+    mask = (mask
+            .astype(bool)
+            .assign_coords(
+            {"nav_lev": mask["nav_lev"] - 1,
+            "y": mask["y"] - 1,
+            "x": mask["x"] - 1
+            })
+            )
 
     return mask
 
