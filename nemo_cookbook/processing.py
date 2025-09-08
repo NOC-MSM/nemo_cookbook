@@ -81,7 +81,7 @@ def _check_grid_datasets(
     if 'domain' not in d.keys():
         raise KeyError("missing 'domain': xarray Dataset in dictionary.")
 
-    grid_keys = ['domain', 'gridT', 'gridU', 'gridV', 'gridW']
+    grid_keys = ['domain', 'gridT', 'gridU', 'gridV', 'gridW', 'icemod']
     if not all([key in grid_keys for key in d.keys()]):
         raise KeyError(f"incompatible key in {d.keys()}. Expecting {grid_keys}.")
     if not all(isinstance(val, xr.Dataset) for val in d.values()):
@@ -91,6 +91,10 @@ def _check_grid_datasets(
     for key in grid_keys:
         if key not in d.keys():
             d.update({key: xr.Dataset()})
+
+    # Combining sea ice and scalar variables both stored on T-grid:
+    if ('gridT' in d.keys()) & ('icemod' in d.keys()):
+        d['gridT'] = xr.merge([d['icemod'], d['gridT']], compat='no_conflicts')
 
     return d
 
@@ -134,7 +138,7 @@ def _open_grid_datasets(
         raise KeyError("missing 'domain' key in parent dictionary.")
 
     # T / U / V / W Grids:
-    for key in ['gridT', 'gridU', 'gridV', 'gridW']:
+    for key in ['gridT', 'gridU', 'gridV', 'gridW', 'icemod']:
         if key in d_in:
             try:
                 dataset = xr.open_dataset(d_in[key])
@@ -146,6 +150,8 @@ def _open_grid_datasets(
                     gridV = dataset
                 elif key == 'gridW':
                     gridW = dataset
+                elif key == 'icemod':
+                    gridI = dataset
             except FileNotFoundError as e:
                 raise FileNotFoundError(f"could not open {key} file: {e}")
         else:
@@ -157,9 +163,11 @@ def _open_grid_datasets(
                 gridV = xr.Dataset()
             elif key == 'gridW':
                 gridW = xr.Dataset()
+            elif key == 'icemod':
+                gridI = xr.Dataset()
 
     d_out = {'domain': domain_cfg,
-             "gridT": gridT,
+             "gridT": xr.merge([gridT, gridI]),
              "gridU": gridU,
              "gridV": gridV,
              "gridW": gridW
@@ -441,6 +449,7 @@ def _process_parent(
             'gridU': 'path/to/parent_gridU.nc',
             'gridV': 'path/to/parent_gridV.nc',
             'gridW': 'path/to/parent_gridW.nc',
+            'icemod': 'path/to/parent_icemod.nc',
         }
         or
         {
@@ -449,6 +458,7 @@ def _process_parent(
             'gridU': xr.Dataset,
             'gridV': xr.Dataset,
             'gridW': xr.Dataset,
+            'icemod': xr.Dataset
         }
 
     iperio: bool = False
@@ -533,6 +543,7 @@ def _process_child(
             'gridU': 'path/to/child_gridU.nc',
             'gridV': 'path/to/child_gridV.nc',
             'gridW': 'path/to/child_gridW.nc',
+            'icemod': 'path/to/child_icemod.nc',
         }
         or
         {
@@ -541,6 +552,7 @@ def _process_child(
             'gridU': xr.Dataset,
             'gridV': xr.Dataset,
             'gridW': xr.Dataset,
+            'icemod': xr.Dataset,
         }
     
     d_nests : dict[str, int]
