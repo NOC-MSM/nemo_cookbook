@@ -24,7 +24,7 @@ class NEMODataTree(xr.DataTree):
     """
     A hierarchical data structure containing collections of NEMO ocean model outputs.
 
-    This class extends xarray.DataTree to provide methods for processing
+    This class extends `xarray.DataTree` to provide methods for processing
     and analysing NEMO output xarray objects defining one or more model domains.
     
     It supports NEMO discrete scalar and vector operators such as computing gradients,
@@ -37,7 +37,7 @@ class NEMODataTree(xr.DataTree):
 
         The node may optionally contain data in the form of data
         and coordinate variables, stored in the same way as data
-        is stored in an xarray.Dataset.
+        is stored in an `xarray.Dataset`.
 
         Parameters
         ----------
@@ -112,7 +112,7 @@ class NEMODataTree(xr.DataTree):
         Returns
         -------
         NEMODataTree
-            A hierarchical data tree of NEMO model outputs.
+            A hierarchical DataTree storing NEMO model outputs.
         """
         if not isinstance(paths, dict):
             raise TypeError("paths must be a dictionary or nested dictionary.")
@@ -161,13 +161,13 @@ class NEMODataTree(xr.DataTree):
         nftype: str | None = None
     ) -> Self:
         """
-        Create a NEMODataTree from a dictionary of xarray.Dataset objects created from NEMO model output files,
+        Create a NEMODataTree from a dictionary of `xarray.Dataset` objects created from NEMO model output files,
         organised into a hierarchy of domains (i.e., 'parent', 'child', 'grandchild').
 
         Parameters
         ----------
         datasets : dict[str, dict[str, xr.Dataset]]
-            Dictionary containing xarray.Datasets created from NEMO grid files, structured as:
+            Dictionary containing `xarray.Datasets` created from NEMO grid files, structured as:
             {
                 'parent': {'domain': ds_domain, 'gridT': ds_gridT, ... , 'icemod': ds_icemod.nc},
                 'child': {'1': {'domain': ds_domain_1, 'gridT': d_gridT_1, ...}},
@@ -245,8 +245,7 @@ class NEMODataTree(xr.DataTree):
         dims: list
         ) -> xr.DataArray:
         """
-        Get the weights (scale factors) for specified dimensions
-        of a NEMO model grid.
+        Get the weights (scale factors) for specified dimensions of a NEMO model grid.
 
         Parameters
         ----------
@@ -293,8 +292,7 @@ class NEMODataTree(xr.DataTree):
         dim: str,
     ) -> xr.DataArray:
         """
-        Calculate grid cell areas orthogonal to a given dimension
-        of a NEMO model grid.
+        Calculate grid cell areas orthogonal to a given dimension of a NEMO model grid.
 
         Parameters
         ----------
@@ -365,8 +363,7 @@ class NEMODataTree(xr.DataTree):
         dom: str = '.',
     ) -> xr.DataArray:
         """
-        Calculate the gradient of a scalar variable along one dimension 
-        (e.g., 'i', 'j', 'k') of a NEMO model grid.
+        Calculate the gradient of a scalar variable along one dimension (e.g., 'i', 'j', 'k') of a NEMO model grid.
 
         Parameters
         ----------
@@ -491,8 +488,7 @@ class NEMODataTree(xr.DataTree):
         dom: str = '.',
     ) -> xr.DataArray:
         """
-        Calculate the horizontal divergence of a vector field defined
-        on a NEMO model grid.
+        Calculate the horizontal divergence of a vector field defined on a NEMO model grid.
 
         Parameters
         ----------
@@ -1012,8 +1008,7 @@ class NEMODataTree(xr.DataTree):
         dom: str = '.',
         ) -> xr.Dataset:
         """
-        Extract the boundary of a masked region defined on a
-        NEMO model grid.
+        Extract the boundary of a masked region defined on a NEMO model grid.
 
         Parameters
         ----------
@@ -1135,7 +1130,7 @@ class NEMODataTree(xr.DataTree):
         mask : xr.DataArray | None
         ) -> xr.DataArray:
         """
-        Calculate binned statistics for a given xarray DataArray.
+        Calculate binned statistic of a variable defined on a NEMO model grid.
 
         Parameters
         ----------
@@ -1236,8 +1231,7 @@ class NEMODataTree(xr.DataTree):
         e3_new: xr.DataArray
     ) -> xr.Dataset:
         """
-        Transform variable defined on a NEMO model grid to a
-        new vertical grid using conservative interpolation.
+        Transform variable defined on a NEMO model grid to a new vertical grid using conservative interpolation.
 
         Parameters
         ----------
@@ -1312,8 +1306,7 @@ class NEMODataTree(xr.DataTree):
         to: str
     ) -> xr.DataArray:
         """
-        Transform scalar variable defined on a NEMO model grid to
-        a neighbouring horizontal grid using linear interpolation.
+        Transform scalar variable defined on a NEMO model grid to a neighbouring horizontal grid using linear interpolation.
 
         Parameters
         ----------
