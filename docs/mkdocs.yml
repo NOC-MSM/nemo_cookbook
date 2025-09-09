@@ -72,6 +72,7 @@ nav:
     - Volume Census in T-S Space: recipe_volume_census.ipynb
     - Surface-Forced Water Mass Transformation: recipe_sfwmt_sigma0.ipynb
     - Extracting the OSNAP Section: recipe_extract_osnap.ipynb
+    - Vertical Coordinate Transformation: recipe_transform_vertical_coords.ipynb
   - API: reference.md
   - Contributing: contributing.md
 
