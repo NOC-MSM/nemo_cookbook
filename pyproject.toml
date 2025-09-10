@@ -18,7 +18,8 @@ classifiers = [
 ]
 
 dependencies = [
-  "aiohttp>=3.11.18", 
+  "aiohttp>=3.11.18",
+  "dask>=2025.7.0",
   "flox>=0.10.6",
   "fsspec>=2025.3.2",
   "matplotlib",
@@ -38,7 +39,7 @@ dependencies = [
 complete = ["nemo_cookbook[parallel,viz,interactive]"]
 parallel = ["dask[complete]"]
 viz = ["cartopy>=0.23", "matplotlib", "nc-time-axis"]
-interactive = ["jupyter>=1.1.1", "notebook>=7.4.1", "ipykernel>=6.29.5"]
+interactive = ["jupyter>=1.1.1", "notebook>=7.4.1", "ipykernel>=6.29.5", "pyarrow>=21.0.0"]
 test = ["pytest >=8.3.3"]
 
 [project.readme]
