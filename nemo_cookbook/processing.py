@@ -8,6 +8,7 @@ ocean general circulation model grids.
 Author:
 Ollie Tooth (oliver.tooth@noc.ac.uk)
 """
+import numpy as np
 import xarray as xr
 from .masks import add_dom_msk
 
@@ -218,6 +219,9 @@ def _add_domain_vars(
     """
     if 'domain' in d_grids:
         domain = d_grids['domain'].squeeze()
+        # Drop all empty coordinates following squeeze:
+        domain = domain.drop_vars([coord for coord in domain.coords if domain[coord].size == 1])
+
         if "nav_lev" not in domain.dims:
             raise KeyError("missing 'nav_lev' dimension in domain dataset.")
     else:
@@ -228,6 +232,9 @@ def _add_domain_vars(
         mask_opensea = domain["mask_opensea"]
     else:
         mask_opensea = None
+
+    # Define vertical grid indices:
+    ka = xr.DataArray(np.arange(domain["nav_lev"].size), dims='nav_lev')
 
     # T-grid:
     try:
@@ -240,7 +247,7 @@ def _add_domain_vars(
     except AttributeError as e:
         raise AttributeError(f"missing required T-grid variable in domain dataset -> {e}")
 
-    d_grids['gridT']['tmask'] = add_dom_msk(ka=domain["nav_lev"]["nav_lev"],
+    d_grids['gridT']['tmask'] = add_dom_msk(ka=ka,
                                             top_level=domain["top_level"],
                                             bottom_level=domain["bottom_level"],
                                             cd_nat="T",
@@ -259,7 +266,7 @@ def _add_domain_vars(
     except AttributeError as e:
         raise AttributeError(f"missing required U-grid variable in domain dataset -> {e}")
 
-    d_grids['gridU']['umask'] = add_dom_msk(ka=domain["nav_lev"]["nav_lev"],
+    d_grids['gridU']['umask'] = add_dom_msk(ka=ka,
                                             top_level=domain["top_level"],
                                             bottom_level=domain["bottom_level"],
                                             cd_nat="U",
@@ -278,7 +285,7 @@ def _add_domain_vars(
     except AttributeError as e:
         raise AttributeError(f"missing required V-grid variable in domain dataset -> {e}")
 
-    d_grids['gridV']['vmask'] = add_dom_msk(ka=domain["nav_lev"]["nav_lev"],
+    d_grids['gridV']['vmask'] = add_dom_msk(ka=ka,
                                             top_level=domain["top_level"],
                                             bottom_level=domain["bottom_level"],
                                             cd_nat="V",
@@ -297,7 +304,7 @@ def _add_domain_vars(
     except AttributeError as e:
         raise AttributeError(f"missing required W-grid variable in domain dataset -> {e}")
 
-    d_grids['gridW']['wmask'] = add_dom_msk(ka=domain["nav_lev"]["nav_lev"],
+    d_grids['gridW']['wmask'] = add_dom_msk(ka=ka,
                                             top_level=domain["top_level"],
                                             bottom_level=domain["bottom_level"],
                                             cd_nat="W",
@@ -317,7 +324,7 @@ def _add_domain_vars(
     except AttributeError as e:
         raise AttributeError(f"missing required F-grid variable in domain dataset -> {e}")
 
-    d_grids['gridF']['fmask'] = add_dom_msk(ka=domain["nav_lev"]["nav_lev"],
+    d_grids['gridF']['fmask'] = add_dom_msk(ka=ka,
                                             top_level=domain["top_level"],
                                             bottom_level=domain["bottom_level"],
                                             cd_nat="F",
@@ -607,12 +614,12 @@ def _process_child(
     d_grids = _add_domain_vars(d_grids=d_grids, iperio=d_nests['iperio'], nftype=None)
 
     # Get child domain indices excluding ghost cells:
-    ind_child = _get_child_indices(rx=d_nests['rx'],
-                                   ry=d_nests['ry'],
-                                   imin=d_nests['imin'],
-                                   imax=d_nests['imax'],
-                                   jmin=d_nests['jmin'],
-                                   jmax=d_nests['jmax']
+    ind_child = _get_child_indices(rx=d_nests.get('rx'),
+                                   ry=d_nests.get('ry'),
+                                   imin=d_nests.get('imin'),
+                                   imax=d_nests.get('imax'),
+                                   jmin=d_nests.get('jmin'),
+                                   jmax=d_nests.get('jmax')
                                    )
     i_slice = slice(ind_child[0], ind_child[1] + 1)
     j_slice = slice(ind_child[2], ind_child[3] + 1)
@@ -629,6 +636,17 @@ def _process_child(
                                            j_name=f"j{label}",
                                            k_name=f"k{label}",
                                            )
+        # Add nest attributes to child grids:
+        d_proc_grids[grid] = (d_proc_grids[grid]
+                              .assign_attrs({
+                                  'rx': d_nests.get('rx'),
+                                  'ry': d_nests.get('ry'),
+                                  'imin': d_nests.get('imin'),
+                                  'imax': d_nests.get('imax'),
+                                  'jmin': d_nests.get('jmin'),
+                                  'jmax': d_nests.get('jmax')
+                              })
+                              )
 
     # Construct DataTree node path dictionary:
     if parent_label is not None:
