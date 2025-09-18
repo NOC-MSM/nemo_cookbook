@@ -17,7 +17,7 @@ from matplotlib.path import Path
 from .lbc import lbc_nfd
 
 
-def add_dom_msk(
+def create_dom_mask(
     ka: xr.DataArray,
     top_level: xr.DataArray,
     bottom_level: xr.DataArray,
@@ -294,7 +294,7 @@ def add_dom_msk(
     return mask
 
 
-def add_polygon_msk(
+def create_polygon_mask(
     lon_grid: xr.DataArray,
     lat_grid: xr.DataArray,
     lon_poly: list | np.ndarray,

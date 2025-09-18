@@ -15,7 +15,7 @@ import xarray as xr
 from typing import Self
 from flox.xarray import xarray_reduce
 
-from .masks import create_polygon_msk, get_mask_boundary
+from .masks import create_polygon_mask, get_mask_boundary
 from .processing import create_datatree_dict
 from .transform import transform_vertical_coords
 
@@ -997,12 +997,12 @@ class NEMODataTree(xr.DataTree):
             lat_name = f"{dom_prefix}gphi{hgrid_type}"
 
         # -- Create mask using polygon coordinates -- #
-        mask = create_polygon_msk(lon_grid=cls[grid][lon_name],
-                                  lat_grid=cls[grid][lat_name],
-                                  lon_poly=lon_poly,
-                                  lat_poly=lat_poly,
-                                  dims=(j_name, i_name)
-                                  )
+        mask = create_polygon_mask(lon_grid=cls[grid][lon_name],
+                                   lat_grid=cls[grid][lat_name],
+                                   lon_poly=lon_poly,
+                                   lat_poly=lat_poly,
+                                   dims=(j_name, i_name)
+                                   )
 
         return mask
 
