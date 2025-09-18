@@ -85,7 +85,7 @@ The following recipes are available on the **Recipes** page:
 
 1. Barotropic stream functions.
 
-2. Meridional overturning stream functions in depth coordinates (MES).
+2. Meridional overturning stream functions in multi-envelope sigma coordinates.
 
 3. Ocean heat content & mixed layer heat content. 
 
