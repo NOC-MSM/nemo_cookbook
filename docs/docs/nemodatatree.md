@@ -18,7 +18,7 @@ The `xarray.DataTree` extends the more familiar collection of xarray data struct
 
 ```
 DataTree('root')
-├── global
+└──global
     └── regional_nest
 ```
 
@@ -49,7 +49,7 @@ In summary, an `xarray.DataTree` can help ocean modellers organise complex outpu
 
 Many users will be familiar with the typical output format of NEMO model simulations, which includes separate netCDF files for groups of variables defined at the same type of grid points.
 
-<img src="./assets/images/nemo_c_grid.png" alt="drawing" width="250" align="right"/>
+<img src="./assets/images/nemo_c_grid.png" width="250"/>
 
 In NEMO, variables are arranged using a 3-dimensional Arakawa “C” grid (Mesinger and Arakawa, 1976), consisting of cells centred on scalar points **T** (e.g. temperature, salinity, density, and horizontal divergence).
 
