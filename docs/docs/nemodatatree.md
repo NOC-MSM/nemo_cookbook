@@ -49,7 +49,9 @@ In summary, an `xarray.DataTree` can help ocean modellers organise complex outpu
 
 Many users will be familiar with the typical output format of NEMO model simulations, which includes separate netCDF files for groups of variables defined at the same type of grid points.
 
-<img src="./assets/images/nemo_c_grid.png" width="250"/>
+<figure markdown="span">
+  ![](./assets/images/nemo_c_grid.png){ width="300" }
+</figure>
 
 In NEMO, variables are arranged using a 3-dimensional Arakawa “C” grid (Mesinger and Arakawa, 1976), consisting of cells centred on scalar points **T** (e.g. temperature, salinity, density, and horizontal divergence).
 
