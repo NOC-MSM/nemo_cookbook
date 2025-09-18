@@ -9,13 +9,13 @@ model domains.
 Author:
 Ollie Tooth (oliver.tooth@noc.ac.uk)
 """
-# from xml import dom
+import dask
 import numpy as np
 import xarray as xr
 from typing import Self
 from flox.xarray import xarray_reduce
 
-from .masks import add_polygon_msk, get_mask_boundary
+from .masks import create_polygon_msk, get_mask_boundary
 from .processing import create_datatree_dict
 from .transform import transform_vertical_coords
 
@@ -239,6 +239,124 @@ class NEMODataTree(xr.DataTree):
         return datatree
 
 
+    def _get_properties(
+        cls,
+        dom: str | None = None,
+        grid: str | None = None,
+        infer_dom: bool = False
+        ) -> str:
+        """
+        Get NEMO model domain and grid properties.
+
+        The domain prefix & suffix (e.g., '1_', '1') are returned
+        if only the NEMO model domain (`dom`) is specified.
+        
+        The grid suffix (e.g., 't', 'u', 'v', 'w') is returned if
+        only the NEMO model grid (`grid`) is specified.
+
+        The domain number, domain prefix & suffix, and grid suffix
+        are returned if both the NEMO model grid (`grid`) and
+        `infer_dom = True` are specified.
+
+        Parameters
+        ----------
+        dom : str, optional
+            Prefix of NEMO domain in the DataTree (e.g., '1', '2', '3', etc.).
+        grid : str, optional
+            Path to NEMO model grid (e.g., '/gridT').
+        infer_dom : bool, optional
+            Whether to infer the domain number & domain name from only the
+            grid path. Default is False.
+
+        Returns
+        -------
+        tuple[str]
+            NEMO model domain and grid properties.
+        """
+        if (grid is None) & (dom is not None):
+            dom_prefix = "" if dom == "." else f"{dom}_"
+            dom_suffix = "" if dom == "." else f"{dom}"
+            return dom_prefix, dom_suffix
+        else:
+            if grid not in list(cls.subtree):
+                raise KeyError(f"grid '{grid}' not found in the NEMODataTree.")
+            grid_suffix = f"{grid.lower()[-1]}"
+
+            if infer_dom:
+                dom_inds = [char for char in grid if char.isdigit()]
+                dom_prefix = f"{dom_inds[-1]}_" if len(dom_inds) != 0 else ""
+                dom = dom_prefix[:-1] if dom_prefix != "" else "."
+                dom_suffix = dom if dom != "." else ""
+                return dom, dom_prefix, dom_suffix, grid_suffix
+            else:
+                return grid_suffix
+
+
+    def _get_grid_paths(
+        cls,
+        dom: str
+        ) -> str:
+        """
+        Get paths to NEMO model grids in a given domain.
+
+        Parameters
+        ----------
+        dom : str, optional
+            Prefix of NEMO domain in the DataTree (e.g., '1', '2', '3', etc.).
+
+        Returns
+        -------
+        dict[str, str]
+            Dictionary of NEMO model grid paths.
+        """
+        # Collect paths to all NEMO model grids:
+        grid_paths = [path[0] for path in list(cls.subtree_with_keys)]
+
+        if dom == '.':
+            grid_paths = [path for path in grid_paths if ("_" not in path) & ("grid" in path)]
+        else:
+            grid_paths = [path for path in grid_paths if dom in path]
+
+        d_paths = {path.split("/")[0]: path for path in grid_paths}
+        
+        return d_paths
+
+
+    def _get_ijk_names(
+        cls,
+        dom: str | None = None,
+        grid: str | None = None
+        ) -> str:
+        """
+        Get (i, j, k) grid index names for given NEMO model domain.
+
+        If path to NEMO model grid is provided, domain is inferred.
+
+        Parameters
+        ----------
+        dom : str, optional
+            Prefix of NEMO domain in the DataTree (e.g., '1', '2', '3', etc.).
+        grid : str, optional
+            Path to NEMO model grid (e.g., '/gridT').
+
+        Returns
+        -------
+        dict[str, str]
+            NEMO model grid index names.
+        """
+        if grid is not None:
+            dom, _, dom_suffix, _ = cls._get_properties(grid=grid, infer_dom=True)
+
+        indexes = ["i", "j", "k"]
+        if dom == ".":
+            d_ijk = {index: index for index in indexes}
+        else:
+            d_ijk = {index: f"{index}{dom_suffix}" for index in indexes}
+
+
+        return d_ijk
+
+
     def _get_weights(
         cls,
         grid: str,
@@ -259,16 +377,14 @@ class NEMODataTree(xr.DataTree):
         xr.DataArray
             Weights (scale factors) for the specified dimensions of the NEMO model grid.
         """
-        if grid not in list(cls.subtree):
-            raise KeyError(f"grid '{grid}' not found in the NEMODataTree.")
         if any(dim not in ['i', 'j', 'k'] for dim in dims):
             raise ValueError("dims must be a list containing one or more of the following dimensions: ['i', 'j', 'k'].")
 
-        grid_str = f"{grid.lower()[-1]}"
+        grid_suffix = cls._get_properties(grid=grid)
 
-        weights_dict = {"i": f"e1{grid_str}",
-                        "j": f"e2{grid_str}",
-                        "k": f"e3{grid_str}",
+        weights_dict = {"i": f"e1{grid_suffix}",
+                        "j": f"e2{grid_suffix}",
+                        "k": f"e3{grid_suffix}",
                         }
         weights_list = [cls[grid][weights_dict[dim]] for dim in dims]
 
@@ -308,19 +424,18 @@ class NEMODataTree(xr.DataTree):
         xr.DataArray
             Grid cell areas (m^2) for the specified NEMO model grid.
         """
-        if grid not in list(cls.subtree):
-            raise KeyError(f"grid '{grid}' not found in the NEMODataTree.")
+        grid_suffix = cls._get_properties(grid=grid)
+
         if dim not in ['i', 'j', 'k']:
             raise ValueError(f"dim {dim} must be one of ['i', 'j', 'k'].")
 
-        grid_str = f"{grid.lower()[-1]}"
         match dim:
             case 'i':
-                cell_area = cls[grid][f'e3{grid_str}'] * cls[grid][f'e2{grid_str}']
+                cell_area = cls[grid][f'e3{grid_suffix}'] * cls[grid][f'e2{grid_suffix}']
             case 'j':
-                cell_area = cls[grid][f'e3{grid_str}'] * cls[grid][f'e1{grid_str}']
+                cell_area = cls[grid][f'e3{grid_suffix}'] * cls[grid][f'e1{grid_suffix}']
             case 'k':
-                cell_area = cls[grid][f'e1{grid_str}'] * cls[grid][f'e2{grid_str}']
+                cell_area = cls[grid][f'e1{grid_suffix}'] * cls[grid][f'e2{grid_suffix}']
         cell_area.name = "areacello"
 
         return cell_area
@@ -344,13 +459,11 @@ class NEMODataTree(xr.DataTree):
         xr.DataArray
             Grid cell volumes for the specified NEMO model grid.
         """
-        if grid not in list(cls.subtree):
-            raise KeyError(f"grid '{grid}' not found in the NEMODataTree.")
+        grid_suffix = cls._get_properties(grid=grid)
 
-        grid_str = f"{grid.lower()[-1]}"
-        mask = cls[grid][f"{grid_str}mask"]
+        mask = cls[grid][f"{grid_suffix}mask"]
 
-        cell_volume = cls[grid][f"e3{grid_str}"].where(mask) * cls[grid][f"e1{grid_str}"] * cls[grid][f"e2{grid_str}"]
+        cell_volume = cls[grid][f"e3{grid_suffix}"].where(mask) * cls[grid][f"e1{grid_suffix}"] * cls[grid][f"e2{grid_suffix}"]
         cell_volume.name = "volcello"
 
         return cell_volume
@@ -388,37 +501,30 @@ class NEMODataTree(xr.DataTree):
         if not isinstance(dom, str):
             raise ValueError("dom must be a string specifying prefix of a NEMO domain (e.g., '.', '1', '2', etc.).")
 
-        # -- Define path to T-grid -- #
-        if dom == ".":
-            grid = "/gridT"
-            dom_str = ""
-        else:
-            nodes = [n[0] for n in cls.subtree_with_keys if dom in n[0]]
-            grid = [n for n in nodes if "gridT" in n][0]
-            dom_str = f"{dom}_"
-    
-        if grid not in list(cls.subtree):
-            raise KeyError(f"grid '{grid}' not found in the NEMODataTree.")
-        if var not in cls[grid].data_vars:
-            raise KeyError(f"variable '{var}' not found in grid '{grid}'.")
+        # -- Get NEMO model grid properties -- #
+        _, dom_prefix, dom_suffix = cls._get_properties(dom=dom)
+        grid_paths = cls._get_grid_paths(dom=dom)
+        gridT, gridU, gridV, gridW = grid_paths['gridT'], grid_paths['gridU'], grid_paths['gridV'], grid_paths['gridW']
 
-        da = cls[grid][var]
-        dim_name = f"{dim}{dom}" if dom != '.' else dim
+        if var not in cls[gridT].data_vars:
+            raise KeyError(f"variable '{var}' not found in grid '{gridT}'.")
+
+        da = cls[gridT][var]
+        dim_name = f"{dim}{dom_suffix}"
         if dim_name not in da.dims:
             raise KeyError(f"dimension '{dim_name}' not found in variable '{var}'. Dimensions available: {da.dims}.")
 
         match dim:
             case "i":
-                gridU = grid.replace("T", "U")
-                if f"{dom_str}deptht" in da.coords:
+                if f"{dom_prefix}deptht" in da.coords:
                     # 3-dimensional umask:
                     umask = cls[gridU]["umask"]
                 else:
                     # 2-dimensional umask:
-                    umask = cls[gridU]["umask"][0, :, :]
+                    umask = cls[gridU]["umask"][0, :, :].drop_vars(f"k{dom_suffix}")
 
                 # Zonally Periodic Domain:
-                if cls[grid].attrs.get("iperio", False):
+                if cls[gridT].attrs.get("iperio", False):
                     da_end = da.isel(dim_name=0)
                     da_end[dim_name] = da[dim_name].max() + 1
                     da = xr.concat([da, da_end], dim=dim_name)
@@ -434,19 +540,18 @@ class NEMODataTree(xr.DataTree):
                 gradient = dvar.where(umask) / cls[gridU]["e1u"]
 
                 # Remove redundant depth coordinates:
-                if f"{dom_str}deptht" in gradient.coords:
+                if f"{dom_prefix}deptht" in gradient.coords:
                     gradient = (gradient
-                                .drop_vars([f"{dom_str}deptht"])
-                                .assign_coords({f"{dom_str}depthu": cls[gridU][f"{dom_str}depthu"]})
+                                .drop_vars([f"{dom_prefix}deptht"])
+                                .assign_coords({f"{dom_prefix}depthu": cls[gridU][f"{dom_prefix}depthu"]})
                                 )
             case "j":
-                gridV = grid.replace("T", "V")
                 # 3-dimensional vmask:
-                if f"{dom_str}deptht" in da.coords:
+                if f"{dom_prefix}deptht" in da.coords:
                     vmask = cls[gridV]["vmask"]
                 else:
                     # 2-dimensional vmask:
-                    vmask = cls[gridV]["vmask"][0, :, :]
+                    vmask = cls[gridV]["vmask"][0, :, :].drop_vars(f"k{dom_suffix}")
 
                 # Pad with zeros after differencing (zero gradient at jmaxdom):
                 dvar = (da
@@ -455,29 +560,28 @@ class NEMODataTree(xr.DataTree):
                         )
                 # Apply vmask & transform coords -> calculate gradient:
                 dvar.coords[dim_name] = dvar.coords[dim_name] + 0.5
-                gradient = dvar.where(vmask) / cls[gridV]["e2v"]
+                gradient = dvar.where(vmask) / cls[grid_paths['gridV']]["e2v"]
 
-                if f"{dom_str}deptht" in gradient.coords:
+                if f"{dom_prefix}deptht" in gradient.coords:
                     gradient = (gradient
-                                .drop_vars([f"{dom_str}deptht"])
-                                .assign_coords({f"{dom_str}depthv": cls[gridV][f"{dom_str}depthv"]})
+                                .drop_vars([f"{dom_prefix}deptht"])
+                                .assign_coords({f"{dom_prefix}depthv": cls[gridV][f"{dom_prefix}depthv"]})
                                 )
 
             case "k":
-                gridW = grid.replace("T", "W")
                 dvar = da.diff(dim=dim_name, label="lower")
                 # Transform coords & apply w-mask -> calculate gradient:
                 dvar.coords[dim_name] = dvar.coords[dim_name] + 0.5
                 dvar = dvar.where(cls[gridW]["wmask"].isel({dim_name: slice(1, None)}))
                 try:
                     gradient = - dvar / cls[gridW]["e3w"].isel({dim_name: slice(1, None)})
-                    gradient = gradient.drop_vars([f"{dom_str}deptht"])
+                    gradient = gradient.drop_vars([f"{dom_prefix}deptht"])
                 except KeyError:
                     raise KeyError(f"NEMO model grid: '{gridW}' does not contain vertical scale factor 'e3w' required to calculate gradients along the k-dimension.")
 
         # Update DataArray properties:
         gradient.name = f"grad_{var}_{dim_name}"
-        gradient = gradient.drop_vars([f"{dom_str}glamt", f"{dom_str}gphit"])
+        gradient = gradient.drop_vars([f"{dom_prefix}glamt", f"{dom_prefix}gphit"])
 
         return gradient
     
@@ -511,48 +615,38 @@ class NEMODataTree(xr.DataTree):
         if not isinstance(dom, str):
             raise ValueError("dom must be a string specifying the prefix of a NEMO domain (e.g., '.', '1', '2', etc.).")
 
-        # -- Define path to U/V-grids -- #
-        if dom == ".":
-            i_name, j_name = "i", "j"
-            grid_i = "/gridU"
-            grid_j = "/gridV"
-            dom_str = ""
-        else:
-            i_name, j_name = f"i{dom}", f"j{dom}"
-            nodes = [n[0] for n in cls.subtree_with_keys if dom in n[0]]
-            grid_i = [n for n in nodes if "gridU" in n][0]
-            grid_j = [n for n in nodes if "gridV" in n][0]
-            dom_str = f"{dom}_"
-
-        if (grid_i not in cls.subtree) or (grid_j not in cls.subtree):
-            raise KeyError(f"path '{grid_i}' or '{grid_j}' not found in the NEMODataTree.")
-
-        var_i, var_j = vars[0], vars[1]
-        if var_i not in cls[grid_i].data_vars:
-            raise KeyError(f"variable '{var_i}' not found in grid '{grid_i}'.")
-        if var_j not in cls[grid_j].data_vars:
-            raise KeyError(f"variable '{var_j}' not found in grid '{grid_j}'.")
+        # -- Get NEMO model grid properties -- #
+        _, dom_prefix, dom_suffix = cls._get_properties(dom=dom)
+        grid_paths = cls._get_grid_paths(dom=dom)
+        gridT, gridU, gridV = grid_paths['gridT'], grid_paths['gridU'], grid_paths['gridV']
+        ijk_names = cls._get_ijk_names(dom=dom)
+        i_name, j_name = ijk_names['i'], ijk_names['j']
         
         # -- Define i,j vector components -- #
-        da_i = cls[grid_i][var_i]
-        da_j = cls[grid_j][var_j]
+        var_i, var_j = vars[0], vars[1]
+        if var_i not in cls[gridU].data_vars:
+            raise KeyError(f"variable '{var_i}' not found in grid '{gridU}'.")
+        if var_j not in cls[gridV].data_vars:
+            raise KeyError(f"variable '{var_j}' not found in grid '{gridV}'.")
+
+        da_i = cls[gridU][var_i]
+        da_j = cls[gridV][var_j]
 
         # -- Collect mask -- #
-        if (f"{dom_str}depthu" in da_i.coords) & (f"{dom_str}depthv" in da_j.coords):
+        if (f"{dom_prefix}depthu" in da_i.coords) & (f"{dom_prefix}depthv" in da_j.coords):
             # 3-dimensional tmask:
-            tmask = cls[grid_i.replace("U", "T")]["tmask"]
+            tmask = cls[gridT]["tmask"]
         else:
             # 2-dimensional tmask:
-            tmask = cls[grid_i.replace("U", "T")]["tmask"][0, :, :]
+            tmask = cls[gridT]["tmask"][0, :, :].drop_vars(f"k{dom_suffix}")
 
         # -- Neglecting the first T-grid points along i, j dimensions -- #
-        gridT = cls[grid_i.replace("U", "T")]
-        e1t = gridT["e1t"].isel({i_name: slice(1, None), j_name: slice(1, None)})
-        e2t = gridT["e2t"].isel({i_name: slice(1, None) , j_name: slice(1, None)})
-        e3t = gridT["e3t"].isel({i_name: slice(1, None) , j_name: slice(1, None)})
+        e1t = cls[gridT]["e1t"].isel({i_name: slice(1, None), j_name: slice(1, None)})
+        e2t = cls[gridT]["e2t"].isel({i_name: slice(1, None), j_name: slice(1, None)})
+        e3t = cls[gridT]["e3t"].isel({i_name: slice(1, None), j_name: slice(1, None)})
 
-        e2u, e3u = cls[grid_i]["e2u"], cls[grid_i]["e3u"]
-        e1v, e3v = cls[grid_j]["e1v"], cls[grid_j]["e3v"]
+        e2u, e3u = cls[gridU]["e2u"], cls[gridU]["e3u"]
+        e1v, e3v = cls[gridV]["e1v"], cls[gridV]["e3v"]
 
         # -- Calculate divergence on T-points -- #
         dvar_i = (e2u * e3u * da_i).diff(dim=i_name, label="lower")
@@ -565,9 +659,9 @@ class NEMODataTree(xr.DataTree):
 
         # -- Update DataArray properties -- #
         divergence.name = f"div_{var_i}_{var_j}"
-        divergence = divergence.drop_vars([f"{dom_str}glamu", f"{dom_str}gphiu",
-                                           f"{dom_str}glamv", f"{dom_str}gphiv",
-                                           f"{dom_str}depthu", f"{dom_str}depthv"
+        divergence = divergence.drop_vars([f"{dom_prefix}glamu", f"{dom_prefix}gphiu",
+                                           f"{dom_prefix}glamv", f"{dom_prefix}gphiv",
+                                           f"{dom_prefix}depthu", f"{dom_prefix}depthv"
                                            ])
 
         return divergence
@@ -601,47 +695,37 @@ class NEMODataTree(xr.DataTree):
         if not isinstance(dom, str):
             raise ValueError("dom must be a string specifying the prefix of a NEMO domain (e.g., '.', '1', '2', etc.).")
 
-        # -- Define path to U/V-grids -- #
-        if dom == ".":
-            i_name, j_name = "i", "j"
-            grid_i = "/gridU"
-            grid_j = "/gridV"
-            dom_str = ""
-        else:
-            i_name, j_name = f"i{dom}", f"j{dom}"
-            nodes = [n[0] for n in cls.subtree_with_keys if dom in n[0]]
-            grid_i = [n for n in nodes if "gridU" in n][0]
-            grid_j = [n for n in nodes if "gridV" in n][0]
-            dom_str = f"{dom}_"
+        # -- Get NEMO model grid properties -- #
+        _, dom_prefix, dom_suffix = cls._get_properties(dom=dom)
+        grid_paths = cls._get_grid_paths(dom=dom)
+        gridU, gridV, gridF = grid_paths['gridU'], grid_paths['gridV'], grid_paths['gridF']
+        ijk_names = cls._get_ijk_names(dom=dom)
+        i_name, j_name = ijk_names['i'], ijk_names['j']
 
-        if (grid_i not in cls.subtree) or (grid_j not in cls.subtree):
-            raise KeyError(f"path '{grid_i}' or '{grid_j}' not found in the NEMODataTree.")
-
-        var_i, var_j = vars[0], vars[1]
-        if var_i not in cls[grid_i].data_vars:
-            raise KeyError(f"variable '{var_i}' not found in grid '{grid_i}'.")
-        if var_j not in cls[grid_j].data_vars:
-            raise KeyError(f"variable '{var_j}' not found in grid '{grid_j}'.")
-        
         # -- Define i,j vector components -- #
-        da_i = cls[grid_i][var_i]
-        da_j = cls[grid_j][var_j]
+        var_i, var_j = vars[0], vars[1]
+        if var_i not in cls[gridU].data_vars:
+            raise KeyError(f"variable '{var_i}' not found in grid '{gridU}'.")
+        if var_j not in cls[gridV].data_vars:
+            raise KeyError(f"variable '{var_j}' not found in grid '{gridV}'.")
+
+        da_i = cls[gridU][var_i]
+        da_j = cls[gridV][var_j]
 
         # -- Collect mask -- #
-        if (f"{dom_str}depthu" in da_i.coords) & (f"{dom_str}depthv" in da_j.coords):
+        if (f"{dom_prefix}depthu" in da_i.coords) & (f"{dom_prefix}depthv" in da_j.coords):
             # 3-dimensional fmask
-            fmask = cls[grid_i.replace("U", "F")]["fmask"]
+            fmask = cls[gridF]["fmask"]
         else:
             # 2-dimensional fmask:
-            fmask = cls[grid_i.replace("U", "F")]["fmask"][0, :, :]
+            fmask = cls[gridF]["fmask"][0, :, :].drop_vars(f"k{dom_suffix}")
 
         # -- Neglecting the final F-grid points along i, j dimensions -- #
-        gridF = cls[grid_i.replace("U", "F")]
-        e1f = gridF["e1f"].isel({i_name: slice(None, -1), j_name: slice(None, -1)})
-        e2f = gridF["e2f"].isel({i_name: slice(None, -1) , j_name: slice(None, -1)})
+        e1f = cls[gridF]["e1f"].isel({i_name: slice(None, -1), j_name: slice(None, -1)})
+        e2f = cls[gridF]["e2f"].isel({i_name: slice(None, -1), j_name: slice(None, -1)})
 
-        e1u = cls[grid_i]["e1u"]
-        e2v = cls[grid_j]["e2v"]
+        e1u = cls[gridU]["e1u"]
+        e2v = cls[gridV]["e2v"]
 
         # -- Calculate vertical curl component on F-points -- #
         dvar_i = (e2v * da_j).diff(dim=i_name, label="lower")
@@ -654,8 +738,8 @@ class NEMODataTree(xr.DataTree):
 
         # -- Update DataArray properties -- #
         curl.name = f"curl_{var_i}_{var_j}"
-        curl = curl.drop_vars([f"{dom_str}glamu", f"{dom_str}gphiu",
-                               f"{dom_str}glamv", f"{dom_str}gphiv",
+        curl = curl.drop_vars([f"{dom_prefix}glamu", f"{dom_prefix}gphiu",
+                               f"{dom_prefix}glamv", f"{dom_prefix}gphiv",
                                ])
 
         return curl
@@ -715,21 +799,19 @@ class NEMODataTree(xr.DataTree):
             if any(dim not in cls[grid].dims for dim in mask.dims):
                 raise ValueError(f"mask must have dimensions subset from {cls[grid].dims}.")
 
-        # -- Prepare variable & weights -- #
-        dom_inds = [char for char in grid if char.isdigit()]
-        dom_str = f"{dom_inds[-1]}_" if len(dom_inds) != 0 else ""
-        grid_str = f"{grid.lower()[-1]}"
+        # -- Get NEMO model grid properties -- #
+        _, dom_prefix, dom_suffix, grid_suffix = cls._get_properties(grid=grid, infer_dom=True)
 
+        # -- Collect variable, weights & mask -- #
         da = cls[grid][var].where(mask) if mask is not None else cls[grid][var]
-
         weights = cls._get_weights(grid=grid, dims=dims)
 
-        if f"{dom_str}depth{grid_str}" in da.coords:
+        if f"{dom_prefix}depth{grid_suffix}" in da.coords:
             # Apply 3-dimensional t/u/v/f/w mask:
-            dom_mask = cls[grid][f"{grid_str}mask"]
+            dom_mask = cls[grid][f"{grid_suffix}mask"]
         else:
             # Apply 2-dimensional t/u/v/f/w mask:
-            dom_mask = cls[grid][f"{grid_str}mask"][0, :, :].drop_vars("k")
+            dom_mask = cls[grid][f"{grid_suffix}mask"][0, :, :].drop_vars(f"k{dom_suffix}")
 
         # -- Perform integration -- #
         if cum_dims is not None:
@@ -777,14 +859,14 @@ class NEMODataTree(xr.DataTree):
         if not isinstance(bbox, tuple) or len(bbox) != 4:
             raise ValueError("bounding box must be a tuple (lon_min, lon_max, lat_min, lat_max).")
 
-        # -- Clip the grid to given bounding box -- #
-        dom_inds = [char for char in grid if char.isdigit()]
-        dom_str = f"{dom_inds[-1]}_" if len(dom_inds) != 0 else ""
-        grid_str = f"{grid.lower()[-1]}"
+        # -- Get NEMO model grid properties -- #
+        _, dom_prefix, _, grid_suffix = cls._get_properties(grid=grid, infer_dom=True)
+        hgrid_type = grid_suffix if 'w' not in grid_suffix else 't'
 
-        # Indexing with a mask requires eager loading:
-        glam = cls[grid][f"{dom_str}glam{grid_str}"].load()
-        gphi = cls[grid][f"{dom_str}gphi{grid_str}"].load()
+        # -- Clip the grid to given bounding box -- #
+        # Indexing with a mask requires loading coords into memory:
+        glam = cls[grid][f"{dom_prefix}glam{hgrid_type}"].load()
+        gphi = cls[grid][f"{dom_prefix}gphi{hgrid_type}"].load()
 
         grid_clipped = cls[grid].dataset.where(
             (glam >= bbox[0]) &
@@ -793,6 +875,11 @@ class NEMODataTree(xr.DataTree):
             (gphi <= bbox[3]),
             drop=True
             )
+
+        d_dtypes = {var: cls[grid][var].dtype for var in cls[grid].dataset.data_vars}
+        for var, dtype in d_dtypes.items():
+            if dtype in [np.int32, np.int64, bool]:
+                grid_clipped[var] = grid_clipped[var].fillna(0).astype(dtype)
 
         if bbox != (-180, 180, -90, 90):
             grid_clipped = grid_clipped.assign_attrs({"iperio": False})
@@ -827,26 +914,21 @@ class NEMODataTree(xr.DataTree):
         if not isinstance(bbox, tuple) or len(bbox) != 4:
             raise ValueError("bounding box must be a tuple: (lon_min, lon_max, lat_min, lat_max).")
 
-        # -- Define paths to domain grids -- #
-        grid_paths = [path[0] for path in list(cls.subtree_with_keys)]
-
-        if dom == '.':
-            dom_str = ""
-            grid_paths = [path for path in grid_paths if ("_" not in path) & ("grid" in path)]
-        else:
-            dom_str = f"{dom}_"
-            grid_paths = [path for path in grid_paths if dom in path]
+        # -- Get NEMO model grid properties -- #
+        _, dom_prefix, _ = cls._get_properties(dom=dom)
+        grid_paths = cls._get_grid_paths(dom=dom)
 
         # -- Clip grids to given bounding box -- #
         if not grid_paths:
             raise ValueError(f"NEMO model domain '{dom}' not found in the DataTree.")
         else:
-            for grid in grid_paths:
+            for grid in grid_paths.values():
                 # Use (glamt, gphit) coords for W-grids:
-                grid_str = f"{grid.lower()[-1]}" if 'W' not in grid else 't'
+                grid_suffix = cls._get_properties(grid=grid)
+                hgrid_type = grid_suffix if 'w' not in grid_suffix else 't'
                 # Indexing with a mask requires eager loading:
-                glam = cls[grid][f"{dom_str}glam{grid_str}"].load()
-                gphi = cls[grid][f"{dom_str}gphi{grid_str}"].load()
+                glam = cls[grid][f"{dom_prefix}glam{hgrid_type}"].load()
+                gphi = cls[grid][f"{dom_prefix}gphi{hgrid_type}"].load()
 
                 grid_clipped = cls[grid].dataset.where(
                     (glam >= bbox[0]) &
@@ -855,6 +937,11 @@ class NEMODataTree(xr.DataTree):
                     (gphi <= bbox[3]),
                     drop=True
                     )
+
+                d_dtypes = {var: cls[grid][var].dtype for var in cls[grid].dataset.data_vars}
+                for var, dtype in d_dtypes.items():
+                    if dtype in [np.int32, np.int64, bool]:
+                        grid_clipped[var] = grid_clipped[var].fillna(0).astype(dtype)
 
                 if bbox != (-180, 180, -90, 90):
                     grid_clipped = grid_clipped.assign_attrs({"iperio": False})
@@ -896,27 +983,26 @@ class NEMODataTree(xr.DataTree):
         if grid not in list(cls.subtree):
             raise KeyError(f"grid '{grid}' not found in the NEMODataTree.")
 
-        # -- Define path to NEMO grid -- #
-        # Identify domain:
-        dom_inds = [char for char in grid if char.isdigit()]
-        dom_str = dom_inds[-1] if len(dom_inds) != 0 else "."
+        # -- Get NEMO model grid properties -- #
+        dom, dom_prefix, _, grid_suffix = cls._get_properties(grid=grid, infer_dom=True)
+        hgrid_type = grid_suffix if 'w' not in grid_suffix else 't'
+        ijk_names = cls._get_ijk_names(grid=grid)
+        i_name, j_name = ijk_names['i'], ijk_names['j']
 
-        if dom_str == ".":
-            i_name, j_name = "i", "j"
-            lon_name = f"glam{grid.lower()[-1]}"
-            lat_name = f"gphi{grid.lower()[-1]}"
+        if dom == ".":
+            lon_name = f"glam{hgrid_type}"
+            lat_name = f"gphi{hgrid_type}"
         else:
-            i_name, j_name = f"i{dom_str}", f"j{dom_str}"
-            lon_name = f"{dom_str}_glam{grid.lower()[-1]}"
-            lat_name = f"{dom_str}_gphi{grid.lower()[-1]}"
+            lon_name = f"{dom_prefix}glam{hgrid_type}"
+            lat_name = f"{dom_prefix}gphi{hgrid_type}"
 
         # -- Create mask using polygon coordinates -- #
-        mask = add_polygon_msk(lon_grid=cls[grid][lon_name],
-                               lat_grid=cls[grid][lat_name],
-                               lon_poly=lon_poly,
-                               lat_poly=lat_poly,
-                               dims=(j_name, i_name)
-                               )
+        mask = create_polygon_msk(lon_grid=cls[grid][lon_name],
+                                  lat_grid=cls[grid][lat_name],
+                                  lon_poly=lon_poly,
+                                  lat_poly=lat_poly,
+                                  dims=(j_name, i_name)
+                                  )
 
         return mask
 
@@ -966,17 +1052,16 @@ class NEMODataTree(xr.DataTree):
                                           grid=grid
                                           )
 
-        # -- Apply masks & calculate statistic -- #
-        dom_inds = [char for char in grid if char.isdigit()]
-        dom_str = f"{dom_inds[-1]}_" if len(dom_inds) != 0 else ""
-        grid_str = f"{grid.lower()[-1]}"
+        # -- Get NEMO model grid properties -- #
+        _, dom_prefix, dom_suffix, grid_suffix = cls._get_properties(grid=grid, infer_dom=True)
 
-        if f"{dom_str}depth{grid_str}" in cls[grid][var].coords:
+        # -- Apply masks & calculate statistic -- #
+        if f"{dom_prefix}depth{grid_suffix}" in cls[grid][var].coords:
             # Apply 3-dimensional t/u/v/f/w mask:
-            dom_mask = cls[grid][f"{grid_str}mask"]
+            dom_mask = cls[grid][f"{grid_suffix}mask"]
         else:
             # Apply 2-dimensional t/u/v/f/w mask:
-            dom_mask = cls[grid][f"{grid_str}mask"][0, :, :].drop_vars("k")
+            dom_mask = cls[grid][f"{grid_suffix}mask"][0, :, :].drop_vars(f"k{dom_suffix}")
 
         da = cls[grid][var].where(dom_mask & mask_poly)
 
@@ -1037,32 +1122,25 @@ class NEMODataTree(xr.DataTree):
         if not isinstance(dom, str):
             raise ValueError("dom must be a string specifying prefix of a NEMO domain (e.g., '.', '1', '2', etc.).")
 
-        # -- Define grid paths -- #
-        if dom == ".":
-            gridT = "/gridT"
-            gridU = "/gridU"
-            gridV = "/gridV"
-            dom_str = ""
-        else:
-            nodes = [n[0] for n in cls.subtree_with_keys if dom in n[0]]
-            gridT = [n for n in nodes if "gridT" in n][0]
-            gridU = gridT.replace("T", "U")
-            gridV = gridT.replace("T", "V")
-            dom_str = f"{dom}_"
+        # -- Get NEMO model grid properties -- #
+        dom, dom_prefix, dom_suffix = cls._get_properties(dom=dom)
+        grid_paths = cls._get_grid_paths(dom=dom)
+        gridT, gridU, gridV = grid_paths['gridT'], grid_paths['gridU'], grid_paths['gridV']
+        ijk_names = cls._get_ijk_names(dom=dom)
+        k_name = ijk_names['k']
         
         # -- Extract mask boundary -- #
         i_bdy, j_bdy, flux_type, flux_dir = get_mask_boundary(mask)
 
         # -- Construct boundary dataset -- #
-        k_name = f"k{dom}" if dom != '.' else "k"
         time_name = [dim for dim in cls[gridU].dims if 'time' in dim][0]
 
         ds = xr.Dataset(
             data_vars={
-            'i_bdy': (['bdy'], i_bdy),
-            'j_bdy': (['bdy'], j_bdy),
-            'flux_type': (['bdy'], flux_type),
-            'flux_dir': (['bdy'], flux_dir)
+            'i_bdy': (['bdy'], i_bdy[::-1]),
+            'j_bdy': (['bdy'], j_bdy[::-1]),
+            'flux_type': (['bdy'], flux_type[::-1]),
+            'flux_dir': (['bdy'], flux_dir[::-1])
             },
             coords={
             time_name: cls[gridU][time_name].values,
@@ -1081,28 +1159,29 @@ class NEMODataTree(xr.DataTree):
 
         dim_sizes = [cls[gridU][time_name].size, cls[gridU][k_name].size, ds["bdy"].size]
 
-        ds['velocity'] = xr.DataArray(data=np.zeros(dim_sizes), dims=[time_name, k_name, 'bdy'])
+        ds['velocity'] = xr.DataArray(data=dask.array.zeros(dim_sizes), dims=[time_name, k_name, 'bdy'])
         ds['velocity'][:, :, ubdy_mask] = cls[gridU]['uo'].where(cls[gridU]['umask']).sel(i=ds['i_bdy'][ubdy_mask], j=ds['j_bdy'][ubdy_mask]) * ds['flux_dir'][ubdy_mask]
         ds['velocity'][:, :, vbdy_mask] = cls[gridV]['vo'].where(cls[gridV]['vmask']).sel(i=ds['i_bdy'][vbdy_mask], j=ds['j_bdy'][vbdy_mask]) * ds['flux_dir'][vbdy_mask]
 
-        ds[f"{dom_str}glamb"] = xr.DataArray(data=np.zeros(dim_sizes), dims=[time_name, k_name, 'bdy'])
-        ds[f"{dom_str}glamb"][:, :, ubdy_mask] = cls[gridU]['glamu'].sel(i=ds['i_bdy'][ubdy_mask], j=ds['j_bdy'][ubdy_mask])
-        ds[f"{dom_str}glamb"][:, :, vbdy_mask] = cls[gridV]['glamv'].sel(i=ds['i_bdy'][vbdy_mask], j=ds['j_bdy'][vbdy_mask])
+        ds = ds.assign_coords({f"{dom_prefix}glamb": (['bdy'], np.zeros(ds["bdy"].size)),
+                               f"{dom_prefix}gphib": (['bdy'], np.zeros(ds["bdy"].size)),
+                               f"{dom_prefix}depthb": ((k_name, 'bdy'), np.zeros(dim_sizes[1:])),
+                               })
 
-        ds[f"{dom_str}gphib"] = xr.DataArray(data=np.zeros(dim_sizes), dims=[time_name, k_name, 'bdy'])
-        ds[f"{dom_str}gphib"][:, :, ubdy_mask] = cls[gridU]['gphiu'].sel(i=ds['i_bdy'][ubdy_mask], j=ds['j_bdy'][ubdy_mask])
-        ds[f"{dom_str}gphib"][:, :, vbdy_mask] = cls[gridV]['gphiv'].sel(i=ds['i_bdy'][vbdy_mask], j=ds['j_bdy'][vbdy_mask])
+        ds[f"{dom_prefix}glamb"][ubdy_mask] = cls[gridU]['glamu'].sel(i=ds['i_bdy'][ubdy_mask], j=ds['j_bdy'][ubdy_mask])
+        ds[f"{dom_prefix}glamb"][vbdy_mask] = cls[gridV]['glamv'].sel(i=ds['i_bdy'][vbdy_mask], j=ds['j_bdy'][vbdy_mask])
 
-        ds[f"{dom_str}depthb"] = xr.DataArray(data=np.zeros(dim_sizes[1:]), dims=[k_name, 'bdy'])
-        ds[f"{dom_str}depthb"][:, ubdy_mask] = cls[gridU]['depthu']
-        ds[f"{dom_str}depthb"][:, vbdy_mask] = cls[gridV]['depthv']
-        ds = ds.assign_coords({f"{dom_str}depthb": ((k_name, "bdy"), ds[f"{dom_str}depthb"].values)})
+        ds[f"{dom_prefix}gphib"][ubdy_mask] = cls[gridU]['gphiu'].sel(i=ds['i_bdy'][ubdy_mask], j=ds['j_bdy'][ubdy_mask])
+        ds[f"{dom_prefix}gphib"][vbdy_mask] = cls[gridV]['gphiv'].sel(i=ds['i_bdy'][vbdy_mask], j=ds['j_bdy'][vbdy_mask])
+
+        ds[f"{dom_prefix}depthb"][:, ubdy_mask] = cls[gridU]['depthu']
+        ds[f"{dom_prefix}depthb"][:, vbdy_mask] = cls[gridV]['depthv']
 
         if vars is not None:
             # Add scalar variables along the boundary:
             for var in vars:
                 if var in cls[gridT].data_vars:
-                    ds[var] = xr.DataArray(data=np.zeros(dim_sizes), dims=[time_name, k_name, 'bdy'])
+                    ds[var] = xr.DataArray(data=dask.array.zeros(dim_sizes), dims=[time_name, k_name, 'bdy'])
                 else:
                     raise KeyError(f"variable {var} not found in grid '{gridT}'.")
         
@@ -1158,6 +1237,7 @@ class NEMODataTree(xr.DataTree):
         xr.DataArray
             Values of the selected statistic in each bin.
         """
+        # -- Validate input -- #
         if grid not in list(cls.subtree):
             raise KeyError(f"grid '{grid}' not found in the NEMODataTree.")
         if any(var not in cls[grid].data_vars for var in vars):
@@ -1182,17 +1262,16 @@ class NEMODataTree(xr.DataTree):
             if any(dim not in cls[grid].dims for dim in mask.dims):
                 raise ValueError(f"mask must have dimensions subset from {cls[grid].dims}.")
 
-        # -- Define input variables & apply grid mask -- #
-        dom_inds = [char for char in grid if char.isdigit()]
-        dom_str = f"{dom_inds[-1]}_" if len(dom_inds) != 0 else ""
-        grid_str = f"{grid.lower()[-1]}"
+        # -- Get NEMO model grid properties -- #
+        _, dom_prefix, dom_suffix, grid_suffix = cls._get_properties(grid=grid, infer_dom=True)
 
-        if f"{dom_str}depth{grid_str}" in cls[grid][values].coords:
+        # -- Define input variables & apply grid mask -- #
+        if f"{dom_prefix}depth{grid_suffix}" in cls[grid][values].coords:
             # Apply 3-dimensional t/u/v/f/w mask:
-            dom_mask = cls[grid][f"{grid_str}mask"]
+            dom_mask = cls[grid][f"{grid_suffix}mask"]
         else:
             # Apply 2-dimensional t/u/v/f/w mask:
-            dom_mask = cls[grid][f"{grid_str}mask"][0, :, :].drop_vars("k")
+            dom_mask = cls[grid][f"{grid_suffix}mask"][0, :, :].drop_vars(f"k{dom_suffix}")
 
         values_data = cls[grid][values].where(mask & dom_mask) if mask is not None else cls[grid][values].where(dom_mask)
         var_data = [cls[grid][var].where(mask & dom_mask) if mask is not None else cls[grid][var].where(dom_mask) for var in vars]
@@ -1260,22 +1339,18 @@ class NEMODataTree(xr.DataTree):
         if e3_new.dims != ('k_new',) or (e3_new.ndim != 1):
             raise ValueError("e3_new must be a 1-dimensional xarray.DataArray with dimension 'k_new'.")
 
+        # -- Get NEMO model grid properties -- #
+        dom, _, _, grid_suffix = cls._get_properties(grid=grid, infer_dom=True)
+        ijk_names = cls._get_ijk_names(dom=dom)
+        i_name, j_name, k_name = ijk_names['i'], ijk_names['j'], ijk_names['k']
+
         # -- Define input variables -- #
-        dom_inds = [char for char in grid if char.isdigit()]
-        dom = dom_inds[-1] if len(dom_inds) != 0 else "."
-
-        if dom == ".":
-            i_name, j_name, k_name = "i", "j", "k"
-        else:
-            i_name, j_name, k_name = f"i{dom}", f"j{dom}", f"k{dom}"
-
-        grid_str = f"{grid.lower()[-1]}"
-        mask = cls[grid][f"{grid_str}mask"]
+        mask = cls[grid][f"{grid_suffix}mask"]
 
         var_in = cls[grid][var].where(mask)
-        e3_in = cls[grid][f"e3{grid_str}"].where(mask)
-        if e3_new.sum(dim="k_new") < cls[grid][f"depth{grid_str}"].max(dim=k_name):
-            raise ValueError(f"e3_new must sum to at least the maximum depth ({cls[grid][f"depth{grid_str}"].max(dim=k_name).item()} m) of the original vertical grid.")
+        e3_in = cls[grid][f"e3{grid_suffix}"].where(mask)
+        if e3_new.sum(dim="k_new") < cls[grid][f"depth{grid_suffix}"].max(dim=k_name):
+            raise ValueError(f"e3_new must sum to at least the maximum depth ({cls[grid][f"depth{grid_suffix}"].max(dim=k_name).item()} m) of the original vertical grid.")
 
         # -- Transform variable to target vertical grid -- #
         var_out, e3_out = xr.apply_ufunc(transform_vertical_coords,
@@ -1292,8 +1367,8 @@ class NEMODataTree(xr.DataTree):
         var_out = var_out.transpose(t_name, "k_new", j_name, i_name)
 
         ds_out = xr.Dataset(
-            data_vars={var: var_out, f"e3{grid_str}_new": e3_out},
-            coords={f"depth{grid_str}_new": ("k_new", e3_new.cumsum(dim="k_new").data)}
+            data_vars={var: var_out, f"e3{grid_suffix}_new": e3_out},
+            coords={f"depth{grid_suffix}_new": ("k_new", e3_new.cumsum(dim="k_new").data)}
             )
 
         return ds_out
@@ -1335,16 +1410,13 @@ class NEMODataTree(xr.DataTree):
         if to not in ['U', 'V']:
             raise ValueError(f"'to' must be one of ['U', 'V'], got {to}.")
 
-        # -- Identify grid & domain -- #
-        to_grid = f"{grid.replace(grid[-1], to)}"
-        fill_dim_name = "i" if to == "U" else "j"
-        dom_inds = [char for char in grid if char.isdigit()]
-        dom_str = dom_inds[-1] if len(dom_inds) != 0 else "."
+        # -- Get NEMO model grid properties -- #
+        ijk_names = cls._get_ijk_names(grid=grid)
+        i_name, j_name = ijk_names['i'], ijk_names['j']
 
-        if dom_str == ".":
-            i_name, j_name = "i", "j"
-        else:
-            i_name, j_name = f"i{dom_str}", f"j{dom_str}"
+        fill_dim_name = "i" if to == "U" else "j"
+        target_grid = f"{grid.replace(grid[-1], to)}"
+        target_mask = f"{to.lower()}mask"
 
         # -- Perform interpolation -- #
         result = (cls[grid][var]
@@ -1352,7 +1424,7 @@ class NEMODataTree(xr.DataTree):
                   .interp({i_name: cls[grid.replace(grid[-1], to)][i_name],
                            j_name: cls[grid.replace(grid[-1], to)][j_name]},
                            method='linear')
-                  .where(cls[to_grid][f'{to.lower()}mask'])
+                  .where(cls[target_grid][target_mask])
                   )
 
         return result
