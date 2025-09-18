@@ -10,8 +10,54 @@ Ollie Tooth (oliver.tooth@noc.ac.uk)
 """
 import numpy as np
 import xarray as xr
-from .masks import add_dom_msk
+from .masks import create_dom_mask
 
+
+def _add_parent_indices(
+    ds: xr.Dataset,
+    grid: str,
+    label: str
+) -> xr.Dataset:
+    """
+    Add coordinates mapping parent domain (i, j) indices
+    to child domain (i_c, j_c) indices.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        NEMO model grid dataset.
+    grid : str
+        Name of the NEMO model grid (e.g. 'gridT', 'gridU', etc.).
+    label : str
+        Label to append to grid variable names.
+
+    Returns
+    -------
+    xr.Dataset
+        NEMO model grid dataset including coordinates mapping
+        parent domain (i, j) indices to child domain (i_c, j_c)
+        indices.
+    """
+    # Define parent domain (i, j) indices for each child domain (i_c, j_c) index:
+    if grid in ['gridU', 'gridF']:
+        i_child = np.arange(ds.attrs['imin'] + 0.5, ds.attrs['imax'] + 0.5)
+    else:
+        i_child = np.arange(ds.attrs['imin'], ds.attrs['imax'])
+    i_ic = xr.DataArray(np.repeat(i_child, repeats=ds.attrs['rx']), dims=[f'i{label}'], coords={f'i{label}': ds[f'i{label}']})
+    ds[f'i_i{label}'] = i_ic
+    ds[f'i_i{label}'] = ds[f'i_i{label}'].assign_attrs(name=f'i_i{label}', long_name=f'parent domain i indices of child domain i{label} indices')
+
+    if grid in ['gridV', 'gridF']:
+        j_child = np.arange(ds.attrs['jmin'] + 0.5, ds.attrs['jmax'] + 0.5)
+    else:
+        j_child = np.arange(ds.attrs['jmin'], ds.attrs['jmax'])
+    j_jc = xr.DataArray(np.repeat(j_child, repeats=ds.attrs['ry']), dims=[f'j{label}'], coords={f'j{label}': ds[f'j{label}']})
+    ds[f'j_j{label}'] = j_jc
+    ds[f'j_j{label}'] = ds[f'j_j{label}'].assign_attrs(name=f'j_j{label}', long_name=f'parent domain j indices of child domain j{label} indices')
+
+    ds = ds.assign_coords({f'i_i{label}': ds[f'i_i{label}'], f'j_j{label}': ds[f'j_j{label}']})
+
+    return ds
 
 def _get_child_indices(
     imin: int,
@@ -139,6 +185,7 @@ def _open_grid_datasets(
         raise KeyError("missing 'domain' key in parent dictionary.")
 
     # T / U / V / W Grids:
+    # TODO: Handle multifile datasets using open_mfdataset():
     for key in ['gridT', 'gridU', 'gridV', 'gridW', 'icemod']:
         if key in d_in:
             try:
@@ -247,14 +294,14 @@ def _add_domain_vars(
     except AttributeError as e:
         raise AttributeError(f"missing required T-grid variable in domain dataset -> {e}")
 
-    d_grids['gridT']['tmask'] = add_dom_msk(ka=ka,
-                                            top_level=domain["top_level"],
-                                            bottom_level=domain["bottom_level"],
-                                            cd_nat="T",
-                                            c_NFtype=nftype,
-                                            iperio=iperio,
-                                            mask_opensea=mask_opensea
-                                            )
+    d_grids['gridT']['tmask'] = create_dom_mask(ka=ka,
+                                                top_level=domain["top_level"],
+                                                bottom_level=domain["bottom_level"],
+                                                cd_nat="T",
+                                                c_NFtype=nftype,
+                                                iperio=iperio,
+                                                mask_opensea=mask_opensea
+                                                )
     d_grids['gridT'] = d_grids['gridT'].assign_attrs(nftype=nftype, iperio=iperio)
 
     # U-grid:
@@ -266,14 +313,14 @@ def _add_domain_vars(
     except AttributeError as e:
         raise AttributeError(f"missing required U-grid variable in domain dataset -> {e}")
 
-    d_grids['gridU']['umask'] = add_dom_msk(ka=ka,
-                                            top_level=domain["top_level"],
-                                            bottom_level=domain["bottom_level"],
-                                            cd_nat="U",
-                                            c_NFtype=nftype,
-                                            iperio=iperio,
-                                            mask_opensea=mask_opensea
-                                            )
+    d_grids['gridU']['umask'] = create_dom_mask(ka=ka,
+                                                top_level=domain["top_level"],
+                                                bottom_level=domain["bottom_level"],
+                                                cd_nat="U",
+                                                c_NFtype=nftype,
+                                                iperio=iperio,
+                                                mask_opensea=mask_opensea
+                                                )
     d_grids['gridU'] = d_grids['gridU'].assign_attrs(nftype=nftype, iperio=iperio)
 
     # V-grid:
@@ -285,14 +332,14 @@ def _add_domain_vars(
     except AttributeError as e:
         raise AttributeError(f"missing required V-grid variable in domain dataset -> {e}")
 
-    d_grids['gridV']['vmask'] = add_dom_msk(ka=ka,
-                                            top_level=domain["top_level"],
-                                            bottom_level=domain["bottom_level"],
-                                            cd_nat="V",
-                                            c_NFtype=nftype,
-                                            iperio=iperio,
-                                            mask_opensea=mask_opensea
-                                            )
+    d_grids['gridV']['vmask'] = create_dom_mask(ka=ka,
+                                                top_level=domain["top_level"],
+                                                bottom_level=domain["bottom_level"],
+                                                cd_nat="V",
+                                                c_NFtype=nftype,
+                                                iperio=iperio,
+                                                mask_opensea=mask_opensea
+                                                )
     d_grids['gridV'] = d_grids['gridV'].assign_attrs(nftype=nftype, iperio=iperio)
 
     # W-grid:
@@ -304,14 +351,14 @@ def _add_domain_vars(
     except AttributeError as e:
         raise AttributeError(f"missing required W-grid variable in domain dataset -> {e}")
 
-    d_grids['gridW']['wmask'] = add_dom_msk(ka=ka,
-                                            top_level=domain["top_level"],
-                                            bottom_level=domain["bottom_level"],
-                                            cd_nat="W",
-                                            c_NFtype=nftype,
-                                            iperio=iperio,
-                                            mask_opensea=mask_opensea
-                                            )
+    d_grids['gridW']['wmask'] = create_dom_mask(ka=ka,
+                                                top_level=domain["top_level"],
+                                                bottom_level=domain["bottom_level"],
+                                                cd_nat="W",
+                                                c_NFtype=nftype,
+                                                iperio=iperio,
+                                                mask_opensea=mask_opensea
+                                                )
     d_grids['gridW'] = d_grids['gridW'].assign_attrs(nftype=nftype, iperio=iperio)
 
     # F-grid:
@@ -324,14 +371,14 @@ def _add_domain_vars(
     except AttributeError as e:
         raise AttributeError(f"missing required F-grid variable in domain dataset -> {e}")
 
-    d_grids['gridF']['fmask'] = add_dom_msk(ka=ka,
-                                            top_level=domain["top_level"],
-                                            bottom_level=domain["bottom_level"],
-                                            cd_nat="F",
-                                            c_NFtype=nftype,
-                                            iperio=iperio,
-                                            mask_opensea=mask_opensea
-                                            )
+    d_grids['gridF']['fmask'] = create_dom_mask(ka=ka,
+                                                top_level=domain["top_level"],
+                                                bottom_level=domain["bottom_level"],
+                                                cd_nat="F",
+                                                c_NFtype=nftype,
+                                                iperio=iperio,
+                                                mask_opensea=mask_opensea
+                                                )
 
     d_grids['gridF'] = d_grids['gridF'].assign_attrs(nftype=nftype, iperio=iperio)
 
@@ -433,7 +480,19 @@ def _process_grid(
     if k_name in data.coords:
         d_coords.update({k_name: data[k_name] + k_offset})
     data = data.assign_coords(d_coords)
-    
+
+    # Assign attrs for horizontal and vertical grid indices:
+    data[i_name] = data[i_name].assign_attrs(name=i_name,
+                                             long_name=f"{i_name} indices of NEMO model {grid[-1]}-points"
+                                             )
+    data[j_name] = data[j_name].assign_attrs(name=j_name,
+                                             long_name=f"{j_name} indices of NEMO model {grid[-1]}-points"
+                                             )
+    if k_name in data.coords:
+        data[k_name] = data[k_name].assign_attrs(name=k_name,
+                                                 long_name=f"{k_name} indices of NEMO model {grid[-1]}-points"
+                                                 )
+
     return data
 
 
@@ -636,17 +695,20 @@ def _process_child(
                                            j_name=f"j{label}",
                                            k_name=f"k{label}",
                                            )
-        # Add nest attributes to child grids:
-        d_proc_grids[grid] = (d_proc_grids[grid]
-                              .assign_attrs({
-                                  'rx': d_nests.get('rx'),
-                                  'ry': d_nests.get('ry'),
-                                  'imin': d_nests.get('imin'),
-                                  'imax': d_nests.get('imax'),
-                                  'jmin': d_nests.get('jmin'),
-                                  'jmax': d_nests.get('jmax')
-                              })
-                              )
+
+        # Add nest attributes & parent indices to child grids:
+        d_proc_grids[grid] = _add_parent_indices(ds=d_proc_grids[grid]
+                                                 .assign_attrs({
+                                                     'rx': d_nests.get('rx'),
+                                                     'ry': d_nests.get('ry'),
+                                                     'imin': d_nests.get('imin'),
+                                                     'imax': d_nests.get('imax'),
+                                                     'jmin': d_nests.get('jmin'),
+                                                     'jmax': d_nests.get('jmax')
+                                                     }),
+                                                 grid=grid,
+                                                 label=label,
+                                                 )
 
     # Construct DataTree node path dictionary:
     if parent_label is not None:
