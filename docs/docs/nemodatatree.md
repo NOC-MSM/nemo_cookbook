@@ -1,4 +1,4 @@
-# **NEMODataTree**
+# NEMODataTree
 
 Each recipe in the NEMO Cookbook leverages the `NEMODataTree` object to store NEMO ocean model outputs and to help perform diagnostic calculations.
 

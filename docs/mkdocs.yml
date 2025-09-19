@@ -25,9 +25,10 @@ theme:
     - content.code.select
     - toc.integrate
     - navigation.tabs
-    - navigation.expand
+    - navigation.path
     - navigation.footer
     - search.suggest
+
   palette:
     # Light Mode
     - scheme: default
@@ -50,11 +51,6 @@ markdown_extensions:
   - pymdownx.snippets
   - admonition
   - pymdownx.details
-  - pymdownx.superfences:
-      custom_fences:
-        - name: mermaid
-          class: mermaid
-          format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.tabbed:
       alternate_style: true
   - pymdownx.arithmatex:
@@ -68,10 +64,10 @@ nav:
   - Recipes:
     - Meridional Overturning - Depth Space: recipe_moc_z.ipynb
     - Meridional Overturning - Tracer Space: recipe_moc_tracer.ipynb
-    - Masked Statistics: recipe_masked_stats.ipynb
+    - Regional Masked Statistics: recipe_masked_stats.ipynb
     - Volume Census in T-S Space: recipe_volume_census.ipynb
     - Surface-Forced Water Mass Transformation: recipe_sfwmt_sigma0.ipynb
-    - Extracting the OSNAP Section: recipe_extract_osnap.ipynb
+    - Extracting Hydrographic Sections: recipe_extract_osnap.ipynb
     - Vertical Coordinate Transformation: recipe_transform_vertical_coords.ipynb
   - API: reference.md
   - Contributing: contributing.md

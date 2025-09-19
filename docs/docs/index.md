@@ -1,4 +1,4 @@
-# **Getting Started**
+# Getting Started
 
 <img src="./assets/icons/noc_logo_dark.png" alt="drawing" width="150"/>
 <img src="./assets/icons/NEMO_blue.png" alt="drawing" width="150"/>
