@@ -54,7 +54,8 @@ class NEMODataTree(xr.DataTree):
         paths: dict[str, str],
         nests: dict[str, str] | None = None,
         iperio: bool = False,
-        nftype: str | None = None
+        nftype: str | None = None,
+        nbghost_child: int = 4
     ) -> Self:
         """
         Create a NEMODataTree from a dictionary of paths to NEMO model output files,
@@ -109,6 +110,9 @@ class NEMODataTree(xr.DataTree):
             Type of north fold lateral boundary condition to apply. Options are 'T' for T-point pivot or 'F' for F-point
             pivot. By default, no north fold lateral boundary condition is applied (None).
 
+        nbghost_child : int = 4
+            Number of ghost cells to remove from the western/southern boundaries of the (grand)child domains. Default is 4.
+
         Returns
         -------
         NEMODataTree
@@ -122,6 +126,8 @@ class NEMODataTree(xr.DataTree):
             raise TypeError("zonal periodicity of parent domain must be a boolean.")
         if nftype is not None and nftype not in ('T', 'F'):
             raise ValueError("north fold type of parent domain must be 'T' (T-pivot fold), 'F' (F-pivot fold), or None.")
+        if not isinstance(nbghost_child, int):
+            raise TypeError("number of ghost cells along the western/southern boundaries must be an integer.")
 
         # Define parent, child, grandchild filepath collections:
         d_child, d_grandchild = None, None
@@ -144,7 +150,8 @@ class NEMODataTree(xr.DataTree):
                                       d_grandchild=d_grandchild,
                                       nests=nests,
                                       iperio=iperio,
-                                      nftype=nftype
+                                      nftype=nftype,
+                                      nbghost_child=nbghost_child
                                       )
 
         datatree = super().from_dict(d_tree)
@@ -158,7 +165,8 @@ class NEMODataTree(xr.DataTree):
         datasets: dict[str, xr.Dataset],
         nests: dict[str, str] | None = None,
         iperio: bool = False,
-        nftype: str | None = None
+        nftype: str | None = None,
+        nbghost_child: int = 4
     ) -> Self:
         """
         Create a NEMODataTree from a dictionary of `xarray.Dataset` objects created from NEMO model output files,
@@ -196,6 +204,9 @@ class NEMODataTree(xr.DataTree):
         nftype: str, optional
             Type of north fold lateral boundary condition to apply. Options are 'T' for T-point pivot or 'F' for F-point
             pivot. By default, no north fold lateral boundary condition is applied (None).
+        
+        nbghost_child : int = 4
+            Number of ghost cells to remove from the western/southern boundaries of the (grand)child domains. Default is 4.
 
         Returns
         -------
@@ -210,6 +221,8 @@ class NEMODataTree(xr.DataTree):
             raise TypeError("zonal periodicity of parent domain must be a boolean.")
         if nftype is not None and nftype not in ('T', 'F'):
             raise ValueError("north fold type of parent domain must be 'T' (T-pivot fold), 'F' (F-pivot fold), or None.")
+        if not isinstance(nbghost_child, int):
+            raise TypeError("number of ghost cells along the western/southern boundaries must be an integer.")
 
         # Define parent, child, grandchild dataset collections:
         d_child, d_grandchild = None, None
@@ -232,7 +245,8 @@ class NEMODataTree(xr.DataTree):
                                       d_grandchild=d_grandchild,
                                       nests=nests,
                                       iperio=iperio,
-                                      nftype=nftype
+                                      nftype=nftype,
+                                      nbghost_child=nbghost_child
                                       )
         datatree = super().from_dict(d_tree)
 
@@ -346,6 +360,8 @@ class NEMODataTree(xr.DataTree):
         """
         if grid is not None:
             dom, _, dom_suffix, _ = cls._get_properties(grid=grid, infer_dom=True)
+        else:
+            _, dom_suffix = cls._get_properties(dom=dom)
 
         indexes = ["i", "j", "k"]
         if dom == ".":
@@ -1070,7 +1086,8 @@ class NEMODataTree(xr.DataTree):
                 result = da.mean(dim=dims, skipna=True)
 
             case "weighted_mean":
-                weights = cls._get_weights(grid=grid, dims=dims)
+                weight_dims = [dim.replace(dom_suffix, "") for dim in dims]
+                weights = cls._get_weights(grid=grid, dims=weight_dims)
                 result = da.weighted(weights).mean(dim=dims, skipna=True)
 
             case "min":
@@ -1117,19 +1134,19 @@ class NEMODataTree(xr.DataTree):
         """
         if not isinstance(mask, xr.DataArray):
             raise ValueError("mask must be an xarray DataArray")
-        if 'i' not in mask.dims or 'j' not in mask.dims:
-            raise ValueError("mask must have dimensions 'i' and 'j'")
         if not isinstance(dom, str):
             raise ValueError("dom must be a string specifying prefix of a NEMO domain (e.g., '.', '1', '2', etc.).")
 
         # -- Get NEMO model grid properties -- #
-        dom, dom_prefix, dom_suffix = cls._get_properties(dom=dom)
+        dom_prefix, dom_suffix = cls._get_properties(dom=dom)
         grid_paths = cls._get_grid_paths(dom=dom)
         gridT, gridU, gridV = grid_paths['gridT'], grid_paths['gridU'], grid_paths['gridV']
         ijk_names = cls._get_ijk_names(dom=dom)
         k_name = ijk_names['k']
         
         # -- Extract mask boundary -- #
+        if f'i{dom_suffix}' not in mask.dims or f'j{dom_suffix}' not in mask.dims:
+            raise ValueError(f"mask must have dimensions f'i{dom_suffix}' and 'j{dom_suffix}'")
         i_bdy, j_bdy, flux_type, flux_dir = get_mask_boundary(mask)
 
         # -- Construct boundary dataset -- #

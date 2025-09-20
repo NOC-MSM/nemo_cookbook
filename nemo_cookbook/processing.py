@@ -66,6 +66,7 @@ def _get_child_indices(
     jmax: int,
     rx: int,
     ry: int,
+    nbghost_child: int,
 ) -> tuple[int, int, int, int]:
     """
     Get the indices which define the child domain within the parent domain.
@@ -76,13 +77,16 @@ def _get_child_indices(
         Indices defining the child domain within the parent domain.
     rx, ry : int
         Horizontal refinement factors.
+    nbghost_child : int
+        Number of ghost cells to remove from the western/southern
+        boundaries of the child domain.
     
     Returns
     -------
     tuple of int
         Indices defining the parent domain nest within the child domain.
     """
-    nbghost_e, nbghost_n, nbghost_w, nbghost_s = 4, 4, 4, 4
+    nbghost_e, nbghost_n, nbghost_w, nbghost_s = nbghost_child, nbghost_child, nbghost_child, nbghost_child
 
     imin_c = 1
     imax_c = (imax - imin) * rx + nbghost_w + nbghost_e
@@ -593,7 +597,8 @@ def _process_child(
     d_child: dict[dict[str, str]] | dict[dict[str, xr.Dataset]],
     d_nests: dict[str, str],
     label: int,
-    parent_label: int
+    parent_label: int,
+    nbghost_child: int = 4
 ) -> dict[str, xr.Dataset]:
     """
     Create Dictionary of grid datasets defining a NEMO model (grand)child domain.
@@ -639,7 +644,10 @@ def _process_child(
     parent_label : int
         Label for the parent domain, used to identify the child domain to which this grandchild grid belongs.
         Default is None, meaning a child domain is specified.
-    
+
+    nbghost_child : int = 4
+        Number of ghost cells to remove from the western/southern boundaries of the (grand)child domain. Default is 4.
+
     Returns
     -------
     dict[str, xr.Dataset]
@@ -674,12 +682,13 @@ def _process_child(
 
     # Get child domain indices excluding ghost cells:
     ind_child = _get_child_indices(rx=d_nests.get('rx'),
-                                   ry=d_nests.get('ry'),
-                                   imin=d_nests.get('imin'),
-                                   imax=d_nests.get('imax'),
-                                   jmin=d_nests.get('jmin'),
-                                   jmax=d_nests.get('jmax')
-                                   )
+                                ry=d_nests.get('ry'),
+                                imin=d_nests.get('imin'),
+                                imax=d_nests.get('imax'),
+                                jmin=d_nests.get('jmin'),
+                                jmax=d_nests.get('jmax'),
+                                nbghost_child=nbghost_child
+                                )
     i_slice = slice(ind_child[0], ind_child[1] + 1)
     j_slice = slice(ind_child[2], ind_child[3] + 1)
 
@@ -739,7 +748,8 @@ def create_datatree_dict(
     d_grandchild: dict[str, dict[str, xr.Dataset]] | None = None,
     nests: dict[str, dict[str, str]] | None = None,
     iperio: bool = False,
-    nftype: str | None = None
+    nftype: str | None = None,
+    nbghost_child: int = 4
 ) -> dict[str, xr.Dataset]:
     """
     Create Dictionary of DataTree paths (keys) and xarray Datasets (values)
@@ -760,6 +770,9 @@ def create_datatree_dict(
     nftype: str | None = None
         Type of north fold lateral boundary condition to apply to parent domain. Options are 'T' for T-point
         pivot or 'F' for F-point pivot. By default, no north fold lateral boundary condition is applied (None).
+    nbghost_child : int = 4
+        Number of ghost cells to remove from the western/southern boundaries of the (grand)child domain.
+        Default is 4.
 
     Returns
     -------
@@ -800,7 +813,8 @@ def create_datatree_dict(
             d_tree.update(_process_child(d_child=d_grandchild[key],
                                          d_nests=d_nests,
                                          label=int(key),
-                                         parent_label=int(d_nests['parent'])
+                                         parent_label=int(d_nests['parent']),
+                                         nbghost_child=nbghost_child
                                          ))
 
     return d_tree
