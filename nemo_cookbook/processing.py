@@ -8,6 +8,7 @@ ocean general circulation model grids.
 Author:
 Ollie Tooth (oliver.tooth@noc.ac.uk)
 """
+import glob
 import numpy as np
 import xarray as xr
 from .masks import create_dom_mask
@@ -104,6 +105,45 @@ def _get_child_indices(
     return (ist1, iend1, jst1, jend1)
 
 
+def _check_grid_dims(
+    ds: xr.Dataset,
+    grid: str
+    ) -> None:
+    """
+    Check grid dataset contains the required dimensions.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        NEMO model grid dataset.
+    grid : str
+        Name of NEMO model grid (e.g. 'gridT', 'gridU', etc.).
+
+    Raises
+    ------
+    KeyError
+        If one or more required dimensions are missing from the grid dataset.
+    """
+    # -- NEMO model domain -- #
+    if grid == 'domain':
+        core_dims = ['nav_lev', 'y', 'x']
+        if not all([True if dim in core_dims else False for dim in ds.dims]):
+            raise KeyError(f"missing one or more required dimensions {tuple(core_dims)} in domain dataset.")
+
+    # -- NEMO model grids -- #
+    else:
+        # Define core NEMO grid dimensions:
+        core_2d_dims = ['time_counter', 'y', 'x']
+        core_3d_dims = ['time_counter', f'depth{grid[-1].lower()}', 'y', 'x']
+
+        if f'depth{grid[-1].lower()}' in ds.dims:
+            if not all([True if dim in ds.dims else False for dim in core_3d_dims]):
+                raise KeyError(f"missing one or more required dimensions {tuple(core_3d_dims)} in {grid} dataset.")
+        else:
+            if not all([True if dim in ds.dims else False for dim in core_2d_dims]):
+                raise KeyError(f"missing one or more required dimensions {tuple(core_2d_dims)} in {grid} dataset.")
+
+
 def _check_grid_datasets(
     d: dict[str, xr.Dataset]
 ) -> dict[str, xr.Dataset]:
@@ -138,10 +178,13 @@ def _check_grid_datasets(
     if not all(isinstance(val, xr.Dataset) for val in d.values()):
         raise TypeError("input dictionary should contain only (str: xarray Dataset) entries.")
 
-    # Populate missing NEMO grid keys with empty xarray Datasets:
     for key in grid_keys:
         if key not in d.keys():
+            # Populate missing NEMO grid with empty xarray.Dataset:
             d.update({key: xr.Dataset()})
+        else:
+            # Check required grid dimensions:
+            _check_grid_dims(ds=d[key], grid=key)
 
     # Combining sea ice and scalar variables both stored on T-grid:
     if ('gridT' in d.keys()) & ('icemod' in d.keys()):
@@ -150,7 +193,8 @@ def _check_grid_datasets(
     return d
 
 def _open_grid_datasets(
-    d_in: dict[str, str]
+    d_in: dict[str, str],
+    **open_kwargs: dict[str, any]
 ) -> dict[str, xr.Dataset]:
     """
     Create Dictionary of grid datasets defining a NEMO model domain.
@@ -166,6 +210,10 @@ def _open_grid_datasets(
             'gridV': 'path/to/gridV.nc',
             'gridW': 'path/to/gridW.nc'
         }
+    
+    **open_kwargs: dict[str, any]
+        Additional keyword arguments to pass to xarray.open_dataset or xarray.open_mfdataset
+        when opening NEMO model grid files.
 
     Returns
     -------
@@ -179,53 +227,39 @@ def _open_grid_datasets(
             'gridW': xr.Dataset
         }
     """
-    # Domain Variables:
+    # Define dictionary to store NEMO grid datasets:
+    d_data = {}
+
+    # NEMO model domain:
     if 'domain' in d_in:
         try:
-            domain_cfg = xr.open_dataset(d_in['domain'])
+            d_data['domain'] = xr.open_dataset(d_in['domain'])
+            _check_grid_dims(ds=d_data['domain'], grid='domain')
         except FileNotFoundError as e:
             raise FileNotFoundError(f"could not open domain configuration file: {e}")
     else:
-        raise KeyError("missing 'domain' key in parent dictionary.")
+        raise KeyError("missing 'domain' key in paths dictionary.")
 
-    # T / U / V / W Grids:
-    # TODO: Handle multifile datasets using open_mfdataset():
+    # NEMO model grids datasets:
     for key in ['gridT', 'gridU', 'gridV', 'gridW', 'icemod']:
         if key in d_in:
             try:
-                dataset = xr.open_dataset(d_in[key])
-                if key == 'gridT':
-                    gridT = dataset
-                elif key == 'gridU':
-                    gridU = dataset
-                elif key == 'gridV':
-                    gridV = dataset
-                elif key == 'gridW':
-                    gridW = dataset
-                elif key == 'icemod':
-                    gridI = dataset
+                if len(glob.glob(d_in[key])) > 1:
+                    d_data[key] = xr.open_mfdataset(d_in[key], **open_kwargs)
+                else:
+                    d_data[key] = xr.open_dataset(d_in[key], **open_kwargs)
+                _check_grid_dims(ds=d_data[key], grid=key)
             except FileNotFoundError as e:
                 raise FileNotFoundError(f"could not open {key} file: {e}")
         else:
-            if key == 'gridT':
-                gridT = xr.Dataset()
-            elif key == 'gridU':
-                gridU = xr.Dataset()
-            elif key == 'gridV':
-                gridV = xr.Dataset()
-            elif key == 'gridW':
-                gridW = xr.Dataset()
-            elif key == 'icemod':
-                gridI = xr.Dataset()
+            d_data[key] = xr.Dataset()
 
-    d_out = {'domain': domain_cfg,
-             "gridT": xr.merge([gridT, gridI]),
-             "gridU": gridU,
-             "gridV": gridV,
-             "gridW": gridW
-            }
+    if 'icemod' in d_data.keys():
+        # Combining sea ice and scalar variables both defined on T-points:
+        d_data.update({'gridT': xr.merge([d_data['icemod'], d_data['gridT']], compat='no_conflicts')})
+        del d_data['icemod']
 
-    return d_out
+    return d_data
 
 
 def _add_domain_vars(
@@ -272,9 +306,6 @@ def _add_domain_vars(
         domain = d_grids['domain'].squeeze()
         # Drop all empty coordinates following squeeze:
         domain = domain.drop_vars([coord for coord in domain.coords if domain[coord].size == 1])
-
-        if "nav_lev" not in domain.dims:
-            raise KeyError("missing 'nav_lev' dimension in domain dataset.")
     else:
         raise KeyError("missing 'domain' key in grid datasets dictionary.")
 
@@ -306,6 +337,7 @@ def _add_domain_vars(
                                                 iperio=iperio,
                                                 mask_opensea=mask_opensea
                                                 )
+    d_grids['gridT']['tmaskutil'] = d_grids['gridT']['tmask'][0, :, :].squeeze(drop=True)
     d_grids['gridT'] = d_grids['gridT'].assign_attrs(nftype=nftype, iperio=iperio)
 
     # U-grid:
@@ -325,6 +357,7 @@ def _add_domain_vars(
                                                 iperio=iperio,
                                                 mask_opensea=mask_opensea
                                                 )
+    d_grids['gridU']['umaskutil'] = d_grids['gridU']['umask'][0, :, :].squeeze(drop=True)
     d_grids['gridU'] = d_grids['gridU'].assign_attrs(nftype=nftype, iperio=iperio)
 
     # V-grid:
@@ -344,6 +377,7 @@ def _add_domain_vars(
                                                 iperio=iperio,
                                                 mask_opensea=mask_opensea
                                                 )
+    d_grids['gridV']['vmaskutil'] = d_grids['gridV']['vmask'][0, :, :].squeeze(drop=True)
     d_grids['gridV'] = d_grids['gridV'].assign_attrs(nftype=nftype, iperio=iperio)
 
     # W-grid:
@@ -383,7 +417,7 @@ def _add_domain_vars(
                                                 iperio=iperio,
                                                 mask_opensea=mask_opensea
                                                 )
-
+    d_grids['gridF']['fmaskutil'] = d_grids['gridF']['fmask'][0, :, :].squeeze(drop=True)
     d_grids['gridF'] = d_grids['gridF'].assign_attrs(nftype=nftype, iperio=iperio)
 
     return d_grids
@@ -503,7 +537,8 @@ def _process_grid(
 def _process_parent(
     d_parent: dict[str, str] | dict[str, xr.Dataset],
     iperio: bool = False,
-    nftype: str | None = None
+    nftype: str | None = None,
+    open_kwargs: dict[str, any] = {}
 ) -> dict[str, xr.Dataset]:
     """
     Create Dictionary of grid datasets defining a NEMO model parent domain.
@@ -538,6 +573,10 @@ def _process_parent(
         Type of north fold lateral boundary condition to apply to parent domain. Options are 'T' for T-point
         pivot or 'F' for F-point pivot. By default, no north fold lateral boundary condition is applied (None).
 
+    open_kwargs: dict[str, any], optional
+        Additional keyword arguments to pass to xarray.open_dataset or xarray.open_mfdataset when opening
+        parent grid files.
+
     Returns
     -------
     dict[str, xr.Dataset]
@@ -553,7 +592,7 @@ def _process_parent(
     """
     # Open NEMO domain and grid datasets:
     if isinstance(d_parent, dict) and all(isinstance(entry, str) for entry in d_parent.values()):
-        d_grids = _open_grid_datasets(d_parent)
+        d_grids = _open_grid_datasets(d_in=d_parent, **open_kwargs)
     elif isinstance(d_parent, dict) and all(isinstance(entry, xr.Dataset) for entry in d_parent.values()):
         d_grids = _check_grid_datasets(d_parent)
     else:
@@ -598,7 +637,8 @@ def _process_child(
     d_nests: dict[str, str],
     label: int,
     parent_label: int,
-    nbghost_child: int = 4
+    nbghost_child: int = 4,
+    open_kwargs: dict[str, any] = {}
 ) -> dict[str, xr.Dataset]:
     """
     Create Dictionary of grid datasets defining a NEMO model (grand)child domain.
@@ -648,6 +688,10 @@ def _process_child(
     nbghost_child : int = 4
         Number of ghost cells to remove from the western/southern boundaries of the (grand)child domain. Default is 4.
 
+    open_kwargs: dict[str, any], optional
+        Additional keyword arguments to pass to xarray.open_dataset or xarray.open_mfdataset when opening
+        (grand)child grid files.
+
     Returns
     -------
     dict[str, xr.Dataset]
@@ -671,9 +715,9 @@ def _process_child(
     """
     # Open NEMO (grand)child domain and grid datasets:
     if isinstance(d_child, dict) and all(isinstance(entry, str) for entry in d_child.values()):
-        d_grids = _open_grid_datasets(d_child)
+        d_grids = _open_grid_datasets(d_in=d_child, **open_kwargs)
     elif isinstance(d_child, dict) and all(isinstance(entry, xr.Dataset) for entry in d_child.values()):
-        d_grids = _check_grid_datasets(d_child)
+        d_grids = _check_grid_datasets(d=d_child)
     else:
         raise TypeError("d_child must be a dictionary of only paths or xarray Datasets.")
 
@@ -682,13 +726,13 @@ def _process_child(
 
     # Get child domain indices excluding ghost cells:
     ind_child = _get_child_indices(rx=d_nests.get('rx'),
-                                ry=d_nests.get('ry'),
-                                imin=d_nests.get('imin'),
-                                imax=d_nests.get('imax'),
-                                jmin=d_nests.get('jmin'),
-                                jmax=d_nests.get('jmax'),
-                                nbghost_child=nbghost_child
-                                )
+                                   ry=d_nests.get('ry'),
+                                   imin=d_nests.get('imin'),
+                                   imax=d_nests.get('imax'),
+                                   jmin=d_nests.get('jmin'),
+                                   jmax=d_nests.get('jmax'),
+                                   nbghost_child=nbghost_child
+                                   )
     i_slice = slice(ind_child[0], ind_child[1] + 1)
     j_slice = slice(ind_child[2], ind_child[3] + 1)
 
@@ -749,7 +793,8 @@ def create_datatree_dict(
     nests: dict[str, dict[str, str]] | None = None,
     iperio: bool = False,
     nftype: str | None = None,
-    nbghost_child: int = 4
+    nbghost_child: int = 4,
+    open_kwargs: dict[str, any] = {}
 ) -> dict[str, xr.Dataset]:
     """
     Create Dictionary of DataTree paths (keys) and xarray Datasets (values)
@@ -773,6 +818,9 @@ def create_datatree_dict(
     nbghost_child : int = 4
         Number of ghost cells to remove from the western/southern boundaries of the (grand)child domain.
         Default is 4.
+    open_kwargs : dict[str, any], optional
+        Additional keyword arguments passed to `xarray.open_dataset` or `xarray.open_mfdataset` when
+        opening NEMO grid files.
 
     Returns
     -------
@@ -780,7 +828,7 @@ def create_datatree_dict(
         Dictionary of DataTree paths and processed NEMO grids defining a hierarchical DataTree.
     """
     # -- Assign the parent domain -- #
-    d_tree = _process_parent(d_parent=d_parent, iperio=iperio, nftype=nftype)
+    d_tree = _process_parent(d_parent=d_parent, iperio=iperio, nftype=nftype, open_kwargs=open_kwargs)
 
     # -- Assign all child domains -- #
     if d_child is not None:
@@ -795,7 +843,9 @@ def create_datatree_dict(
             d_tree.update(_process_child(d_child=d_child[key],
                                          d_nests=d_nests,
                                          label=int(key),
-                                         parent_label=None
+                                         parent_label=None,
+                                         nbghost_child=nbghost_child,
+                                         open_kwargs=open_kwargs
                                          ))
 
     # -- Assign all grandchild domains -- #
@@ -814,7 +864,8 @@ def create_datatree_dict(
                                          d_nests=d_nests,
                                          label=int(key),
                                          parent_label=int(d_nests['parent']),
-                                         nbghost_child=nbghost_child
+                                         nbghost_child=nbghost_child,
+                                         open_kwargs=open_kwargs
                                          ))
 
     return d_tree
