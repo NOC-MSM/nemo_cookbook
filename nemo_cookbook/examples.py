@@ -11,6 +11,7 @@ Ollie Tooth (oliver.tooth@noc.ac.uk)
 """
 import os
 import pooch
+import importlib.resources as ir
 
 def _create_pooch_manager() -> pooch.Pooch:
     """
@@ -28,7 +29,8 @@ def _create_pooch_manager() -> pooch.Pooch:
         base_url="https://noc-msm-o.s3-ext.jc.rl.ac.uk/nemo-cookbook/example_data/",
         registry=None
     )
-    pooch_manager.load_registry("registry.txt")
+    registry_path = str(ir.files("nemo_cookbook") / "registry.txt")
+    pooch_manager.load_registry(registry_path)
 
     return pooch_manager
 

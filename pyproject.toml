@@ -61,3 +61,6 @@ requires = ["setuptools>=77.0.3", "setuptools-scm>=8"]
 
 [tool.setuptools.packages.find]
 include = ["nemo_cookbook*"]
+
+[tool.setuptools.package-data]
+nemo_cookbook = ["registry.txt"]
