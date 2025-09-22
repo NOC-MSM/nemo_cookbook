@@ -45,19 +45,47 @@ In summary, an `xarray.DataTree` can help ocean modellers organise complex outpu
 
 `NEMODataTree` is an extension of the `xarray.DataTree` structure designed to store NEMO model output datasets as nodes in a hierarchical tree.
 
-### NEMO Model Outputs
+### **NEMO Model Grid**
 
-Many users will be familiar with the typical output format of NEMO model simulations, which includes separate netCDF files for groups of variables defined at the same type of grid points.
+The NEMO Ocean Engine solves the Primitive Equations using the traditional, centred second-order finite difference approximation.
+
+Variables are spatially discretised using a 3-dimensional Arakawa “C” grid (Mesinger and Arakawa, 1976), consisting of cells centred on scalar points **T** (e.g. temperature, salinity, density, and horizontal divergence).
 
 <figure markdown="span">
   ![](./assets/images/nemo_c_grid.png){ width="300" }
 </figure>
 
-In NEMO, variables are arranged using a 3-dimensional Arakawa “C” grid (Mesinger and Arakawa, 1976), consisting of cells centred on scalar points **T** (e.g. temperature, salinity, density, and horizontal divergence).
-
 Vector points (**u**, **v**, **w**) are defined at the centre of each cell face. The relative and planetary vorticity, ζ and f, are defined at **f** points, which are located at the centre of each vertical edge.
 
-This arrangement of variables results in the following types of netCDF files:
+In NEMO, the ocean mesh (i.e. the position of all the scalar and vector points) is defined in terms of a set of orthogonal curvilinear grid indices (**i**, **j**, **k**), such that geographical coordinates are given as functions of these grid indices (i.e., **λ**(**j**, **i**), **φ**(**j**, **i**), **z**(**k**)).
+
+All grid-points on the ocean mesh are located at integer or integer and a half values of (**i**, **j**, **k**) as shown below:
+
+| Grid Type   | Grid Indices           |
+| ----------- | ---------------------- |
+| `T`         | (i, j, k)              |
+| `U`         | (i + 1/2, j, k)        |
+| `V`         | (i, j + 1/2, k)        |
+| `W`         | (i, j, k + 1/2)        |
+| `F`         | (i + 1/2, j + 1/2, k)  |
+
+For each type of grid-point, three grid scale factors are defined... 
+
+- Horizontal scale factors (e1, e2)
+- Vertical scale factor (e3)
+
+...such that the volume of a given type of grid cell is given by (e1~*k*~ e2~*k*~ e3~*k*~), where *k* is the grid point type. Similarly, the horizontal grid cell area is given by (e1~*k*~ e2~*k*~).
+
+For more information on the spatial discretisation of variables in NEMO, see [Chapter 3 of the NEMO Reference Manual](https://doi.org/10.5281/zenodo.14515373).
+
+### **NEMO Outputs**
+
+Although many experienced researchers will be familiar with the typical output format of NEMO model simulations, we provide a brief summary below for new users.
+
+NEMO model simulations write time-averaged diagnostics to output files in netCDF4 format using an external I/O
+library and server named [XIOS](https://forge.ipsl.jussieu.fr/ioserver/wiki/documentation/).
+
+Typically, separate netCDF files are produced at each time-averaging interval (e.g., monthly) for groups of variables located at the same type of grid points. This results in the following types of netCDF files:
 
 - `...grid_T.nc` :material-arrow-right: scalar variables (e.g., conservative temperature & absolute salinity) defined at the centre of each model grid cell.
 
@@ -77,7 +105,7 @@ When the NEMO ocean engine is coupled to a sea ice model (e.g., [**SI3**](https:
 
 - `...icemod.nc` :material-arrow-right: sea ice variables (e.g., sea ice concetration) defined at the centre of each model grid cell.
 
-### Defining a Simple NEMODataTree
+### **Defining a Simple NEMODataTree**
 
 For a typical NEMO model configuration, consisting of a global parent domain coupled to a sea ice model, we can define a simple `DataTree`:
 ```
@@ -90,27 +118,49 @@ Group: /
 └── Group: /gridF
 ```
 
-where the `gridT` child node contains time series of all of the variables output in `...grid_T.nc` files in a single `xarray.Dataset` and so on.
+where the `gridT` child node contains time series of scalar variables stored in the `...grid_T.nc` files in a single `xarray.Dataset` and so on.
 
-Importantly, we do not need a `domain` node containing the grid scale factors and masks defining each model domain since these variables are assigned to their respective grid nodes (e.g., horizontal grid scale factors `e1t` and `e2t` are stored in `gridT` etc.).
+#### **Domain Variables**
+
+Importantly, a `NEMODataTree` does not need a `domain` node to store the grid scale factors and masks associated with each model domain. 
+
+*Why?*
+
+This is because domain variables are assigned to their respective grid nodes during pre-processing (e.g., horizontal grid scale factors `e1t` and `e2t` are stored in `gridT` etc.).
+
+#### **Dimensions & Coordinates**
+
+Typically, the netCDF files output by NEMO model simulations have dimensions (`depth{k}`, `y`, `x`), where *k* is the grid point type.
+
+During the construction of a NEMODataTree, these coordinate dimensions are transformed into the NEMO model grid indices (**i**, **j**, **k**) according to the Table included in the **NEMO Model Grid** section above. This has two important implications:
+
+1. The `xarray.Datasets` stored in each grid node share the same coordinate dimension names (`i`, `j`, `k`), but are staggered according to where variables are position on the NEMO model grid.
+
+2. All grid indices use Fortran (1-based) indexing consistent with their definition in the original NEMO model code.
+
+In practice, this means that a variable defined at the first T-point will be at (`i=1`, `j=1`), whereas a variable located at the first U-point will be at (`i=1.5`, `j=1`). This approach was chosen to ensure users encounter alignment errors when attempting to calculate diagnostics using variables defined on different grids. Instead, scalar or vector variables should be interpolated onto the desired grid before computation.
+
+A further practical implication is that users should always use `.sel()` to subset data variables according to their grid indices on the NEMO ocean mesh.
+
+#### **Summary**
 
 Below we summarise the steps required to define a `NEMODataTree` from a collection of output netCDF files:
 
-**Steps to Define a NEMODataTree:**
+!!! example "Steps to Define a NEMODataTree"
 
-1. For each type of netCDF output, open all available files as a single `xarray.Dataset` using `xarray.open_mfdataset()`.
+    1. For each type of netCDF output, open all available files as a single `xarray.Dataset` using `xarray.open_mfdataset()`.
 
-2. Add domain variables stored in the **domain_cfg.nc** file to the each grid dataset (e.g., `e1t`, `e2t` are added to `gridT`).
+    2. Add domain variables stored in the **domain_cfg.nc** file to the each grid dataset (e.g., `e1t`, `e2t` are added to `gridT`).
 
-3. Add / calculate masks for each grid type (e.g., `tmask` is added to `gridT`).
+    3. Add / calculate masks for each grid type (e.g., `tmask` is added to `gridT`).
 
-4. Redefine the `dims` and `coords` of each grid dataset to use `i`, `j`, `k` as used to define the semi-discrete equations in NEMO.
+    4. Redefine the `dims` and `coords` of each grid dataset to use `i`, `j`, `k` as used to define the semi-discrete equations in NEMO.
 
-5. Assemble the `xarray.DataTree` using a dictionary of processed NEMO model grid datasets.
+    5. Assemble the `xarray.DataTree` using a dictionary of processed NEMO model grid datasets.
 
-Clearly, we can see from the steps above that a `NEMODataTree` object is a specific case of the more general `xarray.DataTree` object.
+The steps above highlight that the `NEMODataTree` is simply a specific case of the more general `xarray.DataTree` structure.
 
-### Defining a Nested NEMODataTree
+### **Defining a Nested NEMODataTree**
 
 For a nested NEMO model configuration, including a parent, child and grandchild domain, we can define a more complex `NEMODataTree`:
 ```
@@ -137,16 +187,17 @@ where each parent grid node (e.g., `gridT`) has a corresponding child grid node 
 
 When defining a `NEMODataTree` for a nested configuration, there are two important additional steps required:
 
-1. For each type of netCDF output, open all available files as a single `xarray.Dataset` using `xarray.open_mfdataset()`.
+!!! example "Steps to Define a NEMODataTree"
+    1. For each type of netCDF output, open all available files as a single `xarray.Dataset` using `xarray.open_mfdataset()`.
 
-2. Add domain variables stored in the **domain_cfg.nc** file to the each grid dataset (e.g., `e1t`, `e2t` are added to `gridT`).
+    2. Add domain variables stored in the **domain_cfg.nc** file to the each grid dataset (e.g., `e1t`, `e2t` are added to `gridT`).
 
-3. Add / calculate masks for each grid type (e.g., `tmask` is added to `gridT`).
+    3. Add / calculate masks for each grid type (e.g., `tmask` is added to `gridT`).
 
-4. Redefine the `dims` and `coords` of each grid dataset to use `i`, `j`, `k` as used to define the semi-discrete equations in NEMO.
+    4. Redefine the `dims` and `coords` of each grid dataset to use `i`, `j`, `k` as used to define the semi-discrete equations in NEMO.
 
-5. **Clip nested child domains to remove ghost points along the boundaries & add a mapping from the parent grid indices to the child grid indices to the `coords`.**
+    5. **Clip nested child domains to remove ghost points along the boundaries & add a mapping from the parent grid indices to the child grid indices to the `coords`.**
 
-6. **Assemble dictionaries of processed NEMO model grid datasets for each of the parent, child and grandchild domains.**
+    6. **Assemble dictionaries of processed NEMO model grid datasets for each of the parent, child and grandchild domains.**
 
-7. Assemble the `xarray.DataTree` using a nested dictionary of NEMO model domains.
+    7. Assemble the `xarray.DataTree` using a nested dictionary of NEMO model domains.

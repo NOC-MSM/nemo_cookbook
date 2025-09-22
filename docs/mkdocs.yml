@@ -40,6 +40,7 @@ theme:
 
 markdown_extensions:
   - attr_list
+  - tables
   - pymdownx.emoji:
       emoji_index: !!python/name:material.extensions.emoji.twemoji
       emoji_generator: !!python/name:material.extensions.emoji.to_svg
@@ -51,6 +52,7 @@ markdown_extensions:
   - pymdownx.snippets
   - admonition
   - pymdownx.details
+  - pymdownx.tilde
   - pymdownx.tabbed:
       alternate_style: true
   - pymdownx.arithmatex:
@@ -60,7 +62,9 @@ markdown_extensions:
 
 nav:
   - Getting started: index.md
-  - NEMODataTree: nemodatatree.md
+  - User Guide:
+    - NEMODataTree: nemodatatree.md
+    - Examples: example_nemodatatrees.ipynb
   - Recipes:
     - Meridional Overturning - Depth Space: recipe_moc_z.ipynb
     - Meridional Overturning - Tracer Space: recipe_moc_tracer.ipynb
