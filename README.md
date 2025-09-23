@@ -7,7 +7,7 @@ Recipes for reproducible analysis of NEMO ocean general circulation model output
 :rocket:
 <a href="https://noc-msm.github.io/nemo_cookbook/"> <strong>Documentation</strong></a>
 - 
-:grey_exclamation:
+:exclamation:
 <a href="https://github.com/NOC-MSM/nemo_cookbook/issues"><strong>Report an Issue</strong></a>
 </p>
 
@@ -16,6 +16,8 @@ Recipes for reproducible analysis of NEMO ocean general circulation model output
 NEMO Cookbook is a collection of recipes for performing reproducible analyses of the Nucleus for European Modelling of the Ocean ([**NEMO**](https://www.nemo-ocean.eu)) ocean general circulation model outputs.
 
 Our aim is to provide Python implementations of the post-processing & analysis functions available in [**CDFTOOLS**](https://github.com/meom-group/CDFTOOLS) alongside new diagnostics (e.g., surface-forced water mass transformation), which are compatible with generalised vertical coordinate systems (e.g., MES).
+
+## **NEMODataTree**
 
 NEMO Cookbook introduces the `NEMODataTree` structure, which is an extension of the `xarray.DataTree` object and an alternative to the [**xgcm**](https://xgcm.readthedocs.io/en/latest/) grid object.
 
