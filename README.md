@@ -1,14 +1,14 @@
 # NEMO Cookbook
 <p align="left">
-<strong>Recipes for reproducible analysis of NEMO ocean general circulation model outputs using xarray.<strong>
+Recipes for reproducible analysis of NEMO ocean general circulation model outputs using xarray.
 </a>
 <br />
 <br />
 :rocket:
-<a href="https://noc-msm.github.io/nemo_cookbook/"><strong>Documentation</strong></a>
+<a href="https://noc-msm.github.io/nemo_cookbook/"> <strong>Documentation</strong></a>
 - 
+:grey_exclamation:
 <a href="https://github.com/NOC-MSM/nemo_cookbook/issues"><strong>Report an Issue</strong></a>
-:grey_exclamation: :grey_question:
 </p>
 
 ## **About**
@@ -18,6 +18,15 @@ NEMO Cookbook is a collection of recipes for performing reproducible analyses of
 Our aim is to provide Python implementations of the post-processing & analysis functions available in [**CDFTOOLS**](https://github.com/meom-group/CDFTOOLS) alongside new diagnostics (e.g., surface-forced water mass transformation), which are compatible with generalised vertical coordinate systems (e.g., MES).
 
 NEMO Cookbook introduces the `NEMODataTree` structure, which is an extension of the `xarray.DataTree` object and an alternative to the [**xgcm**](https://xgcm.readthedocs.io/en/latest/) grid object.
+
+`NEMODataTree` enables users to:
+
+* Store output variables defined on NEMO T/U/V/W grids using the model’s native (i, j, k) curvilinear coordinate system.
+* Analyse parent, child and grandchild domains of nested configurations using a single DataTree.
+* Pre-process model outputs (i.e., removing ghost points and generating t/u/v/f masks without needing a mesh_mask file).
+* Perform scalar (e.g., gradient) and vector (e.g., divergence, curl) operations as formulated in NEMO.
+* Calculate grid-aware diagnostics, including masked & binned statistics.
+* Perform vertical grid coordinate transformations via conservative interpolation. 
 
 Each recipe uses `NEMODataTree` to leverage [**xarray**](https://xarray.dev), [**flox**](https://flox.readthedocs.io/en/latest/) & [**dask**](https://www.dask.org) libraries (think of these are your cooking utensils) to calculate a diagnostic with NEMO ocean model outputs (the raw ingredients - that's where you come in!).
 
@@ -46,7 +55,11 @@ conda activate env_nemo_cookbook
 pip install -e .
 ```
 
-### **Recipes**
+## **Documentation**
+
+To learn more about NEMO Cookbook & to start exploring our current recipes, visit our documentation [here](https://noc-msm.github.io/nemo_cookbook/).
+
+## **Recipes**
 
 #### **Available:**
 
@@ -79,10 +92,6 @@ The following recipes are available on the **Recipes** page:
 4. Sea ice diagnostics.
 
 5. Vorticity diagnostics.
-
-## **Documentation**
-
-To learn more about NEMO Cookbook & to start exploring our current recipes, visit our documentation [here](https://noc-msm.github.io/nemo_cookbook/).
 
 ## **Contact**
 
