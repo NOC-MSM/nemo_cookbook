@@ -64,7 +64,7 @@ nav:
   - Getting started: index.md
   - User Guide:
     - NEMODataTree: nemodatatree.md
-    - Examples: example_nemodatatrees.ipynb
+    - Example NEMODataTrees: examples.md
   - Recipes:
     - Meridional Overturning - Depth Space: recipe_moc_z.ipynb
     - Meridional Overturning - Tracer Space: recipe_moc_tracer.ipynb
