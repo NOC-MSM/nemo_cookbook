@@ -8,9 +8,9 @@ dependencies:
 - flox>=0.10.6
 - fsspec>=2025.3.2
 - matplotlib
-- numbagga>=0.8
+- numbagg>=0.8
 - numba>=0.59
-- numpy<2.3, # numba has not updated yet: https://github.com/numba/numba/issues/10105
+- numpy<2.3 # numba has not updated yet: https://github.com/numba/numba/issues/10105
 - netCDF4>=1.6.0
 - pooch
 - requests>=2.32.3
