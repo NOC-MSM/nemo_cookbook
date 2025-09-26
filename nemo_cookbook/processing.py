@@ -128,7 +128,7 @@ def _check_grid_dims(
     if grid == 'domain':
         core_dims = ['nav_lev', 'y', 'x']
         if not all([True if dim in core_dims else False for dim in ds.dims]):
-            raise KeyError(f"missing one or more required dimensions {tuple(core_dims)} in domain dataset.")
+            raise KeyError(f"{tuple(ds.dims)} is missing or exceeding required dimensions {tuple(core_dims)} expected for domain dataset.")
 
     # -- NEMO model grids -- #
     else:
