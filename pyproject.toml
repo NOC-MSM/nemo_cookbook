@@ -22,6 +22,7 @@ dependencies = [
   "dask>=2025.7.0",
   "flox>=0.10.6",
   "fsspec>=2025.3.2",
+  "gsw>=3.6.20",
   "matplotlib",
   "numbagg>=0.8",
   "numba>=0.59",
