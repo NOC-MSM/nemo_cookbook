@@ -1,6 +1,9 @@
-# NEMO Cookbook
 <p align="left">
-Recipes for reproducible analysis of NEMO ocean general circulation model outputs using xarray.
+    <img src="./docs/docs/assets/icons/NEMO_Cookbook_Logo.png" alt="Logo" width="220" height="100">
+</p>
+
+<p align="left">
+<strong>Recipes for reproducible analysis of NEMO ocean general circulation model outputs using xarray.</strong>
 </a>
 <br />
 <br />
@@ -57,41 +60,41 @@ pip install -e .
 
 ## **Documentation**
 
-To learn more about NEMO Cookbook & to start exploring our current recipes, visit our documentation [here](https://noc-msm.github.io/nemo_cookbook/).
+To learn more about NEMO Cookbook & to start exploring our current recipes, visit our documentation [**here**](https://noc-msm.github.io/nemo_cookbook/).
 
 ## **Recipes**
 
 #### **Available:**
 
-The following recipes are available on the **Recipes** page:
+The following recipes are available [**here**](https://noc-msm.github.io/nemo_cookbook/recipes/):
 
-1. Meridional overturning stream function in an arbitrary tracer coordinates.
+- Meridional overturning stream function in an arbitrary tracer coordinates.
 
-2. Meridional overturning stream function in depth coordinates (z/z*).
+- Meridional overturning stream function in depth coordinates (z/z*).
 
-3. Meridional heat & salt transports.
+- Meridional heat & salt transports.
 
-4. Surface-forced water mass transformation in potential density coordinates.
+- Surface-forced water mass transformation in potential density coordinates.
 
-5. Volume census in T-S coordinates.
+- Volume census in T-S coordinates.
 
-6. Masked statistics using bounding boxes and polygons.
+- Masked statistics using bounding boxes and polygons.
 
-7. Extracting volume transports and properties along the Overturning in the Subpolar North Atlantic array.
+- Extracting volume transports and properties along the Overturning in the Subpolar North Atlantic array.
 
-8. Vertical coordinate transformations.
+- Vertical coordinate transformations.
+
+- Barotropic stream functions.
 
 #### **In Development:**
 
-1. Barotropic stream functions.
+- Meridional overturning stream functions in depth coordinates (MES).
 
-2. Meridional overturning stream functions in depth coordinates (MES).
+- Ocean heat content & mixed layer heat content. 
 
-3. Ocean heat content & mixed layer heat content. 
+- Sea ice diagnostics.
 
-4. Sea ice diagnostics.
-
-5. Vorticity diagnostics.
+- Vorticity diagnostics.
 
 ## **Contact**
 

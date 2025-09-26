@@ -1,7 +1,7 @@
 # Getting Started
 
 <img src="./assets/icons/noc_logo_dark.png" alt="drawing" width="150"/>
-<img src="./assets/icons/NEMO_blue.png" alt="drawing" width="150"/>
+<img src="./assets/icons/NEMO_Cookbook_Logo.png" alt="drawing" width="150"/>
 
 **Welcome to the documentation for the NEMO Cookbook :wave:**
 
