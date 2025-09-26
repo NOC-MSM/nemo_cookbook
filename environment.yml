@@ -4,15 +4,21 @@ channels:
 dependencies:
 - python>=3.11
 - aiohttp>=3.11.18
+- cartopy>=0.21.1
 - dask>=2025.7.0
 - flox>=0.10.6
 - fsspec>=2025.3.2
+- gsw>=3.6.20
+- ipykernel>=6.29.5
+- jupyter>=1.1.1
 - matplotlib
+- notebook>=7.4.1
 - numbagg>=0.8
 - numba>=0.59
 - numpy<2.3 # numba has not updated yet: https://github.com/numba/numba/issues/10105
 - netCDF4>=1.6.0
 - pooch
+- pyarrow>=21.0.0
 - requests>=2.32.3
 - scikit-learn>=1.7.1
 - scikit-image>=0.25.2
