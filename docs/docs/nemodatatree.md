@@ -7,6 +7,7 @@ In this User Guide, we provide an introduction to the `NEMODataTree`, including 
 For further details on `NEMODataTree` constructors, properties and computation patterns, users are referred to the API documentation.
 
 ## What is a DataTree? :fontawesome-solid-folder-tree:
+---
 
 Ocean model simulations produce large collections of datasets, including physics, biogeochemistry, and sea ice diagnostics, which are defined on different grids. Moreover, ocean models configuration often include nested domains, where datasets of model diagnostics are produced for each of the parent, child and grandchild domains.
 
@@ -42,14 +43,15 @@ In summary, an `xarray.DataTree` can help ocean modellers organise complex outpu
 
 
 ## What is a NEMODataTree? :ocean:  |  :fontawesome-solid-folder-tree:
+---
 
 `NEMODataTree` is an extension of the `xarray.DataTree` structure designed to store NEMO model output datasets as nodes in a hierarchical tree.
 
 ### **NEMO Model Grid**
 
-The NEMO Ocean Engine solves the Primitive Equations using the traditional, centred second-order finite difference approximation.
+The NEMO Ocean Engine ([Madec et al., 2024](https://doi.org/10.5281/zenodo.14515373)) solves the Primitive Equations using the traditional, centred second-order finite difference approximation.
 
-Variables are spatially discretised using a 3-dimensional Arakawa “C” grid (Mesinger and Arakawa, 1976), consisting of cells centred on scalar points **T** (e.g. temperature, salinity, density, and horizontal divergence).
+Variables are spatially discretised using a 3-dimensional Arakawa “C” grid ([Mesinger and Arakawa, 1976](https://core.ac.uk/download/pdf/141499575.pdf)), consisting of cells centred on scalar points **T** (e.g. temperature, salinity, density, and horizontal divergence).
 
 <figure markdown="span">
   ![](./assets/images/nemo_c_grid.png){ width="300" }
@@ -185,7 +187,19 @@ Group: /
 
 where each parent grid node (e.g., `gridT`) has a corresponding child grid node (e.g., `1_gridT`), which itself has a corresponding child (grandchild) node (e.g., `2_gridT`).
 
-When defining a `NEMODataTree` for a nested configuration, there are two important additional steps required:
+#### **Domain Variables**
+
+Nested child / grandchild domain variables are also assigned to their respective grid nodes during pre-processing (e.g., horizontal grid scale factors `e1t` and `e2t` are stored in `gridT` etc.).
+
+#### **Dimensions & Coordinates**
+
+To ensure that the dimensions of nested child / grandchild domains are distinct from their parent, a prefix is added to all grid indices and associated geographical coordinate variables.
+
+The prefix corresponds to the unique domain number used to identify each child and grandchild domain during the construction the `NEMODataTree`. Hence, in the example above, the child grid node `1_gridT` will have NEMO model grid indices (`i1`, `j1`, `k1`) and associated coordinates `1_glamt(j1, i1)`, `1_gphit(j1, i1)` etc.
+
+#### **Summary**
+
+In summary, defining a `NEMODataTree` for a nested configuration includes two important additional steps:
 
 !!! example "Steps to Define a NEMODataTree"
     1. For each type of netCDF output, open all available files as a single `xarray.Dataset` using `xarray.open_mfdataset()`.
@@ -194,7 +208,7 @@ When defining a `NEMODataTree` for a nested configuration, there are two importa
 
     3. Add / calculate masks for each grid type (e.g., `tmask` is added to `gridT`).
 
-    4. Redefine the `dims` and `coords` of each grid dataset to use `i`, `j`, `k` as used to define the semi-discrete equations in NEMO.
+    4. Redefine the `dims` and `coords` of each grid dataset to use `i{dom}`, `j{dom}`, `k{dom}` as used to define the semi-discrete equations in NEMO, where *dom* is the unique domain number.
 
     5. **Clip nested child domains to remove ghost points along the boundaries & add a mapping from the parent grid indices to the child grid indices to the `coords`.**
 

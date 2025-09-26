@@ -11,7 +11,6 @@ from nemo_cookbook import NEMODataTree
 ```
 
 ### **Global Ocean Sea-Ice Models:**
-
 ---
 
 **1. `AGRIF_DEMO`**

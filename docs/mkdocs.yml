@@ -65,7 +65,9 @@ nav:
   - User Guide:
     - NEMODataTree: nemodatatree.md
     - Example NEMODataTrees: examples.md
+  - How To...: howto.md
   - Recipes:
+    - recipes.md
     - Meridional Overturning - Depth Space: recipe_moc_z.ipynb
     - Meridional Overturning - Tracer Space: recipe_moc_tracer.ipynb
     - Regional Masked Statistics: recipe_masked_stats.ipynb

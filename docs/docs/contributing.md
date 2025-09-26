@@ -1,21 +1,16 @@
 # Contributing
 
-!!! abstract "Summary"
-
-    **This page provides guidance for contributors to the NEMO Cookbook.**
-
+### **Contributing to NEMO Cookbook**
 ---
 
-### **Contributing to NEMO Cookbook**
+Thank you for your interest in contributing to **NEMO Cookbook**!
 
-Thank you for your interest in contributing to NEMO Cookbook!
-
-We welcome contributions from the community to help improve the reproducible analysis of NEMO outputs.
+We welcome contributions from the community to help us support the reproducible analysis of NEMO model outputs.
 
 ### **Getting Started**
 ---
 
-To get started with contributing to NEMO Cookbook, please follow the steps below:
+To get started with contributing to **NEMO Cookbook**, please follow the steps below:
 
 1. Fork the NEMO Cookbook repository on GitHub.
 2. Clone your forked repository to your local machine.
@@ -34,7 +29,7 @@ To get started with contributing to NEMO Cookbook, please follow the steps below
 ### **Code Guidelines**
 ---
 
-When contributing code to NEMO Cookbook, please adhere to the following guidelines:
+When contributing code to **NEMO Cookbook**, please adhere to the following guidelines:
 
 - Follow the coding style and conventions used in the existing codebase.
 - Write clear and concise code with appropriate comments.
@@ -46,13 +41,14 @@ When contributing code to NEMO Cookbook, please adhere to the following guidelin
 ### **Bug Reports and Feature Requests**
 ---
 
-If you find any bugs or have ideas for new features, please open an [issue](https://github.com/NOC-MSM/nemo_cookbook/issues) on the NEMO Cookbook GitHub repository.
+If you find any bugs or have ideas for new features, please open an [issue](https://github.com/NOC-MSM/nemo_cookbook/issues) on the **NEMO Cookbook** GitHub repository.
 
 Provide as much detail as possible, including steps to reproduce the issue or a clear description of the desired feature.
 
-Community Guidelines
---------------------
 
-When participating in the NEMO Cookbook community, please be respectful and considerate towards others. Follow the code of conduct and engage in constructive discussions.
+### **Community Guidelines**
+---
 
-We appreciate your contributions and look forward to working together to improve NEMO Cookbook!
+When participating in the **NEMO Cookbook** community, please be respectful and considerate towards others. Follow the code of conduct and engage in constructive discussions.
+
+We appreciate your contributions and look forward to working together to improve **NEMO Cookbook**!

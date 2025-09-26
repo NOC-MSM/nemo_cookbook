@@ -8,11 +8,27 @@
 ## What is the NEMO Cookbook? :cook: :book:
 NEMO Cookbook is a collection of recipes for performing reproducible analyses of the Nucleus for European Modelling of the Ocean ([**NEMO**](https://www.nemo-ocean.eu)) ocean general circulation model outputs.
 
-Our aim is to provide Python implementations of the post-processing & analysis functions available in [**CDFTOOLS**](https://github.com/meom-group/CDFTOOLS) alongside new diagnostics (e.g., surface-forced water mass transformation), which are compatible with generalised vertical coordinate systems (e.g., MES).
+Our aim is to provide Python implementations of the post-processing & analysis functions available in [**CDFTOOLS**](https://github.com/meom-group/CDFTOOLS) alongside new diagnostics (e.g., surface-forced water mass transformation), which are compatible with generalised vertical coordinate systems (e.g., MEs).
 
-NEMO Cookbook introduces the `NEMODataTree` structure, which is an extension of the `xarray.DataTree` object and an alternative to the [**xgcm**](https://xgcm.readthedocs.io/en/latest/) grid object. To learn more about the `NEMODataTree`, see our User Guide.
+## NEMODataTree
 
-Each recipe uses the `NEMODataTree` to leverage the [**xarray**](https://xarray.dev), [**flox**](https://flox.readthedocs.io/en/latest/) & [**dask**](https://www.dask.org) libraries (think of these are your cooking utensils) to calculate one or more diagnostics using NEMO ocean model outputs (the raw ingredients - that's where you come in!).
+NEMO Cookbook utilises the `NEMODataTree` object, which is an extension of the `xarray.DataTree` and an alternative to the [**xgcm**](https://xgcm.readthedocs.io/en/latest/) grid object.
+
+`NEMODataTree` enables users to:
+
+* Store output variables defined on NEMO T/U/V/W grids using the model’s native (i, j, k) curvilinear coordinate system.
+
+* Analyse parent, child and grandchild domains of nested configurations using a single DataTree.
+
+* Pre-process model outputs (i.e., removing ghost points and generating t/u/v/f masks without needing a mesh_mask file).
+
+* Perform scalar (e.g., gradient) and vector (e.g., divergence, curl) operations as formulated in NEMO.
+
+* Calculate grid-aware diagnostics, including masked & binned statistics.
+
+* Perform vertical grid coordinate transformations via conservative interpolation. 
+
+Each recipe in the **NEMO Cookbook** uses `NEMODataTree` to leverage [**xarray**](https://xarray.dev), [**flox**](https://flox.readthedocs.io/en/latest/) & [**dask**](https://www.dask.org) libraries to calculate a diagnostic with NEMO ocean model outputs.
 
 ---
 
@@ -59,43 +75,18 @@ pip install -e .
 
 ---
 
-### **Recipes**
+### Next Steps...
 
-#### **Available:**
+* To learn more about **NEMODataTree**, see the [User Guide] and [How To] pages - this is an especially starting point for new NEMO users!
 
-The following recipes are available on the **Recipes** page:
+* To get started working with the recipes in the **NEMO Cookbook**, visit the to [Recipes] page.
 
-1. Meridional overturning stream function in an arbitrary tracer coordinates.
+* For those looking for more detailed documentation, explore the [NEMODataTree API].
 
-2. Meridional overturning stream function in depth coordinates (z/z*).
+* To contribute your own recipes to **NEMO Cookbook**, see the [Contributing] page
 
-3. Meridional heat & salt transports.
-
-4. Surface-forced water mass transformation in potential density coordinates.
-
-5. Volume census in T-S coordinates.
-
-6. Masked statistics using bounding boxes and polygons.
-
-7. Extracting volume transports and properties along the Overturning in the Subpolar North Atlantic array.
-
-8. Vertical coordinate transformations.
-
-#### **In Development:**
-
-1. Barotropic stream functions.
-
-2. Meridional overturning stream functions in multi-envelope sigma coordinates.
-
-3. Ocean heat content & mixed layer heat content. 
-
-4. Sea ice diagnostics.
-
-5. Vorticity diagnostics.
-
-### Learning More...
-
-To learn more about the NEMO Cookbook, including how to contribute your own recipes, see the [NEMODataTree] user guide and [Contributing] pages.
-
-[NEMODataTree]: user_guide.md
+[User Guide]: nemodatatree.md
+[Recipes]: recipes.md
+[How To]: howto.md
+[NEMODataTree API]: reference.md
 [Contributing]: contributing.md
