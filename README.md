@@ -4,10 +4,8 @@ Recipes for reproducible analysis of NEMO ocean general circulation model output
 </a>
 <br />
 <br />
-:rocket:
 <a href="https://noc-msm.github.io/nemo_cookbook/"> <strong>Documentation</strong></a>
-- 
-:exclamation:
+:rocket:
 <a href="https://github.com/NOC-MSM/nemo_cookbook/issues"><strong>Report an Issue</strong></a>
 </p>
 

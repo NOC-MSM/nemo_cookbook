@@ -70,6 +70,7 @@ nav:
     - recipes.md
     - Meridional Overturning - Depth Space: recipe_moc_z.ipynb
     - Meridional Overturning - Tracer Space: recipe_moc_tracer.ipynb
+    - Barotropic Stream Functions: recipe_barotropic_sf.ipynb
     - Regional Masked Statistics: recipe_masked_stats.ipynb
     - Volume Census in T-S Space: recipe_volume_census.ipynb
     - Surface-Forced Water Mass Transformation: recipe_sfwmt_sigma0.ipynb
