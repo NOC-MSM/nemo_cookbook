@@ -938,7 +938,7 @@ class NEMODataTree(xr.DataTree):
             raise ValueError("bounding box must be a tuple: (lon_min, lon_max, lat_min, lat_max).")
 
         # -- Get NEMO model grid properties -- #
-        _, dom_prefix, _ = cls._get_properties(dom=dom)
+        dom_prefix, _ = cls._get_properties(dom=dom)
         grid_paths = cls._get_grid_paths(dom=dom)
 
         # -- Clip grids to given bounding box -- #
