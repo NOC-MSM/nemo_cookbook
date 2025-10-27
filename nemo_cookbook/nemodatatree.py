@@ -18,6 +18,12 @@ from flox.xarray import xarray_reduce
 from .masks import create_polygon_mask, get_mask_boundary
 from .processing import create_datatree_dict
 from .transform import transform_vertical_coords
+from .extract import (
+    create_section_polygon,
+    get_section_indexes,
+    update_boundary_dataset,
+    create_boundary_dataset
+    )
 
 
 class NEMODataTree(xr.DataTree):
@@ -1235,6 +1241,82 @@ class NEMODataTree(xr.DataTree):
                     )
 
         return ds
+
+
+    def extract_section(
+            cls,
+            lon_section: np.ndarray,
+            lat_section: np.ndarray,
+            uv_vars: list = ['uo', 'vo'],
+            vars: list | None = None,
+            dom: str = '.',
+            ) -> xr.Dataset:
+            """
+            Extract hydrographic section from a NEMO model domain.
+
+            Parameters
+            ----------
+            lon_section : np.ndarray
+                Longitudes defining the section polygon.
+            lat_section : np.ndarray
+                Latitudes defining the section polygon.
+            uv_vars : list, optional
+                Names of velocity variables to extract along the boundary.
+                Default is ['uo', 'vo'].
+            vars : list, optional
+                Names of scalar variables to extract along the boundary.
+            dom : str
+                Prefix of NEMO domain in the DataTree (e.g., '1', '2', '3', etc.).
+                Default is '.' for the parent domain.
+
+            Returns
+            -------
+            xr.Dataset
+                Dataset containing hydrographic section extracted from NEMO model grid.
+            """
+            # -- Get NEMO model grid properties -- #
+            grid_paths = cls._get_grid_paths(dom=dom)
+
+            # -- Define hydrographic section using polygon -- #
+            lon_poly, lat_poly = create_section_polygon(lon_sec=lon_section,
+                                                        lat_sec=lat_section,
+                                                        )
+
+            mask = cls.mask_with_polygon(grid=grid_paths['gridT'],
+                                        lon_poly=lon_poly,
+                                        lat_poly=lat_poly
+                                        )
+
+            i_bdy, j_bdy, flux_type, flux_dir = get_mask_boundary(mask)
+
+            # -- Create mask boundary dataset -- #
+            ds_bdy = create_boundary_dataset(nemo=cls,
+                                            dom=dom,
+                                            i_bdy=i_bdy,
+                                            j_bdy=j_bdy,
+                                            flux_type=flux_type,
+                                            flux_dir=flux_dir
+                                            )
+
+            # -- Get indexes of hydrographic section along mask boundary -- #
+            sec_indexes = get_section_indexes(ds_bdy=ds_bdy,
+                                            nemo=cls,
+                                            dom=dom,
+                                            mask_section=mask,
+                                            lon_section=lon_section,
+                                            lat_section=lat_section,
+                                            )
+
+            # -- Update boundary dataset with extracted section data -- #
+            ds_bdy = update_boundary_dataset(ds_bdy=ds_bdy,
+                                            nemo=cls,
+                                            dom=dom,
+                                            sec_indexes=sec_indexes,
+                                            uv_vars=uv_vars,
+                                            vars=vars,
+                                            )
+
+            return ds_bdy
 
 
     def binned_statistic(

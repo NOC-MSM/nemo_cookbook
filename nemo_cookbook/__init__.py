@@ -6,4 +6,3 @@ __credits__ = "National Oceanography Centre"
 from nemo_cookbook import examples, extract, masks, transform
 
 from .nemodatatree import NEMODataTree
-from .extract import extract_section
