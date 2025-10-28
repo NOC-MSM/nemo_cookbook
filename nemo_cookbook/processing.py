@@ -265,7 +265,8 @@ def _open_grid_datasets(
 def _add_domain_vars(
     d_grids: dict[str, xr.Dataset],
     iperio: bool = False,
-    nftype: str | None = None
+    nftype: str | None = None,
+    read_mask: bool = False
 ) -> dict[str, xr.Dataset]:
     """
     Append domain & mask variables to each grid dataset
@@ -289,6 +290,10 @@ def _add_domain_vars(
     nftype: str | None = None
         Type of north fold lateral boundary condition to apply to domain. Options are 'T' for T-point pivot
         or 'F' for F-point pivot. By default, no north fold lateral boundary condition is applied (None).
+
+    read_mask : bool = False
+        If True, read NEMO model land/sea mask from domain files. Default is False, meaning masks are computed
+        from top_level and bottom_level domain variables.
 
     Returns
     -------
@@ -329,14 +334,20 @@ def _add_domain_vars(
     except AttributeError as e:
         raise AttributeError(f"missing required T-grid variable in domain dataset -> {e}")
 
-    d_grids['gridT']['tmask'] = create_dom_mask(ka=ka,
-                                                top_level=domain["top_level"],
-                                                bottom_level=domain["bottom_level"],
-                                                cd_nat="T",
-                                                c_NFtype=nftype,
-                                                iperio=iperio,
-                                                mask_opensea=mask_opensea
-                                                )
+    if read_mask:
+        try:
+            d_grids['gridT']['tmask'] = domain["tmask"]
+        except AttributeError as e:
+            raise AttributeError(f"missing 'tmask' variable in domain dataset -> {e}")
+    else:
+        d_grids['gridT']['tmask'] = create_dom_mask(ka=ka,
+                                                    top_level=domain["top_level"],
+                                                    bottom_level=domain["bottom_level"],
+                                                    cd_nat="T",
+                                                    c_NFtype=nftype,
+                                                    iperio=iperio,
+                                                    mask_opensea=mask_opensea
+                                                    )
     d_grids['gridT']['tmaskutil'] = d_grids['gridT']['tmask'][0, :, :].squeeze(drop=True)
     d_grids['gridT'] = d_grids['gridT'].assign_attrs(nftype=nftype, iperio=iperio)
 
@@ -349,14 +360,20 @@ def _add_domain_vars(
     except AttributeError as e:
         raise AttributeError(f"missing required U-grid variable in domain dataset -> {e}")
 
-    d_grids['gridU']['umask'] = create_dom_mask(ka=ka,
-                                                top_level=domain["top_level"],
-                                                bottom_level=domain["bottom_level"],
-                                                cd_nat="U",
-                                                c_NFtype=nftype,
-                                                iperio=iperio,
-                                                mask_opensea=mask_opensea
-                                                )
+    if read_mask:
+        try:
+            d_grids['gridU']['umask'] = domain["umask"]
+        except AttributeError as e:
+            raise AttributeError(f"missing 'umask' variable in domain dataset -> {e}")
+    else:
+        d_grids['gridU']['umask'] = create_dom_mask(ka=ka,
+                                                    top_level=domain["top_level"],
+                                                    bottom_level=domain["bottom_level"],
+                                                    cd_nat="U",
+                                                    c_NFtype=nftype,
+                                                    iperio=iperio,
+                                                    mask_opensea=mask_opensea
+                                                    )
     d_grids['gridU']['umaskutil'] = d_grids['gridU']['umask'][0, :, :].squeeze(drop=True)
     d_grids['gridU'] = d_grids['gridU'].assign_attrs(nftype=nftype, iperio=iperio)
 
@@ -369,14 +386,20 @@ def _add_domain_vars(
     except AttributeError as e:
         raise AttributeError(f"missing required V-grid variable in domain dataset -> {e}")
 
-    d_grids['gridV']['vmask'] = create_dom_mask(ka=ka,
-                                                top_level=domain["top_level"],
-                                                bottom_level=domain["bottom_level"],
-                                                cd_nat="V",
-                                                c_NFtype=nftype,
-                                                iperio=iperio,
-                                                mask_opensea=mask_opensea
-                                                )
+    if read_mask:
+        try:
+            d_grids['gridV']['vmask'] = domain["vmask"]
+        except AttributeError as e:
+            raise AttributeError(f"missing 'vmask' variable in domain dataset -> {e}")
+    else:
+        d_grids['gridV']['vmask'] = create_dom_mask(ka=ka,
+                                                    top_level=domain["top_level"],
+                                                    bottom_level=domain["bottom_level"],
+                                                    cd_nat="V",
+                                                    c_NFtype=nftype,
+                                                    iperio=iperio,
+                                                    mask_opensea=mask_opensea
+                                                    )
     d_grids['gridV']['vmaskutil'] = d_grids['gridV']['vmask'][0, :, :].squeeze(drop=True)
     d_grids['gridV'] = d_grids['gridV'].assign_attrs(nftype=nftype, iperio=iperio)
 
@@ -389,14 +412,20 @@ def _add_domain_vars(
     except AttributeError as e:
         raise AttributeError(f"missing required W-grid variable in domain dataset -> {e}")
 
-    d_grids['gridW']['wmask'] = create_dom_mask(ka=ka,
-                                                top_level=domain["top_level"],
-                                                bottom_level=domain["bottom_level"],
-                                                cd_nat="W",
-                                                c_NFtype=nftype,
-                                                iperio=iperio,
-                                                mask_opensea=mask_opensea
-                                                )
+    if read_mask:
+        try:
+            d_grids['gridW']['wmask'] = domain["wmask"]
+        except AttributeError as e:
+            raise AttributeError(f"missing 'wmask' variable in domain dataset -> {e}")
+    else:
+        d_grids['gridW']['wmask'] = create_dom_mask(ka=ka,
+                                                    top_level=domain["top_level"],
+                                                    bottom_level=domain["bottom_level"],
+                                                    cd_nat="W",
+                                                    c_NFtype=nftype,
+                                                    iperio=iperio,
+                                                    mask_opensea=mask_opensea
+                                                    )
     d_grids['gridW'] = d_grids['gridW'].assign_attrs(nftype=nftype, iperio=iperio)
 
     # F-grid:
@@ -409,14 +438,20 @@ def _add_domain_vars(
     except AttributeError as e:
         raise AttributeError(f"missing required F-grid variable in domain dataset -> {e}")
 
-    d_grids['gridF']['fmask'] = create_dom_mask(ka=ka,
-                                                top_level=domain["top_level"],
-                                                bottom_level=domain["bottom_level"],
-                                                cd_nat="F",
-                                                c_NFtype=nftype,
-                                                iperio=iperio,
-                                                mask_opensea=mask_opensea
-                                                )
+    if read_mask:
+        try:
+            d_grids['gridF']['fmask'] = domain["fmask"]
+        except AttributeError as e:
+            raise AttributeError(f"missing 'fmask' variable in domain dataset -> {e}")
+    else:
+        d_grids['gridF']['fmask'] = create_dom_mask(ka=ka,
+                                                    top_level=domain["top_level"],
+                                                    bottom_level=domain["bottom_level"],
+                                                    cd_nat="F",
+                                                    c_NFtype=nftype,
+                                                    iperio=iperio,
+                                                    mask_opensea=mask_opensea
+                                                    )
     d_grids['gridF']['fmaskutil'] = d_grids['gridF']['fmask'][0, :, :].squeeze(drop=True)
     d_grids['gridF'] = d_grids['gridF'].assign_attrs(nftype=nftype, iperio=iperio)
 
@@ -538,6 +573,7 @@ def _process_parent(
     d_parent: dict[str, str] | dict[str, xr.Dataset],
     iperio: bool = False,
     nftype: str | None = None,
+    read_mask: bool = False,
     open_kwargs: dict[str, any] = {}
 ) -> dict[str, xr.Dataset]:
     """
@@ -573,6 +609,10 @@ def _process_parent(
         Type of north fold lateral boundary condition to apply to parent domain. Options are 'T' for T-point
         pivot or 'F' for F-point pivot. By default, no north fold lateral boundary condition is applied (None).
 
+    read_mask : bool = False
+        If True, read NEMO model land/sea mask from domain files. Default is False, meaning masks are computed
+        from top_level and bottom_level domain variables.
+
     open_kwargs: dict[str, any], optional
         Additional keyword arguments to pass to xarray.open_dataset or xarray.open_mfdataset when opening
         parent grid files.
@@ -599,7 +639,7 @@ def _process_parent(
         raise TypeError("d_parent must be a dictionary of only paths or xarray Datasets.")
 
     # Add domain variables to each grid dataset:
-    d_grids = _add_domain_vars(d_grids=d_grids, iperio=iperio, nftype=nftype)
+    d_grids = _add_domain_vars(d_grids=d_grids, iperio=iperio, nftype=nftype, read_mask=read_mask)
 
     # Process T / U / V / W / F grids:
     d_proc_grids = {}
@@ -637,6 +677,7 @@ def _process_child(
     d_nests: dict[str, str],
     label: int,
     parent_label: int,
+    read_mask: bool = False,
     nbghost_child: int = 4,
     open_kwargs: dict[str, any] = {}
 ) -> dict[str, xr.Dataset]:
@@ -685,6 +726,10 @@ def _process_child(
         Label for the parent domain, used to identify the child domain to which this grandchild grid belongs.
         Default is None, meaning a child domain is specified.
 
+    read_mask : bool = False
+        If True, read NEMO model land/sea mask from domain files. Default is False, meaning masks are computed
+        from top_level and bottom_level domain variables.
+
     nbghost_child : int = 4
         Number of ghost cells to remove from the western/southern boundaries of the (grand)child domain. Default is 4.
 
@@ -722,7 +767,7 @@ def _process_child(
         raise TypeError("d_child must be a dictionary of only paths or xarray Datasets.")
 
     # Add child domain variables to each grid:
-    d_grids = _add_domain_vars(d_grids=d_grids, iperio=d_nests['iperio'], nftype=None)
+    d_grids = _add_domain_vars(d_grids=d_grids, iperio=d_nests['iperio'], nftype=None, read_mask=read_mask)
 
     # Get child domain indices excluding ghost cells:
     ind_child = _get_child_indices(rx=d_nests.get('rx'),
@@ -793,6 +838,7 @@ def create_datatree_dict(
     nests: dict[str, dict[str, str]] | None = None,
     iperio: bool = False,
     nftype: str | None = None,
+    read_mask: bool = False,
     nbghost_child: int = 4,
     open_kwargs: dict[str, any] = {}
 ) -> dict[str, xr.Dataset]:
@@ -815,6 +861,8 @@ def create_datatree_dict(
     nftype: str | None = None
         Type of north fold lateral boundary condition to apply to parent domain. Options are 'T' for T-point
         pivot or 'F' for F-point pivot. By default, no north fold lateral boundary condition is applied (None).
+    read_mask : bool = False
+        If True, read NEMO model land/sea mask from domain files. Default is False, meaning masks are computed from top_level and bottom_level domain variables.
     nbghost_child : int = 4
         Number of ghost cells to remove from the western/southern boundaries of the (grand)child domain.
         Default is 4.

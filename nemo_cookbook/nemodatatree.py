@@ -55,6 +55,7 @@ class NEMODataTree(xr.DataTree):
         nests: dict[str, str] | None = None,
         iperio: bool = False,
         nftype: str | None = None,
+        read_mask: bool = False,
         nbghost_child: int = 4,
         **open_kwargs: dict[str, any],
     ) -> Self:
@@ -105,11 +106,14 @@ class NEMODataTree(xr.DataTree):
             periodic nested domains should be specified with `iperio=True`.
 
         iperio: bool = False
-            Zonal periodicity of the parent domain.
+            Zonal periodicity of the parent domain. Default is False.
 
         nftype: str, optional
             Type of north fold lateral boundary condition to apply. Options are 'T' for T-point pivot or 'F' for F-point
             pivot. By default, no north fold lateral boundary condition is applied (None).
+
+        read_mask: bool = False
+            If True, read NEMO model land/sea mask from domain files. Default is False, meaning masks are computed from top_level and bottom_level domain variables.
 
         nbghost_child : int = 4
             Number of ghost cells to remove from the western/southern boundaries of the (grand)child domains. Default is 4.
@@ -129,6 +133,8 @@ class NEMODataTree(xr.DataTree):
             raise TypeError("zonal periodicity of parent domain must be a boolean.")
         if nftype is not None and nftype not in ('T', 'F'):
             raise ValueError("north fold type of parent domain must be 'T' (T-pivot fold), 'F' (F-pivot fold), or None.")
+        if not isinstance(read_mask, bool):
+            raise TypeError("read_mask must be a boolean.")
         if not isinstance(nbghost_child, int):
             raise TypeError("number of ghost cells along the western/southern boundaries must be an integer.")
         if not isinstance(open_kwargs, dict):
@@ -156,6 +162,7 @@ class NEMODataTree(xr.DataTree):
                                       nests=nests,
                                       iperio=iperio,
                                       nftype=nftype,
+                                      read_mask=read_mask,
                                       nbghost_child=nbghost_child,
                                       open_kwargs=dict(**open_kwargs)
                                       )
@@ -172,6 +179,7 @@ class NEMODataTree(xr.DataTree):
         nests: dict[str, str] | None = None,
         iperio: bool = False,
         nftype: str | None = None,
+        read_mask: bool = False,
         nbghost_child: int = 4
     ) -> Self:
         """
@@ -210,7 +218,10 @@ class NEMODataTree(xr.DataTree):
         nftype: str, optional
             Type of north fold lateral boundary condition to apply. Options are 'T' for T-point pivot or 'F' for F-point
             pivot. By default, no north fold lateral boundary condition is applied (None).
-        
+
+        read_mask: bool = False
+            If True, read NEMO model land/sea mask from domain files. Default is False, meaning masks are computed from top_level and bottom_level domain variables.
+
         nbghost_child : int = 4
             Number of ghost cells to remove from the western/southern boundaries of the (grand)child domains. Default is 4.
 
@@ -227,6 +238,8 @@ class NEMODataTree(xr.DataTree):
             raise TypeError("zonal periodicity of parent domain must be a boolean.")
         if nftype is not None and nftype not in ('T', 'F'):
             raise ValueError("north fold type of parent domain must be 'T' (T-pivot fold), 'F' (F-pivot fold), or None.")
+        if not isinstance(read_mask, bool):
+            raise TypeError("read_mask must be a boolean.")
         if not isinstance(nbghost_child, int):
             raise TypeError("number of ghost cells along the western/southern boundaries must be an integer.")
 
@@ -252,6 +265,7 @@ class NEMODataTree(xr.DataTree):
                                       nests=nests,
                                       iperio=iperio,
                                       nftype=nftype,
+                                      read_mask=read_mask,
                                       nbghost_child=nbghost_child
                                       )
         datatree = super().from_dict(d_tree)
