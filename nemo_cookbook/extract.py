@@ -265,6 +265,15 @@ def update_boundary_dataset(
     ds_bdy['velocity'][:, :, ubdy_mask] = nemo[gridU]['uo'].where(nemo[gridU]['umask']).sel(i=ds_bdy['i_bdy'][ubdy_mask], j=ds_bdy['j_bdy'][ubdy_mask]) * ds_bdy['flux_dir'][ubdy_mask]
     ds_bdy['velocity'][:, :, vbdy_mask] = nemo[gridV]['vo'].where(nemo[gridV]['vmask']).sel(i=ds_bdy['i_bdy'][vbdy_mask], j=ds_bdy['j_bdy'][vbdy_mask]) * ds_bdy['flux_dir'][vbdy_mask]
 
+    # -- Add NEMO grid cell scale factors along boundary -- #
+    ds_bdy['e1b'] = xr.DataArray(data=dask.array.zeros(ds_bdy["bdy"].size), dims=['bdy'])
+    ds_bdy['e1b'][ubdy_mask] = nemo[gridU]['e2u'].where(nemo[gridU]['umaskutil']).sel(i=ds_bdy['i_bdy'][ubdy_mask], j=ds_bdy['j_bdy'][ubdy_mask])
+    ds_bdy['e1b'][vbdy_mask] = nemo[gridV]['e1v'].where(nemo[gridV]['vmaskutil']).sel(i=ds_bdy['i_bdy'][vbdy_mask], j=ds_bdy['j_bdy'][vbdy_mask])
+
+    ds_bdy['e3b'] = xr.DataArray(data=dask.array.zeros(dim_sizes), dims=[time_name, k_name, 'bdy'])
+    ds_bdy['e3b'][:, :, ubdy_mask] = nemo[gridU]['e3u'].where(nemo[gridU]['umask']).sel(i=ds_bdy['i_bdy'][ubdy_mask], j=ds_bdy['j_bdy'][ubdy_mask])
+    ds_bdy['e3b'][:, :, vbdy_mask] = nemo[gridV]['e3v'].where(nemo[gridV]['vmask']).sel(i=ds_bdy['i_bdy'][vbdy_mask], j=ds_bdy['j_bdy'][vbdy_mask])
+
     # -- [Optionally] Add scalar variables along-section -- #
     if vars is not None:
         for var in vars:
