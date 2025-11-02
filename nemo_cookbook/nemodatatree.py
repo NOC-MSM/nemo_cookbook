@@ -13,11 +13,11 @@ import dask
 import numpy as np
 import xarray as xr
 from typing import Self
-from flox.xarray import xarray_reduce
 
 from .masks import create_polygon_mask, get_mask_boundary
 from .processing import create_datatree_dict
 from .transform import transform_vertical_coords
+from .stats import compute_binned_statistic
 from .extract import (
     create_section_polygon,
     get_section_indexes,
@@ -1395,32 +1395,23 @@ class NEMODataTree(xr.DataTree):
             hgrid_type = grid_suffix if 'w' not in grid_suffix else 't'
             dom_mask = cls[grid][f"{hgrid_type}maskutil"]
 
-        values_data = cls[grid][values].where(mask & dom_mask) if mask is not None else cls[grid][values].where(dom_mask)
-        var_data = [cls[grid][var].where(mask & dom_mask) if mask is not None else cls[grid][var].where(dom_mask) for var in vars]
-        keep_vars_data = [cls[grid][dim] for dim in keep_dims]
-
-        expected_groups = [None for _ in keep_dims]
-        expected_groups.extend(bin for bin in bins)
-
-        isbin = [False for _ in keep_dims]
-        isbin.extend(True for _ in bins)
-
         # -- Calculate binned statistics -- #
-        da = xarray_reduce(
-            *[values_data, *keep_vars_data, *var_data],
-            func=statistic,
-            expected_groups=tuple(expected_groups),
-            isbin=tuple(isbin),
-            method="map-reduce",
-            fill_value=np.nan, # Fill missing values with NaN.
-            reindex=False, # Do not reindex during block aggregations to reduce memory at cost of performance.
-            engine='numbagg' # Use numbagg grouped aggregations.
-            )
-        
-        # -- Update binned dimensions -- #
-        # Transform coords from pd.IntervalIndex to interval mid-points:
-        coord_dict = {f'{var}_bins': np.array([interval.mid for interval in da[f'{var}_bins'].values]) for var in vars}
-        result = da.assign_coords(coord_dict)
+        values_data = cls[grid][values]
+        var_data = [cls[grid][var] for var in vars]
+
+        if mask is not None:
+            mask = mask & dom_mask
+        else:
+            mask = dom_mask
+    
+        result = compute_binned_statistic(
+            vars=var_data,
+            values=values_data,
+            keep_dims=keep_dims,
+            bins=bins,
+            statistic=statistic,
+            mask=mask
+        )
 
         return result
 
