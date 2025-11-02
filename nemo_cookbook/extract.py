@@ -1,740 +1,295 @@
 """
 extract.py
 
-Description: Functions to extract observational sections from
-NEMO ocean general circulation model output.
+Description:
+This module includes functions to extract hydrographic sections
+and mask boundaries from NEMO ocean general circulation model domains.
 
-Created By: Ollie Tooth (oliver.tooth@noc.ac.uk)
-Date Created: 26/04/2025
+Author:
+Ollie Tooth (oliver.tooth@noc.ac.uk)
 """
+from __future__ import annotations
+from typing import TYPE_CHECKING
 
-# -- Import dependencies -- #
-import sys
-import logging
+if TYPE_CHECKING:
+    # Avoid circular import at runtime:
+    from .nemodatatree import NEMODataTree
+
+import dask
 import numpy as np
 import xarray as xr
-from functools import partial
-from .extract_utils import _nearest_ji_coords, _get_section_coords
+from xarray.indexes import NDPointIndex
+from xarray.indexes.nd_point_index import ScipyKDTreeAdapter
 
-# -- Internal Preprocessing Functions -- #
-def process_Um(ds: xr.Dataset,
-               var: str,
-               var_map: dict,
-               x_index: xr.DataArray,
-               y_index: xr.DataArray,
-               stations: xr.DataArray,
-               longitudes: xr.DataArray,
-               latitudes: xr.DataArray,
-               ) -> xr.Dataset:
+
+def create_section_polygon(
+    lon_sec: np.ndarray,
+    lat_sec: np.ndarray,
+    ) -> tuple[np.ndarray, np.ndarray]:
     """
-    Preprocess zonal velocities (m/s), zonal eddy-induced velocities (m/s)
-    and vertical grid cell thicknesses (m) on U- grid cell faces.
+    Create a polygon using the geographical coordinates
+    of a hydrographic section.
 
     Parameters
     ----------
-    ds : xarray.Dataset
-        NEMO model output dataset.
-    var : str
-        Variable name to extract from the dataset. Default options are 'uo',
-        'uo_eiv', 'e3u'.
-    var_map : dict
-        Dictionary mapping variable names to their corresponding dataset keys.
-    x_index : xarray.DataArray
-        x indexes of U- grid cell faces defining section on NEMO model grid.
-    y_index : xarray.DataArray
-        y indexes of U- grid cell faces defining section on NEMO model grid.
-    stations : xarray.DataArray
-        Station indexes of U- grid cell faces defining section on NEMO model grid.
-    longitudes : xarray.DataArray
-        Longitude coordinates of U- grid cell faces defining section on NEMO model grid.
-    latitudes : xarray.DataArray
-        Latitude coordinates of U- grid cell faces defining section on NEMO model grid.
+    lon_sec: np.ndarray
+        Longitudes defining the hydrographic section.
+    lat_sec: np.ndarray
+        Latitudes defining the hydrographic section.
 
     Returns
     -------
-    xarray.Dataset
-        Dataset including zonal velocities (m/s), eddy-induced velocities (m/s)
-        and vertical grid cell thicknesses (m) on U- grid cell faces defining
-        section on NEMO model grid.
+    lon_poly: np.ndarray
+        Longitudes defining a closed polygon using the vertices
+        of the hydrographic section.
+    lat_poly: np.ndarray
+        Latitudes defining a closed polygon using the vertices
+        of the hydrographic section.
     """
-    match var:
-        case 'uo':
-            # Extract U- velocities (m/s):
-            variable = ds[var_map.get('uo', 'uo')].isel(x=x_index, y=y_index)
-            variable.name = 'velocity'
-            variable = variable.assign_attrs({'standard_name': 'sea_water_velocity', 'units': 'm/s'})
+    # Ensure longitudes are monotonically increasing:
+    if lon_sec[0] > lon_sec[-1]:
+        lon_sec = lon_sec[::-1]
+        lat_sec = lat_sec[::-1]
 
-        case 'uo_eiv':
-            # Extract eddy-induced U- velocities (m/s):
-            variable = ds[var_map.get('uo_eiv', 'uo_eiv')].isel(x=x_index, y=y_index)
-            variable.name = 'eddy_induced_velocity'
-            variable = variable.assign_attrs({'standard_name': 'sea_water_bolus_velocity', 'units': 'm/s'})
+    # Create closed polygon using endpoints of the hydrographic section:
+    dlat = 1.0
+    if lat_sec[0] < lat_sec[-1]:
+        lon_poly = np.concatenate([lon_sec, np.array([lon_sec[-1], lon_sec[0], lon_sec[0]])])
+        lat_poly = np.concatenate([lat_sec, np.array([lat_sec[0] - dlat, lat_sec[0] - dlat, lat_sec[0]])])
+    elif lat_sec[0] > lat_sec[-1]:
+        lon_poly = np.concatenate([lon_sec, np.array([lon_sec[-1], lon_sec[0], lon_sec[0]])])
+        lat_poly = np.concatenate([lat_sec, np.array([lat_sec[-1] - dlat, lat_sec[-1] - dlat, lat_sec[-1]])])
 
-        case 'e3u':
-            # Extract vertical grid cell thickness (m):
-            variable = ds[var_map.get('e3u', 'e3u')].isel(x=x_index, y=y_index)
-            variable.name = 'dz'
-            variable = variable.assign_attrs({'standard_name': 'cell_thickness', 'units': 'm'})
-
-        case _:
-            # Extract specified variable without assigned attributes:
-            variable = ds[var].isel(x=x_index, y=y_index)
-            variable.name = var
-
-    # Assign coordinates to the dataset:
-    variable = (variable.
-                assign_coords({'station': stations,
-                               'longitude': longitudes,
-                               'latitude': latitudes
-                               })
-                               .rename({'depthu':'depth'})
-                               )
-
-    return variable
+    return lon_poly, lat_poly
 
 
-def process_Up(ds: xr.Dataset,
-               var: str,
-               var_map: dict,
-               x_index: xr.DataArray,
-               y_index: xr.DataArray,
-               stations: xr.DataArray,
-               longitudes: xr.DataArray,
-               latitudes: xr.DataArray,
-               ) -> xr.Dataset:
+def create_boundary_dataset(
+    nemo: NEMODataTree,
+    dom: str,
+    i_bdy: list,
+    j_bdy: list,
+    flux_type: list,
+    flux_dir: list,
+    ) -> xr.Dataset:
     """
-    Preprocess zonal velocities (m/s) & vertical grid cell thickness (m)
-    on U+ faces.
+    Create a Dataset to store NEMO model coordinates and variables
+    extracted along the boundary of a mask.
 
     Parameters
     ----------
-    ds : xarray.Dataset
-        NEMO model output dataset.
-    var : str
-        Variable name to extract from the dataset. Default options are 'uo',
-        'uo_eiv', 'e3u'.
-    var_map : dict
-        Dictionary mapping variable names to their corresponding dataset keys.
-    x_index : xarray.DataArray
-        x indexes of U+ grid cell faces defining section on NEMO model grid.
-    y_index : xarray.DataArray
-        y indexes of U+ grid cell faces defining section on NEMO model grid.
-    stations : xarray.DataArray
-        Station indexes of U+ grid cell faces defining section on NEMO model grid.
-    longitudes : xarray.DataArray
-        Longitude coordinates of U+ grid cell faces defining section on NEMO model grid.
-    latitudes : xarray.DataArray
-        Latitude coordinates of U+ grid cell faces defining section on NEMO model grid.
-
-    Returns
-    -------
-    xarray.Dataset
-        Dataset including zonal velocities (m/s) and vertical grid cell thickness (m)
-        on U+ grid cell faces defining section on NEMO model grid.
+    nemo : NEMODataTree
+        NEMODataTree storing NEMO model outputs.
+    dom : str
+        Prefix of NEMO domain in the DataTree (e.g., '1', '2', '3', etc.).
+    i_bdy : list
+        List of i-indexes along the mask boundary.
+    j_bdy : list
+        List of j-indexes along the mask boundary.
+    flux_type : list
+        List of flux types ('U' or 'V') along the mask boundary.
+    flux_dir : list
+        List of flux directions (+1 or -1) along the mask boundary.
     """
-    match var:
-        case 'uo':
-            # Extract U+ velocities (m/s):
-            variable = -ds[var_map.get('uo', 'uo')].isel(x=x_index, y=y_index)
-            variable.name = 'velocity'
-            variable = variable.assign_attrs({'standard_name': 'sea_water_velocity', 'units': 'm/s'})
+    # -- Get NEMO model grid properties -- #
+    grid_paths = nemo._get_grid_paths(dom=dom)
+    gridT = grid_paths['gridT']
+    ijk_names = nemo._get_ijk_names(dom=dom)
+    k_name = ijk_names['k']
+    time_name = [dim for dim in nemo[gridT].dims if 'time' in dim][0]
 
-        case 'uo_eiv':
-            # Extract eddy-induced U+ velocities (m/s):
-            variable = -ds[var_map.get('uo_eiv', 'uo_eiv')].isel(x=x_index, y=y_index)
-            variable.name = 'eddy_induced_velocity'
-            variable = variable.assign_attrs({'standard_name': 'sea_water_bolus_velocity', 'units': 'm/s'})
+    ds_bdy = xr.Dataset(
+        data_vars={
+        'i_bdy': (['bdy'], i_bdy[::-1]),
+        'j_bdy': (['bdy'], j_bdy[::-1]),
+        'flux_type': (['bdy'], flux_type[::-1]),
+        'flux_dir': (['bdy'], flux_dir[::-1])
+        },
+        coords={
+        time_name: nemo[gridT][time_name].values,
+        k_name: nemo[gridT][k_name].values,
+        'bdy': np.arange(len(i_bdy)),
+        })
 
-        case 'e3u':
-            # Extract vertical grid cell thickness (m):
-            variable = ds[var_map.get('e3u', 'e3u')].isel(x=x_index, y=y_index)
-            variable.name = 'dz'
-            variable = variable.assign_attrs({'standard_name': 'cell_thickness', 'units': 'm'})
+    return ds_bdy
 
-        case _:
-            # Extract specified variable without assigned attributes:
-            variable = ds[var].isel(x=x_index, y=y_index)
-            variable.name = var
 
-    # Assign coordinates to the dataset:
-    variable = (variable.
-                assign_coords({'station': stations,
-                               'longitude': longitudes,
-                               'latitude': latitudes
-                               })
-                               .rename({'depthu':'depth'})
-                               )
-
-    return variable
-
-def process_Vp(ds: xr.Dataset,
-               var: str,
-               var_map: dict,
-               x_index: xr.DataArray,
-               y_index: xr.DataArray,
-               stations: xr.DataArray,
-               longitudes: xr.DataArray,
-               latitudes: xr.DataArray,
-               ) -> xr.Dataset:
+def get_section_indexes(
+    nemo: NEMODataTree,
+    dom: str,
+    mask_section: xr.DataArray,
+    lon_section: np.ndarray,
+    lat_section: np.ndarray,
+    ds_bdy: xr.Dataset,
+    ) -> list[int]:
     """
-    Preprocess zonal velocities (m/s) & vertical grid cell thickness (m)
-    on V+ faces.
+    Get indexes along a mask boundary corresponding to the start
+    and end points of a hydrographic section.
 
     Parameters
     ----------
-    ds : xarray.Dataset
-        NEMO model output dataset.
-    var : str
-        Variable name to extract from the dataset. Default options are 'vo',
-        'vo_eiv', 'e3v'.
-    var_map : dict
-        Dictionary mapping variable names to their corresponding dataset keys.
-    x_index : xarray.DataArray
-        x indexes of V+ grid cell faces defining section on NEMO model grid.
-    y_index : xarray.DataArray
-        y indexes of V+ grid cell faces defining section on NEMO model grid.
-    stations : xarray.DataArray
-        Station indexes of V+ grid cell faces defining section on NEMO model grid.
-    longitudes : xarray.DataArray
-        Longitude coordinates of V+ grid cell faces defining section on NEMO model grid.
-    latitudes : xarray.DataArray
-        Latitude coordinates of V+ grid cell faces defining section on NEMO model grid.
-
-    Returns
-    -------
-    xarray.Dataset
-        Dataset including meridional velocities (m/s) and vertical grid cell thickness (m)
-        on V+ grid cell faces defining section on NEMO model grid.
-    """
-    match var:
-        case 'vo':
-            # Extract V+ velocities (m/s):
-            variable = ds[var_map.get('vo', 'vo')].isel(x=x_index, y=y_index)
-            variable.name = 'velocity'
-            variable = variable.assign_attrs({'standard_name': 'sea_water_velocity', 'units': 'm/s'})
-
-        case 'vo_eiv':
-            # Extract eddy-induced V+ velocities (m/s):
-            variable = ds[var_map.get('vo_eiv', 'vo_eiv')].isel(x=x_index, y=y_index)
-            variable.name = 'eddy_induced_velocity'
-            variable = variable.assign_attrs({'standard_name': 'sea_water_bolus_velocity', 'units': 'm/s'})
-        
-        case 'e3v':
-            # Extract vertical grid cell thickness (m):
-            variable = ds[var_map.get('e3v', 'e3v')].isel(x=x_index, y=y_index)
-            variable.name = 'dz'
-            variable = variable.assign_attrs({'standard_name': 'cell_thickness', 'units': 'm'})
-
-        case _:
-            # Extract specified variable without assigned attributes:
-            variable = ds[vars].isel(x=x_index, y=y_index)
-            variable.name = vars
-
-    # Assign coordinates to the dataset:
-    variable = (variable.
-                assign_coords({'station': stations,
-                               'longitude': longitudes,
-                               'latitude': latitudes
-                               })
-                               .rename({'depthv':'depth'})
-                               )
+    nemo : NEMODataTree
+        NEMODataTree storing NEMO model outputs.
+    dom : str
+        Prefix of NEMO domain in the DataTree (e.g., '1', '2', '3', etc.).
+    mask_section : xr.DataArray
+        Boolean mask defining section polygon.
+    lon_section : np.ndarray
+        Longitudes defining hydrographic section.
+    lat_section : np.ndarray
+        Latitudes defining hydrographic section.
+    ds_bdy : xr.Dataset
+        Dataset containing mask boundary indexes.
     
-    return variable
-
-
-def process_Tu(ds: xr.Dataset,
-               var: str,
-               var_map: dict,
-               x_index: xr.DataArray,
-               y_index: xr.DataArray,
-               stations: xr.DataArray,
-               longitudes: xr.DataArray,
-               latitudes: xr.DataArray,
-               ) -> xr.Dataset:
-    """
-    Preprocess tracer variables interpolated on U grid cell faces.
-
-    Parameters
-    ----------
-    ds : xarray.Dataset
-        NEMO model output dataset.
-    var : str
-        Variable name to be extracted from the dataset. Default options are 'temp',
-        'sal'.
-    var_map : dict
-        Dictionary mapping variable names to their corresponding dataset keys.
-    x_index : xarray.DataArray
-        x indexes of U grid cell faces defining section on NEMO model grid.
-    y_index : xarray.DataArray
-        y indexes of U grid cell faces defining section on NEMO model grid.
-    stations : xarray.DataArray
-        Station indexes of U grid cell faces defining section on NEMO model grid.
-    longitudes : xarray.DataArray
-        Longitude coordinates of U grid cell faces defining section on NEMO model grid.
-    latitudes : xarray.DataArray
-        Latitude coordinates of U grid cell faces defining section on NEMO model grid.
-
     Returns
     -------
-    xarray.Dataset
-        Dataset including temperature (C) and salinity (psu | g/kg) on U grid cell
-        faces defining section on NEMO model grid.
+    list[int]
+        List of boundary indexes corresponding to the hydrographic section.
     """
-    match var:
-        case 'temp':
-            # Extract U temperature (C):
-            variable = ds[var_map.get('temp', 'temp')]
-            variable = 0.5 * (variable.isel(x=x_index, y=y_index) + variable.isel(x=x_index+1, y=y_index))
-            variable.name = 'temp'
-            variable = variable.assign_attrs({'standard_name': 'sea_water_temperature'})
-
-        case 'sal':
-            # Extract U salinity (psu | g/kg):
-            variable = ds[var_map.get('sal', 'sal')]
-            variable = 0.5 * (variable.isel(x=x_index, y=y_index) + variable.isel(x=x_index+1, y=y_index))
-            variable.name = 'sal'
-            variable = variable.assign_attrs({'standard_name': 'sea_water_salinity'})
-
-        case _:
-            # Extract specified T variable without assigned attributes:
-            variable = 0.5 * (ds[var].isel(x=x_index, y=y_index) + ds[var].isel(x=x_index+1, y=y_index))
-            variable.name = var
-
-    # Assign coordinates to the dataset:
-    variable = (variable
-                .assign_coords({'station': stations,
-                               'longitude': longitudes,
-                               'latitude': latitudes
-                               })
-                .rename({'deptht':'depth'})
-                )
-
-    return variable
-
-
-def process_Tv(ds: xr.Dataset,
-               var: str,
-               var_map: dict,
-               x_index: xr.DataArray,
-               y_index: xr.DataArray,
-               stations: xr.DataArray,
-               longitudes: xr.DataArray,
-               latitudes: xr.DataArray,
-               ) -> xr.Dataset:
-    """
-    Preprocess tracer variables interpolated on V grid cell faces.
-
-    Parameters
-    ----------
-    ds : xarray.Dataset
-        NEMO model output dataset.
-    var : str
-        Variable name to be extracted from the dataset. Default options are 'temp',
-        'sal'.
-    var_map : dict
-        Dictionary mapping variable names to their corresponding dataset keys.
-    x_index : xarray.DataArray
-        x indexes of V grid cell faces defining section on NEMO model grid.
-    y_index : xarray.DataArray
-        y indexes of V grid cell faces defining section on NEMO model grid.
-    stations : xarray.DataArray
-        Station indexes of V grid cell faces defining section on NEMO model grid.
-    longitudes : xarray.DataArray
-        Longitude coordinates of V grid cell faces defining section on NEMO model grid.
-    latitudes : xarray.DataArray
-        Latitude coordinates of V grid cell faces defining section on NEMO model grid.
-
-    Returns
-    -------
-    xarray.Dataset
-        Dataset including temperature (C) and salinity (psu | g/kg) on V grid cell
-        faces defining section on NEMO model grid.
-    """
-    match var:
-        case 'temp':
-            # Extract V temperature (C):
-            variable = ds[var_map.get('temp', 'temp')]
-            variable = 0.5 * (variable.isel(x=x_index, y=y_index) + variable.isel(x=x_index, y=y_index+1))
-            variable.name = 'temp'
-            variable = variable.assign_attrs({'standard_name': 'sea_water_temperature'})
+    # -- Get NEMO model grid properties -- #
+    grid_paths = nemo._get_grid_paths(dom=dom)
+    gridV = grid_paths['gridV']
     
-        case 'sal':
-            # Extract V salinity (psu | g/kg):
-            variable = ds[var_map.get('sal', 'sal')]
-            variable = 0.5 * (variable.isel(x=x_index, y=y_index) + variable.isel(x=x_index, y=y_index+1))
-            variable.name = 'sal'
-            variable = variable.assign_attrs({'standard_name': 'sea_water_salinity'})
+    # -- Add longitude and latitude indexes to V-grid -- #
+    ds_endpoints = (nemo[gridV]
+                    .dataset
+                    .assign_coords({'gphiv': nemo[gridV]['gphiv'].where(mask_section).fillna(0),
+                                    'glamv': nemo[gridV]['glamv'].where(mask_section).fillna(0)
+                                    })
+                    .set_xindex(("gphiv", "glamv"), NDPointIndex, tree_adapter_cls=ScipyKDTreeAdapter)
+                    )
 
-        case _:
-            # Extract specified T variable without assigned attributes:
-            variable = 0.5 * (ds[var].isel(x=x_index, y=y_index) + ds[var].isel(x=x_index, y=y_index+1))
-            variable.name = var
+    i_start = ds_endpoints.sel(glamv=lon_section[0], gphiv=lat_section[0], method="nearest")['i']
+    j_start = ds_endpoints.sel(glamv=lon_section[0], gphiv=lat_section[0], method="nearest")['j']
+    i_end = ds_endpoints.sel(glamv=lon_section[-1], gphiv=lat_section[-1], method="nearest")['i']
+    j_end = ds_endpoints.sel(glamv=lon_section[-1], gphiv=lat_section[-1], method="nearest")['j']
 
-    # Assign coordinates to the dataset:
-    variable = (variable
-                .assign_coords({'station': stations,
-                               'longitude': longitudes,
-                               'latitude': latitudes
-                               })
-                .rename({'deptht':'depth'})
-                )
-    
-    return variable
+    # -- Define section in terms of boundary indexes -- #
+    sec_start = ds_bdy['bdy'].where((ds_bdy['i_bdy'] == i_start) & (ds_bdy['j_bdy'] == j_start), drop=True)
+    sec_end = ds_bdy['bdy'].where((ds_bdy['i_bdy'] == i_end) & (ds_bdy['j_bdy'] == j_end), drop=True)
 
+    # If section includes both boundary start & end points:
+    if sec_start.size > 1:
+        if (sec_start[0] == 0) & (sec_start[-1] == ds_bdy['bdy'][-1]):
+            sec_start = sec_start[0]
+    if sec_end.size > 1:
+        if (sec_end[0] == 0) & (sec_end[-1] == ds_bdy['bdy'][-1]):
+            sec_end = sec_end[0]
 
-# -- External Functions -- #
-def extract_section(section_lon: np.ndarray,
-                    section_lat: np.ndarray,
-                    domain_path: str,
-                    T_paths: list[str] | dict[str, list[str]],
-                    U_paths: list[str] | dict[str, list[str]],
-                    V_paths: list[str] | dict[str, list[str]],
-                    var_map: dict = {},
-                    uv_eiv: bool = False,
-                    log: bool = False
-                    ) -> xr.Dataset:
-    """
-    Extract velocity, volume transport & tracer variables along a continuous
-    hydrographic section connecting a specified collection of geographic coordinates
-    in the NEMO ocean model.
-
-    Parameters
-    ----------
-    section_lon : numpy.ndarray
-        Longitude coordinates defining the hydrographic section.
-    section_lat : numpy.ndarray
-        Latitude coordinates defining the hydrographic section.
-    domain_path : str
-        Path to the NEMO model domain configuration file. This file must contain
-        the expected variables 'glamt' and 'gphit' model grid coordinates.
-    T_paths : dict[str, list[str]]
-        Paths to the NEMO model output T variables. A dictionary of file paths must
-        be provided with the variable names as keys and the file paths as values.
-    U_paths : dict[str, list[str]]
-        Paths to the NEMO model output U variables. A dictionary of file paths must
-        be provided with the variable names as keys and the file paths as values.
-    V_paths : dict[str, list[str]]
-        Paths to the NEMO model output V variables. A dictionary of file paths must
-        be provided with the variable names as keys and the file paths as values.
-    var_map : dict, default={}
-        Dictionary mapping expected variable names to their corresponding names in
-        the given NEMO output files. Expected keys are 'uo', 'uo_eiv', 'vo', 'vo_eiv',
-        'temp', 'sal', 'e1v', 'e2u', 'e3u', 'e3v'.
-    uv_eiv : bool, default=False
-        If True, eddy-induced zonal ('uo_eiv') and meridional velocities ('vo_eiv') are
-        extracted to return the total velocity normal to the section (i.e., u = uo + uo_eiv).
-    log : bool, default=False
-        Whether to output logging information during the extraction process.
-
-    Returns
-    -------
-    xarray.Dataset
-        Dataset including velocity, volume transport, temperature & salinity variables along
-        the continuous hydrographic section in the NEMO ocean model.
-
-    Raises
-    ------
-    TypeError
-    FileNotFoundError
-
-    Example
-    -------
-    >>> from nemo_cookbook import extract_section
-
-    >>> # Define section coordinates:
-    >>> section_lon = np.array([-80, -45, -12])
-    >>> section_lat = np.array([26.5, 26.5, 27])
-
-    >>> # Define NEMO model domain configuration file path:
-    >>> domain_path = '/path/to/nemo/domain_cfg.nc'
-    >>> # Define NEMO model output file paths:
-    >>> T_paths = {'temp': ['/path/to/nemo/output_gridT_1.nc', '/path/to/nemo/output_gridT_2.nc'],
-    >>>            'sal': ['/path/to/nemo/output_gridT_1.nc', '/path/to/nemo/output_gridT_2.nc'],
-    >>>            }
-    >>> U_paths = {'uo': ['/path/to/nemo/output_gridU_1.nc', '/path/to/nemo/output_gridU_2.nc'],
-    >>>            'uo_eiv': ['/path/to/nemo/output_gridU_1.nc', '/path/to/nemo/output_gridU_2.nc'],
-    >>>            'e3u': ['/path/to/nemo/output_gridU_1.nc', '/path/to/nemo/output_gridU_2.nc']
-    >>>            }
-    >>> V_paths = {'vo': ['/path/to/nemo/output_gridV_1.nc', '/path/to/nemo/output_gridV_2.nc'],
-    >>>            'vo_eiv': ['/path/to/nemo/output_gridV_1.nc', '/path/to/nemo/output_gridV_2.nc'],
-    >>>            'e3v': ['/path/to/nemo/output_gridV_1.nc', '/path/to/nemo/output_gridV_2.nc']
-    >>>            }
-
-    >>> # Extract hydrographic section from NEMO model output with eddy-induced velocities:
-    >>> ds_section = extract_section(section_lon=section_lon,
-    ...                              section_lat=section_lat,
-    ...                              domain_path=domain_path,
-    ...                              T_paths=T_paths,
-    ...                              U_paths=U_paths,
-    ...                              V_paths=V_paths,
-    ...                              var_map={},
-    ...                              uv_eiv=True
-    ...                              )
-    <xarray.Dataset> Size: 715kB
-    Dimensions:                (depth: 75, time_counter: 4, station: 66)
-    Coordinates:
-    * depth                  (depth) float32 300B 0.5058 1.556 ... 5.902e+03
-    * time_counter           (time_counter) datetime64[ns] 32B 1976-07-02 ... 1...
-    * station                (station) int64 528B 0 1 2 3 4 5 ... 61 62 63 64 65
-        longitude              (station) float64 528B -56.8 -55.78 ... -9.802 -8.703
-        latitude               (station) float64 528B 52.19 52.26 ... 56.76 56.69
-    Data variables:
-        velocity               (time_counter, depth, station) float32 79kB nan .....
-        eddy_induced_velocity  (time_counter, depth, station) float32 79kB nan .....
-        dz                     (time_counter, depth, station) float32 79kB nan .....
-        dx                     (station) float64 528B 6.946e+04 ... 6.715e+04
-        volume_transport       (time_counter, depth, station) float64 158kB nan ....
-        temp                   (time_counter, depth, station) float32 79kB nan .....
-        sal                    (time_counter, depth, station) float32 79kB nan .....
-    """
-    # -- Verify Inputs -- #
-    if not isinstance(section_lon, np.ndarray):
-        raise TypeError("section_lon must be a numpy ndarray.")
-    if not isinstance(section_lat, np.ndarray):
-        raise TypeError("section_lat must be a numpy ndarray.")
-    if not isinstance(domain_path, str):
-        raise TypeError("domain_path must be a string.")
-    if not isinstance(T_paths, dict):
-        raise TypeError("T_paths must be either a dictionary.")
-    if not isinstance(U_paths, dict):
-        raise TypeError("U_paths must be either a dictionary.")
-    if not isinstance(V_paths, dict):
-        raise TypeError("V_paths must be either a dictionary.")
-    if not isinstance(var_map, dict):
-        raise TypeError("var_map must be a dictionary.")
-    if not isinstance(uv_eiv, bool):
-        raise TypeError("uv_eiv must be a boolean.")
-    if uv_eiv:
-        if var_map.get('uo_eiv', 'uo_eiv') not in U_paths.keys():
-            raise KeyError(f"U_paths must contain '{var_map.get('uo_eiv', 'uo_eiv')}' key.")
-        if var_map.get('vo_eiv', 'vo_eiv') not in V_paths.keys():
-            raise KeyError(f"V_paths must contain '{var_map.get('uo_eiv', 'uo_eiv')}' key.")
-    if not isinstance(log, bool):
-        raise TypeError("log must be a boolean.")
-    
-    # -- Logging -- #
-    if log:
-        logging.basicConfig(
-            stream=sys.stdout,
-            format="nemo_cookbook | %(levelname)10s | %(asctime)s | %(message)s",
-            level=logging.INFO,
-            datefmt="%Y-%m-%d %H:%M:%S",
-        )
-
-    # -- Load NEMO domain configuration -- #
-    try:
-        ds_domain_cfg = xr.open_dataset(domain_path)
-    except FileNotFoundError:
-        raise FileNotFoundError(f"NEMO domain_cfg file not found at: {domain_path}.")
-
-    try:
-        glamt = ds_domain_cfg['glamt'].squeeze()
-        gphit = ds_domain_cfg['gphit'].squeeze()
-    except KeyError:
-        raise KeyError("NEMO domain_cfg file does not contain 'glamt' or 'gphit' variables.")
-
-    # -- Extract section coords from NEMO model grid -- #
-    # Ensure section longitudes are increasing, otherwise reverse coords:
-    if section_lon[-1] < section_lon[0]:
-        section_lon = section_lon[::-1]
-        section_lat = section_lat[::-1]
-
-    # Find the nearest NEMO model grid cells to the section-defining coords:
-    target_coords = _nearest_ji_coords(glamt=glamt,
-                                       gphit=gphit,
-                                       target_lon=section_lon,
-                                       target_lat=section_lat
-                                       )
-
-    # Define full section in NEMO model grid:
-    section_coords = _get_section_coords(glamt=glamt,
-                                         gphit=gphit,
-                                         target_coords=target_coords
-                                         )
-
-    # Add station dimension to section model grid coordinates:
-    x_index = xr.DataArray([p[1] for p in section_coords], dims='station')
-    y_index = xr.DataArray([p[0] for p in section_coords], dims='station')
-    flux_dir = xr.DataArray(np.array([p[2] for p in section_coords]), dims='station')
-
-    # Update model coordinates according to grid cell face:
-    x_index = xr.where(cond=flux_dir == 'U+', x=x_index-1, y=x_index)
-    y_index = xr.where(cond=flux_dir == 'U+', x=y_index+1, y=y_index)
-    x_index = xr.where(cond=flux_dir == 'U-', x=x_index-1, y=x_index)
-
-    # Extract T-point geographic coordinates along the section array:
-    longitudes = glamt.isel(x=x_index, y=y_index)
-    latitudes = gphit.isel(x=x_index, y=y_index)
-
-    # Define zonal and meridional grid cell face masks:
-    umask = (flux_dir == 'U-') | (flux_dir == 'U+')
-    ummask = flux_dir == 'U-'
-    upmask = flux_dir == 'U+'
-    vmask = flux_dir == 'V+'
-
-    # Extract station indices for each grid cell face:
-    station_umask = x_index.station[umask]
-    station_ummask = x_index.station[ummask]
-    station_upmask = x_index.station[upmask]
-    station_vmask = x_index.station[vmask]
-
-    if log:
-        logging.info("Completed Extracted section coordinates from NEMO model grid.")
-
-    # -- Process NEMO domain -- #
-    # U+ zonal grid cell width (m):
-    e2u = ds_domain_cfg[var_map.get('e2u', 'e2u')]
-    e2um = e2u.squeeze().isel(x=x_index[ummask], y=y_index[ummask])
-    e2um = e2um.assign_coords({'station': station_ummask,
-                               'longitude': longitudes[ummask],
-                               'latitude': latitudes[ummask]}
-                               )
-    e2um.name = 'dx'
-
-    # U- zonal grid cell width (m):
-    e2up = e2u.squeeze().isel(x=x_index[upmask], y=y_index[upmask])
-    e2up = e2up.assign_coords({'station': station_upmask,
-                               'longitude': longitudes[upmask],
-                               'latitude': latitudes[upmask]}
-                               )
-    e2up.name = 'dx'
-
-    # V+ zonal grid cell width (m):
-    e1v = ds_domain_cfg[var_map.get('e1v', 'e1v')]
-    e1v = e1v.squeeze().isel(x=x_index[vmask], y=y_index[vmask])
-    e1v = e1v.assign_coords({'station': station_vmask,
-                             'longitude': longitudes[vmask],
-                             'latitude': latitudes[vmask]}
-                             )
-    e1v.name = 'dx'
-
-    if log:
-        logging.info("Completed: Extracted variable dx from NEMO model grid.")
-
-    # -- Process NEMO U,V outputs -- #
-    # Store U- and U+ variable Datasets in a list:
-    UV_list = []
-    for var in U_paths.keys():
-        # Extract U- velocities & vertical grid cell thicknesses:
-        _process_Um = partial(process_Um,
-                              var=var,
-                              var_map=var_map,
-                              x_index=x_index[ummask],
-                              y_index=y_index[ummask],
-                              stations=station_ummask,
-                              longitudes=longitudes[ummask],
-                              latitudes=latitudes[ummask],
-                              )
-        try:
-            with xr.open_mfdataset(U_paths[var], preprocess=_process_Um) as ds:
-                UV_list.append(ds.load())
-            if log:
-                logging.info(f"Completed: Extracted U- variable -> {var}.")
-        except FileNotFoundError:
-            raise FileNotFoundError(f"NEMO U-grid file not found at: {U_paths[var]}.")
-
-        # Extract U+ velocities & vertical grid cell thicknesses:
-        _process_Up = partial(process_Up,
-                              var=var,
-                              var_map=var_map,
-                              x_index=x_index[upmask],
-                              y_index=y_index[upmask],
-                              stations=station_upmask,
-                              longitudes=longitudes[upmask],
-                              latitudes=latitudes[upmask],
-                              )
-        try:
-            with xr.open_mfdataset(U_paths[var], preprocess=_process_Up) as ds:
-                UV_list.append(ds.load())
-            if log:
-                logging.info(f"Completed: Extracted U+ variable -> {var}.")
-        except FileNotFoundError:
-            raise FileNotFoundError(f"NEMO U-grid file not found at: {U_paths[var]}.")
-
-    # Extract V+ velocities & vertical grid cell thicknesses:
-    for var in V_paths.keys():
-        _process_Vm = partial(process_Vp,
-                                var=var,
-                                var_map=var_map,
-                                x_index=x_index[vmask],
-                                y_index=y_index[vmask],
-                                stations=station_vmask,
-                                longitudes=longitudes[vmask],
-                                latitudes=latitudes[vmask],
-                                )
-        try:
-            with xr.open_mfdataset(V_paths[var], preprocess=_process_Vm) as ds:
-                UV_list.append(ds.load())
-            if log:
-                logging.info(f"Completed: Extracted V variable -> {var}.")
-        except FileNotFoundError:
-            raise FileNotFoundError(f"NEMO V-grid file not found at: {V_paths[var]}.")
-    
-    # Merge U-, U+ & V variables into single dataset:
-    ds_UV = xr.merge(UV_list)
-
-    # Merge zonal, meridional velocities & grid cell properties into a single Dataset:
-    ds_uv = xr.merge([ds_UV, e2um, e2up, e1v], combine_attrs='drop_conflicts')
-
-    # Calculate total volume transport normal to the section:
-    if uv_eiv:
-        ds_uv['volume_transport'] = (ds_uv['velocity'] + ds_uv['eddy_induced_velocity']) * ds_uv['dx'] * ds_uv['dz']
+    sec_start, sec_end = int(sec_start.item()), int(sec_end.item())
+    if sec_end > sec_start:
+        sec_indexes = np.arange(sec_start, sec_end + 1).tolist()
+    elif sec_end < sec_start:
+        sec_indexes = np.concatenate([np.arange(sec_start, ds_bdy['bdy'][-1] + 1), np.arange(0, sec_end + 1)]).tolist()
     else:
-        ds_uv['volume_transport'] = ds_uv['velocity'] * ds_uv['dx'] * ds_uv['dz']
-    if log:
-        logging.info("Completed: Calculated volume transport normal to section.")
+        raise ValueError("start and end point indexes of hydrographic section are identical.")
+    
+    return sec_indexes
 
-    # -- Process NEMO T outputs -- #
-    # Store T-point variable Datasets in a list:
-    T_list = []
-    for var in T_paths.keys():
-        # Extract U-point temperature and salinity:
-        _process_Tu = partial(process_Tu,
-                              var=var,
-                              var_map=var_map,
-                              x_index=x_index[umask],
-                              y_index=y_index[umask],
-                              stations=station_umask,
-                              longitudes=longitudes[umask],
-                              latitudes=latitudes[umask]
-                              )
-        try:
-            with xr.open_mfdataset(T_paths[var], preprocess=_process_Tu) as ds:
-                T_list.append(ds.load())
-            if log:
-                logging.info(f"Completed: Extracted T variable on U-face -> {var}.")
-        except FileNotFoundError:
-            raise FileNotFoundError(f"NEMO T-grid file not found at: {T_paths[var]}.")
-        
-        # Extract V-point temperature and salinity:
-        _process_Tv = partial(process_Tv,
-                              var=var,
-                              var_map=var_map,
-                              x_index=x_index[vmask],
-                              y_index=y_index[vmask],
-                              stations=station_vmask,
-                              longitudes=longitudes[vmask],
-                              latitudes=latitudes[vmask]
-                              )
-        try:
-            with xr.open_mfdataset(T_paths[var], preprocess=_process_Tv) as ds:
-                T_list.append(ds.load())
-            if log:
-                logging.info(f"Completed: Extracted T variable on V-face -> {var}.")
-        except FileNotFoundError:
-            raise FileNotFoundError(f"NEMO T-grid file not found at: {T_paths[var]}.")
-        
-    # Merge temperature and salinity into a single dataset:
-    ds_ts = xr.merge(T_list, combine_attrs='drop_conflicts')
 
-    # Merge velocity and tracers variables into a single Dataset:
-    ds_section = xr.merge([ds_uv, ds_ts], combine_attrs='drop_conflicts')
+def update_boundary_dataset(
+    nemo: NEMODataTree,
+    dom: str,
+    ds_bdy: xr.Dataset,
+    uv_vars: list[str],
+    vars: list[str] | None = None,
+    sec_indexes: list[int] | None = None,
+    ):
+    """
+    Update a mask boundary dataset with geographical coordinates,
+    depths, velocities normal to the boundary and (optionally)
+    scalar variables along a hydrographic section.
 
-    # Remove unpermitted coordinates:
-    permitted_coords = ['time_counter', 'depth', 'station', 'longitude', 'latitude']
-    ds_section = ds_section.drop_vars([coord for coord in ds_section.coords if coord not in permitted_coords])
+    Parameters
+    ----------
+    nemo : NEMODataTree
+        NEMODataTree storing NEMO model outputs.
+    dom : str
+        Prefix of NEMO domain in the DataTree (e.g., '1', '2', '3', etc.).
+    ds_bdy : xr.Dataset
+        Dataset containing variables and NEMO model coordinates extracted
+        along the boundary of a mask.
+    uv_vars : list, optional
+        Names of velocity variables to extract along the hydrographic section.
+        Default is ['uo', 'vo'].
+    vars : list, optional
+        Names of scalar variables to extract along the hydrographic section.
+        Default is None.
+    sec_indexes : list[int], optional
+        List of boundary indexes corresponding to the hydrographic section.
+        Default is None.
 
-    if log:
-        logging.info("Completed: Combined variables along the section.")
+    Returns
+    -------
+    xr.Dataset
+        Updated hydrographic section dataset extracted from NEMO model domain.
+    """
+    # -- Get NEMO model grid properties -- #
+    dom_prefix, _ = nemo._get_properties(dom=dom)
+    grid_paths = nemo._get_grid_paths(dom=dom)
+    gridT, gridU, gridV = grid_paths['gridT'], grid_paths['gridU'], grid_paths['gridV']
+    ijk_names = nemo._get_ijk_names(dom=dom)
+    k_name = ijk_names['k']
+    time_name = [dim for dim in nemo[gridT].dims if 'time' in dim][0]
 
-    return ds_section
+    # -- Subset boundary dataset using section indexes -- #
+    if sec_indexes is not None:
+        ds_bdy = ds_bdy.isel(bdy=sec_indexes)
+        ds_bdy['bdy'] = np.arange(len(sec_indexes))
+
+    ubdy_mask = (ds_bdy['flux_type'] == 'U')
+    vbdy_mask = (ds_bdy['flux_type'] == 'V')
+    dim_sizes = [nemo[gridU][time_name].size, nemo[gridU][k_name].size, ds_bdy["bdy"].size]
+
+    # -- Add geographical coordinates & depths along-section -- #
+    ds_bdy = ds_bdy.assign_coords({f"{dom_prefix}glamb": (['bdy'], np.zeros(ds_bdy["bdy"].size)),
+                                   f"{dom_prefix}gphib": (['bdy'], np.zeros(ds_bdy["bdy"].size)),
+                                   f"{dom_prefix}depthb": ((k_name, 'bdy'), np.zeros(dim_sizes[1:])),
+                                   })
+
+    ds_bdy[f"{dom_prefix}glamb"][ubdy_mask] = nemo[gridU]['glamu'].sel(i=ds_bdy['i_bdy'][ubdy_mask], j=ds_bdy['j_bdy'][ubdy_mask])
+    ds_bdy[f"{dom_prefix}glamb"][vbdy_mask] = nemo[gridV]['glamv'].sel(i=ds_bdy['i_bdy'][vbdy_mask], j=ds_bdy['j_bdy'][vbdy_mask])
+
+    ds_bdy[f"{dom_prefix}gphib"][ubdy_mask] = nemo[gridU]['gphiu'].sel(i=ds_bdy['i_bdy'][ubdy_mask], j=ds_bdy['j_bdy'][ubdy_mask])
+    ds_bdy[f"{dom_prefix}gphib"][vbdy_mask] = nemo[gridV]['gphiv'].sel(i=ds_bdy['i_bdy'][vbdy_mask], j=ds_bdy['j_bdy'][vbdy_mask])
+
+    ds_bdy[f"{dom_prefix}depthb"][:, ubdy_mask] = nemo[gridU]['depthu']
+    ds_bdy[f"{dom_prefix}depthb"][:, vbdy_mask] = nemo[gridV]['depthv']
+
+    # -- Add velocities (outward) normal to boundary -- #
+    if uv_vars[0] not in nemo[gridU].data_vars:
+        raise KeyError(f"variable '{uv_vars[0]}' not found in grid '{gridU}'.")
+    if uv_vars[1] not in nemo[gridV].data_vars:
+        raise KeyError(f"variable '{uv_vars[1]}' not found in grid '{gridV}'.")
+
+    ds_bdy['velocity'] = xr.DataArray(data=dask.array.zeros(dim_sizes), dims=[time_name, k_name, 'bdy'])
+    ds_bdy['velocity'][:, :, ubdy_mask] = nemo[gridU]['uo'].where(nemo[gridU]['umask']).sel(i=ds_bdy['i_bdy'][ubdy_mask], j=ds_bdy['j_bdy'][ubdy_mask]) * ds_bdy['flux_dir'][ubdy_mask]
+    ds_bdy['velocity'][:, :, vbdy_mask] = nemo[gridV]['vo'].where(nemo[gridV]['vmask']).sel(i=ds_bdy['i_bdy'][vbdy_mask], j=ds_bdy['j_bdy'][vbdy_mask]) * ds_bdy['flux_dir'][vbdy_mask]
+
+    # -- Add NEMO grid cell scale factors along boundary -- #
+    ds_bdy['e1b'] = xr.DataArray(data=dask.array.zeros(ds_bdy["bdy"].size), dims=['bdy'])
+    ds_bdy['e1b'][ubdy_mask] = nemo[gridU]['e2u'].where(nemo[gridU]['umaskutil']).sel(i=ds_bdy['i_bdy'][ubdy_mask], j=ds_bdy['j_bdy'][ubdy_mask])
+    ds_bdy['e1b'][vbdy_mask] = nemo[gridV]['e1v'].where(nemo[gridV]['vmaskutil']).sel(i=ds_bdy['i_bdy'][vbdy_mask], j=ds_bdy['j_bdy'][vbdy_mask])
+
+    ds_bdy['e3b'] = xr.DataArray(data=dask.array.zeros(dim_sizes), dims=[time_name, k_name, 'bdy'])
+    ds_bdy['e3b'][:, :, ubdy_mask] = nemo[gridU]['e3u'].where(nemo[gridU]['umask']).sel(i=ds_bdy['i_bdy'][ubdy_mask], j=ds_bdy['j_bdy'][ubdy_mask])
+    ds_bdy['e3b'][:, :, vbdy_mask] = nemo[gridV]['e3v'].where(nemo[gridV]['vmask']).sel(i=ds_bdy['i_bdy'][vbdy_mask], j=ds_bdy['j_bdy'][vbdy_mask])
+
+    # -- [Optionally] Add scalar variables along-section -- #
+    if vars is not None:
+        for var in vars:
+            if var in nemo[gridT].data_vars:
+                ds_bdy[var] = xr.DataArray(data=dask.array.zeros(dim_sizes), dims=[time_name, k_name, 'bdy'])
+            else:
+                raise KeyError(f"variable {var} not found in grid '{gridT}'.")
+    
+            # Linearly interpolate scalar variables onto NEMO model U/V grid points:
+            ds_bdy[var][:, :, ubdy_mask] = 0.5 * (
+                nemo[gridT][var].where(nemo[gridT]['tmask']).sel(i=ds_bdy['i_bdy'][ubdy_mask] - 0.5, j=ds_bdy['j_bdy'][ubdy_mask]) +
+                nemo[gridT][var].where(nemo[gridT]['tmask']).sel(i=ds_bdy['i_bdy'][ubdy_mask] + 0.5, j=ds_bdy['j_bdy'][ubdy_mask])
+                )
+            ds_bdy[var][:, :, vbdy_mask] = 0.5 * (
+                nemo[gridT][var].where(nemo[gridT]['tmask']).sel(i=ds_bdy['i_bdy'][vbdy_mask], j=ds_bdy['j_bdy'][vbdy_mask] - 0.5) +
+                nemo[gridT][var].where(nemo[gridT]['tmask']).sel(i=ds_bdy['i_bdy'][vbdy_mask], j=ds_bdy['j_bdy'][vbdy_mask] + 0.5)
+                )
+
+    return ds_bdy
