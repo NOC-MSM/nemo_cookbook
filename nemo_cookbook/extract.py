@@ -179,7 +179,8 @@ def get_section_indexes(
     if sec_end > sec_start:
         sec_indexes = np.arange(sec_start, sec_end + 1).tolist()
     elif sec_end < sec_start:
-        sec_indexes = np.concatenate([np.arange(sec_start, ds_bdy['bdy'][-1] + 1), np.arange(0, sec_end + 1)]).tolist()
+        # Note: start and end indexes are duplicated to close boundary -> do not include final index:
+        sec_indexes = np.concatenate([np.arange(sec_start, ds_bdy['bdy'][-2] + 1), np.arange(0, sec_end + 1)]).tolist()
     else:
         raise ValueError("start and end point indexes of hydrographic section are identical.")
     
