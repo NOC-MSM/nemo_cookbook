@@ -926,9 +926,12 @@ class NEMODataTree(xr.DataTree):
 
         if bbox != (-180, 180, -90, 90):
             grid_clipped = grid_clipped.assign_attrs({"iperio": False})
-        cls[grid] = grid_clipped
+        
+        # Update shallow copy of NEMODataTree:
+        cls_copy = cls.copy()
+        cls_copy[grid] = grid_clipped
 
-        return cls
+        return cls_copy
 
 
     def clip_domain(
@@ -965,6 +968,8 @@ class NEMODataTree(xr.DataTree):
         if not grid_paths:
             raise ValueError(f"NEMO model domain '{dom}' not found in the DataTree.")
         else:
+            # Update shallow copy of NEMODataTree:
+            cls_copy = cls.copy()
             for grid in grid_paths.values():
                 # Use (glamt, gphit) coords for W-grids:
                 grid_suffix = cls._get_properties(grid=grid)
@@ -988,9 +993,9 @@ class NEMODataTree(xr.DataTree):
 
                 if bbox != (-180, 180, -90, 90):
                     grid_clipped = grid_clipped.assign_attrs({"iperio": False})
-                cls[grid] = grid_clipped
+                cls_copy[grid] = grid_clipped
 
-        return cls
+        return cls_copy
 
 
     def mask_with_polygon(
