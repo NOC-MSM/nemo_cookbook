@@ -9,8 +9,6 @@ domains.
 Author:
 Ollie Tooth (oliver.tooth@noc.ac.uk)
 """
-
-# -- Import dependencies -- #
 import numpy as np
 import numpy.typing as npt
 from numba import guvectorize, prange
