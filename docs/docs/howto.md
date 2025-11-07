@@ -69,6 +69,18 @@ For example, to compute the volume of each grid cell centered on a **V** grid po
 nemo.cell_volumes(grid="/gridV")
 ```
 
+### Indexing with Geographical Coordinates
+
+To subset variables of a given model grid using their longitude & latitude coordinates (i.e., `glam{t/u/v/w}(j, i)` & `gphi{t/u/v/w}(j, i)`), we can add these geographical variables as indexes using the `.add_geoindex()` method.
+
+For example, to enable geographical indexing of the parent T-grid & select the values of this dataset nearest to (-30°E, 60°N):
+
+```python
+nemo_geo = nemo.add_geo_index(grid="/gridT")
+
+nemo_geo.dataset.sel(gphit=60, glamt=-30, method='nearest')
+```
+
 ### Clip a NEMO Model Grid
 
 To clip a given model grid using a geographical bounding box defined by a tuple of the form (`lon_min`, `lon_max`, `lat_min`, `lat_max`), we can use the `.clip_grid()` method.
