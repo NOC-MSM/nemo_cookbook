@@ -19,7 +19,7 @@ import dask
 import numpy as np
 import xarray as xr
 from xarray.indexes import NDPointIndex
-from xarray.indexes.nd_point_index import ScipyKDTreeAdapter
+from nemo_cookbook.utils import SklearnGeoBallTreeAdapter
 
 
 def create_section_polygon(
@@ -155,7 +155,7 @@ def get_section_indexes(
                     .assign_coords({'gphiv': nemo[gridV]['gphiv'].where(mask_section).fillna(0),
                                     'glamv': nemo[gridV]['glamv'].where(mask_section).fillna(0)
                                     })
-                    .set_xindex(("gphiv", "glamv"), NDPointIndex, tree_adapter_cls=ScipyKDTreeAdapter)
+                    .set_xindex(("gphiv", "glamv"), NDPointIndex, tree_adapter_cls=SklearnGeoBallTreeAdapter)
                     )
 
     i_start = ds_endpoints.sel(glamv=lon_section[0], gphiv=lat_section[0], method="nearest")['i']

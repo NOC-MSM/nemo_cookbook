@@ -12,6 +12,8 @@ Ollie Tooth (oliver.tooth@noc.ac.uk)
 import dask
 import numpy as np
 import xarray as xr
+from xarray.indexes import NDPointIndex
+from nemo_cookbook.utils import SklearnGeoBallTreeAdapter
 from typing import Self
 
 from .masks import create_polygon_mask, get_mask_boundary
@@ -442,6 +444,52 @@ class NEMODataTree(xr.DataTree):
         weights = weights.fillna(value=0)
 
         return weights
+
+
+    def add_geoindex(
+        cls,
+        grid: str,
+    ) -> Self:
+        """
+        Add geographical index variables to a given NEMO model grid.
+
+        This enables users to index grid variables using geographical
+        coordinates (e.g., glamt, gphit) in addition to their (i, j, k)
+        dimensions.
+
+        Parameters
+        ----------
+        grid : str
+            Path to NEMO model grid to add geographical indexes.
+
+        Returns
+        -------
+        NEMODataTree
+            NEMO DataTree with geographical indexes added to specified model grid.
+        """
+        # -- Validate input -- #
+        if grid not in list(cls.subtree):
+            raise KeyError(f"grid '{grid}' not found in the NEMODataTree.")
+
+        # -- Set geographical indexes -- #
+        grid_suffix = cls._get_properties(grid=grid)
+        lon_name = f"glam{grid_suffix}"
+        lat_name = f"gphi{grid_suffix}"
+        cls_copy = cls.copy()
+        cls_copy[grid] = (cls_copy[grid]
+                            .dataset
+                            .assign_coords({
+                                lat_name: cls_copy[grid][lat_name],
+                                lon_name: cls_copy[grid][lon_name]
+                                })
+                            .set_xindex(
+                                (lat_name, lon_name),
+                                NDPointIndex,
+                                tree_adapter_cls=SklearnGeoBallTreeAdapter
+                                )
+                         )
+
+        return cls_copy
 
 
     def cell_area(
@@ -1468,7 +1516,7 @@ class NEMODataTree(xr.DataTree):
         var_in = cls[grid][var].where(mask)
         e3_in = cls[grid][f"e3{grid_suffix}"].where(mask)
         if e3_new.sum(dim="k_new") < cls[grid][f"depth{grid_suffix}"].max(dim=k_name):
-            raise ValueError(f"e3_new must sum to at least the maximum depth ({cls[grid][f"depth{grid_suffix}"].max(dim=k_name).item()} m) of the original vertical grid.")
+            raise ValueError(f"e3_new must sum to at least the maximum depth ({cls[grid][f'depth{grid_suffix}'].max(dim=k_name).item()} m) of the original vertical grid.")
 
         # -- Transform variable to target vertical grid -- #
         var_out, e3_out = xr.apply_ufunc(transform_vertical_coords,
