@@ -1,13 +1,17 @@
-name:  nemo_cookbook_Docs
+name:  nemo_cookbook_docs
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
 permissions:
   contents: write
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
       - name: 🧾 Checkout code
         uses: actions/checkout@v4
