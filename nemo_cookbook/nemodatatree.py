@@ -153,7 +153,7 @@ class NEMODataTree(xr.DataTree):
         if 'parent' in paths.keys() and isinstance(paths['parent'], dict):
             for key in paths.keys():
                 if key not in ('parent', 'child', 'grandchild'):
-                    raise ValueError(f"Unexpected key '{key}' in paths dictionary.")
+                    raise KeyError(f"Unexpected key '{key}' in paths dictionary.")
                 if key == 'parent':
                     d_parent = paths['parent']
                 elif key == 'child':
@@ -256,7 +256,7 @@ class NEMODataTree(xr.DataTree):
         if 'parent' in datasets.keys() and isinstance(datasets['parent'], dict):
             for key in datasets.keys():
                 if key not in ('parent', 'child', 'grandchild'):
-                    raise ValueError(f"unexpected key '{key}' in datasets dictionary.")
+                    raise KeyError(f"Unexpected key '{key}' in datasets dictionary.")
                 if key == 'parent':
                     d_parent = datasets['parent']
                 elif key == 'child':
@@ -264,7 +264,7 @@ class NEMODataTree(xr.DataTree):
                 elif key == 'grandchild':
                     d_grandchild = datasets['grandchild']
         else:
-            raise ValueError("invalid dataset structure. Expected a nested dictionary defining NEMO 'parent', 'child' and 'grandchild' domains.")
+            raise ValueError("Invalid datasets structure. Expected a nested dictionary defining NEMO 'parent', 'child' and 'grandchild' domains.")
 
         # Construct DataTree from parent / child / grandchild domains:
         d_tree = create_datatree_dict(d_parent=d_parent,
@@ -430,7 +430,10 @@ class NEMODataTree(xr.DataTree):
                         "j": f"e2{grid_suffix}",
                         "k": f"e3{grid_suffix}",
                         }
-        weights_list = [cls[grid][weights_dict[dim]] for dim in dims]
+        try:
+            weights_list = [cls[grid][weights_dict[dim]] for dim in dims]
+        except KeyError as e:
+            raise KeyError(f"weights missing for dimensions {dims} of NEMO model grid {grid}: {e}")
 
         if len(weights_list) == 1:
             weights = weights_list[0]
@@ -438,8 +441,6 @@ class NEMODataTree(xr.DataTree):
             weights = weights_list[0] * weights_list[1]
         elif len(weights_list) == 3:
             weights = weights_list[0] * weights_list[1] * weights_list[2]
-        else:
-            raise RuntimeError(f"weights missing for dimensions {dims} of NEMO model grid {grid}.")
 
         weights = weights.fillna(value=0)
 
