@@ -73,7 +73,7 @@ nemo.cell_volumes(grid="/gridV")
 
 To subset variables of a given model grid using their longitude & latitude coordinates (i.e., `glam{t/u/v/w}(j, i)` & `gphi{t/u/v/w}(j, i)`), we can add these geographical variables as indexes using the `.add_geoindex()` method.
 
-For example, to enable geographical indexing of the parent T-grid & select the values of this dataset nearest to (-30°E, 60°N):
+For example, to enable geographical indexing of the parent **T** grid points & select the values of this dataset nearest to (-30°E, 60°N):
 
 ```python
 nemo_geo = nemo.add_geo_index(grid="/gridT")
@@ -85,7 +85,7 @@ nemo_geo.dataset.sel(gphit=60, glamt=-30, method='nearest')
 
 To clip a given model grid using a geographical bounding box defined by a tuple of the form (`lon_min`, `lon_max`, `lat_min`, `lat_max`), we can use the `.clip_grid()` method.
 
-For example, to clip the parent T-grid in the bounding box (-80°E, 0°E, 40°N, 80°N):
+For example, to clip the parent **T**-grid in the bounding box (-80°E, 0°E, 40°N, 80°N):
 
 ```python
 bbox = (-80, 0, 40, 80)
@@ -230,6 +230,25 @@ nemo.binned_statistic(grid="/gridT",
 where `vars` is a list of the names of variables to be binned using the bin edges passed to `bins`, and `values` is the name of the variable over which the `statistic` will be performed once values have been grouped into each bin.
 
 We can use `keep_dims` to specify the dimensions of the `xarray.DataArray` named `values` to retain. In the example above, using `keep_dims="time_counter"` will return the average depths of water in each potential density bin for each time-slice of available NEMO model output.
+
+### Transform Variable to a Neighbouring Horizontal Grid
+
+To transform a variable defined on a given NEMO horizontal grid to a neighbouring grid using linear interpolation, we can use the `.transform_to()` method.
+
+For example, to transform conservative temperature `thetao_con` defined on scalar **T**-points to neighbouring **V**-points in a NEMO model parent domain:
+
+```python
+nemo.transform_to(grid='/gridT', var='thetao_con', to='V')
+```
+
+We can also transform variables defined on **U**- and **V**-points to either scalar or vector grid points. Unlike transforming scalar variables defined on **T**-points,
+this is achieved by linearly interpolating the grid cell face area-weighted flux onto the target grid, before then normalising by the grid cell face area defined on the target horizontal grid.
+
+For example, to transform the zonal wind stress defined on **U**-points to neighbouring **V**-points in a NEMO model parent domain and store this in the **V**-grid node of our NEMODataTree:
+
+```python
+nemo['/gridV']['tauuo'] = nemo.transform_to(grid='/gridU', var='tauuo', to='V')
+```
 
 ### Transform a Vertical Grid
 
