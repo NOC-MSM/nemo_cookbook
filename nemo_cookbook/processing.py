@@ -656,6 +656,8 @@ def _process_parent(
 
     # Define root node inheritable coords & attrs from first non-domain grid.
     root_name = [grid for grid in d_parent.keys() if grid != 'domain'][0]
+    # Handle case where icemod is only non-domain grid:
+    root_name = 'gridT' if root_name == 'icemod' else root_name
     d_root = d_proc_grids[root_name].drop_dims(["j", "i", "k"])
     d_root.attrs = {'nftype': nftype, 'iperio': iperio}
 
