@@ -16,10 +16,11 @@ from xarray.indexes import NDPointIndex
 from nemo_cookbook.utils import SklearnGeoBallTreeAdapter
 from typing import Self
 
+from .interpolate import interpolate_grid
 from .masks import create_polygon_mask, get_mask_boundary
 from .processing import create_datatree_dict
-from .transform import transform_vertical_coords
 from .stats import compute_binned_statistic
+from .transform import transform_vertical_coords
 from .extract import (
     create_section_polygon,
     get_section_indexes,
@@ -404,7 +405,8 @@ class NEMODataTree(xr.DataTree):
     def _get_weights(
         cls,
         grid: str,
-        dims: list
+        dims: list,
+        fillna : bool = True
         ) -> xr.DataArray:
         """
         Get the weights (scale factors) for specified dimensions of a NEMO model grid.
@@ -415,6 +417,8 @@ class NEMODataTree(xr.DataTree):
             Path to NEMO model grid where weights are stored (e.g., '/gridT').
         dims : list
             Dimensions to collect weights for.
+        fillna : bool, optional
+            Fill NaN values in weights with zeros. Default is True.
 
         Returns
         -------
@@ -442,7 +446,8 @@ class NEMODataTree(xr.DataTree):
         elif len(weights_list) == 3:
             weights = weights_list[0] * weights_list[1] * weights_list[2]
 
-        weights = weights.fillna(value=0)
+        if fillna:
+            weights = weights.fillna(value=0)
 
         return weights
 
@@ -1541,25 +1546,30 @@ class NEMODataTree(xr.DataTree):
         return ds_out
 
 
-    def transform_scalar_to(
+    def transform_to(
         cls,
         grid: str,
         var: str,
-        to: str
-    ) -> xr.DataArray:
+        to: str,
+        ) -> xr.DataArray:
         """
-        Transform scalar variable defined on a NEMO model grid to a neighbouring horizontal grid using linear interpolation.
+        Transform variable defined on a NEMO model grid to a neighbouring
+        horizontal grid using linear interpolation.
+
+        For flux variables defined at U- or V-points, the specified variable
+        is first weighted by grid cell face areas prior to linear interpolation,
+        and is then normalised by the target grid cell face areas following
+        interpolation.
 
         Parameters
         ----------
         grid : str
-            Path to NEMO model grid where variable is stored
-            (e.g., '/gridT').
+            Path to NEMO model grid where variable is stored (e.g., '/gridT').
         var : str
             Name of the variable to transform.
         to : str
             Suffix of the neighbouring horizontal NEMO model grid to
-            transform variable to. Options are 'U', 'V'.
+            transform variable to. Options are 'T', 'U', 'V', 'F'.
 
         Returns
         -------
@@ -1574,24 +1584,62 @@ class NEMODataTree(xr.DataTree):
             raise KeyError(f"variable '{var}' not found in grid '{grid}'.")
         if not isinstance(to, str):
             raise TypeError(f"'to' must be a string, got {type(to)}.")
-        if to not in ['U', 'V']:
-            raise ValueError(f"'to' must be one of ['U', 'V'], got {to}.")
+        if to not in ['T', 'U', 'V', 'F']:
+            raise ValueError(f"'to' must be one of ['T', 'U', 'V', 'F'], got {to}.")
 
         # -- Get NEMO model grid properties -- #
+        _, dom_prefix, _, grid_suffix = cls._get_properties(grid=grid, infer_dom=True)
         ijk_names = cls._get_ijk_names(grid=grid)
-        i_name, j_name = ijk_names['i'], ijk_names['j']
-
-        fill_dim_name = "i" if to == "U" else "j"
+        i_name, j_name, k_name = ijk_names['i'], ijk_names['j'], ijk_names['k']
+        iperio = cls[grid].attrs.get('iperio', False)
         target_grid = f"{grid.replace(grid[-1], to)}"
-        target_mask = f"{to.lower()}mask"
 
-        # -- Perform interpolation -- #
-        result = (cls[grid][var]
-                  .interpolate_na(dim=fill_dim_name, method='nearest', fill_value="extrapolate")
-                  .interp({i_name: cls[grid.replace(grid[-1], to)][i_name],
-                           j_name: cls[grid.replace(grid[-1], to)][j_name]},
-                           method='linear')
-                  .where(cls[target_grid][target_mask])
-                  )
+        # -- Prepare variable for linear interpolation -- #
+        if grid_suffix.upper() in ["U", "V"]:
+            weight_dims = [k_name, j_name] if grid_suffix.upper() == "U" else [k_name, i_name]
+            if f"{dom_prefix}depth{grid_suffix}" in cls[grid][var].coords:
+                # 3-D variables - weight by grid cell face area:
+                weights = cls._get_weights(grid=grid, dims=weight_dims, fillna=False)
+                target_weights = cls._get_weights(grid=target_grid, dims=weight_dims, fillna=False)
+            else:
+                # 2-D variables - weight by grid cell width:
+                weights = cls._get_weights(grid=grid, dims=weight_dims[1], fillna=False)
+                target_weights = cls._get_weights(grid=target_grid, dims=weight_dims[1], fillna=False)
+            da = cls[grid][var] * weights
+        else:
+            # Scalar variables:
+            da = cls[grid][var]
+
+        # -- Linearly interpolate variable -- #
+        result = interpolate_grid(da=da,
+                                  source_grid=grid_suffix.upper(),
+                                  target_grid=to,
+                                  iperio=iperio,
+                                  ijk_names=ijk_names
+                                  )
+
+        # -- Update interpolated variable -- #
+        # Update NEMO grid coords:
+        result[i_name] = cls[target_grid][i_name]
+        result[j_name] = cls[target_grid][j_name]
+        if k_name in result.dims:
+            result[k_name] = cls[target_grid][k_name]
+
+        # Drop NEMO source grid coords:
+        drop_vars = [f"{dom_prefix}glam{grid_suffix}", f"{dom_prefix}gphi{grid_suffix}"]
+        if f"{dom_prefix}depth{grid_suffix}" in da.coords:
+            drop_vars.append(f"{dom_prefix}depth{grid_suffix}")
+        result = result.drop_vars(drop_vars)
+
+        # Normalise by target grid cell weights for flux variables:
+        if grid_suffix.upper() in ["U", "V"]:
+            result = result / target_weights
+
+        # Apply target grid mask:
+        if f"{dom_prefix}depth{grid_suffix}" in da.coords:
+            target_mask = f"{to.lower()}mask"
+        else:
+            target_mask = f"{to.lower()}maskutil"
+        result = result.where(cls[target_grid][target_mask])
 
         return result
