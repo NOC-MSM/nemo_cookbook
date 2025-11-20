@@ -59,6 +59,8 @@ def create_section_polygon(
     elif lat_sec[0] > lat_sec[-1]:
         lon_poly = np.concatenate([lon_sec, np.array([lon_sec[-1], lon_sec[0], lon_sec[0]])])
         lat_poly = np.concatenate([lat_sec, np.array([lat_sec[-1] - dlat, lat_sec[-1] - dlat, lat_sec[-1]])])
+    elif all(lat == lat_sec[0] for lat in lat_sec):
+        raise ValueError("extracting zonal hydrographic sections is not supported.")
 
     return lon_poly, lat_poly
 
@@ -247,14 +249,13 @@ def update_boundary_dataset(
                                    f"{dom_prefix}depthb": ((k_name, 'bdy'), np.zeros(dim_sizes[1:])),
                                    })
 
-    ds_bdy[f"{dom_prefix}glamb"][ubdy_mask] = nemo[gridU]['glamu'].sel(i=ds_bdy['i_bdy'][ubdy_mask], j=ds_bdy['j_bdy'][ubdy_mask])
-    ds_bdy[f"{dom_prefix}glamb"][vbdy_mask] = nemo[gridV]['glamv'].sel(i=ds_bdy['i_bdy'][vbdy_mask], j=ds_bdy['j_bdy'][vbdy_mask])
+    ds_bdy[f"{dom_prefix}glamb"][ubdy_mask] = nemo[gridU][f"{dom_prefix}glamu"].sel(i=ds_bdy['i_bdy'][ubdy_mask], j=ds_bdy['j_bdy'][ubdy_mask])
+    ds_bdy[f"{dom_prefix}glamb"][vbdy_mask] = nemo[gridV][f"{dom_prefix}glamv"].sel(i=ds_bdy['i_bdy'][vbdy_mask], j=ds_bdy['j_bdy'][vbdy_mask])
 
-    ds_bdy[f"{dom_prefix}gphib"][ubdy_mask] = nemo[gridU]['gphiu'].sel(i=ds_bdy['i_bdy'][ubdy_mask], j=ds_bdy['j_bdy'][ubdy_mask])
-    ds_bdy[f"{dom_prefix}gphib"][vbdy_mask] = nemo[gridV]['gphiv'].sel(i=ds_bdy['i_bdy'][vbdy_mask], j=ds_bdy['j_bdy'][vbdy_mask])
-
-    ds_bdy[f"{dom_prefix}depthb"][:, ubdy_mask] = nemo[gridU]['depthu']
-    ds_bdy[f"{dom_prefix}depthb"][:, vbdy_mask] = nemo[gridV]['depthv']
+    ds_bdy[f"{dom_prefix}gphib"][ubdy_mask] = nemo[gridU][f"{dom_prefix}gphiu"].sel(i=ds_bdy['i_bdy'][ubdy_mask], j=ds_bdy['j_bdy'][ubdy_mask])
+    ds_bdy[f"{dom_prefix}gphib"][vbdy_mask] = nemo[gridV][f"{dom_prefix}gphiv"].sel(i=ds_bdy['i_bdy'][vbdy_mask], j=ds_bdy['j_bdy'][vbdy_mask])
+    ds_bdy[f"{dom_prefix}depthb"][:, ubdy_mask] = nemo[gridU][f"{dom_prefix}depthu"]
+    ds_bdy[f"{dom_prefix}depthb"][:, vbdy_mask] = nemo[gridV][f"{dom_prefix}depthv"]
 
     # -- Add velocities (outward) normal to boundary -- #
     if uv_vars[0] not in nemo[gridU].data_vars:
@@ -263,17 +264,17 @@ def update_boundary_dataset(
         raise KeyError(f"variable '{uv_vars[1]}' not found in grid '{gridV}'.")
 
     ds_bdy['velocity'] = xr.DataArray(data=dask.array.zeros(dim_sizes), dims=[time_name, k_name, 'bdy'])
-    ds_bdy['velocity'][:, :, ubdy_mask] = nemo[gridU]['uo'].where(nemo[gridU]['umask']).sel(i=ds_bdy['i_bdy'][ubdy_mask], j=ds_bdy['j_bdy'][ubdy_mask]) * ds_bdy['flux_dir'][ubdy_mask]
-    ds_bdy['velocity'][:, :, vbdy_mask] = nemo[gridV]['vo'].where(nemo[gridV]['vmask']).sel(i=ds_bdy['i_bdy'][vbdy_mask], j=ds_bdy['j_bdy'][vbdy_mask]) * ds_bdy['flux_dir'][vbdy_mask]
+    ds_bdy['velocity'][:, :, ubdy_mask] = nemo[f"{gridU}/{uv_vars[0]}"].sel(i=ds_bdy['i_bdy'][ubdy_mask], j=ds_bdy['j_bdy'][ubdy_mask]) * ds_bdy['flux_dir'][ubdy_mask]
+    ds_bdy['velocity'][:, :, vbdy_mask] = nemo[f"{gridV}/{uv_vars[1]}"].sel(i=ds_bdy['i_bdy'][vbdy_mask], j=ds_bdy['j_bdy'][vbdy_mask]) * ds_bdy['flux_dir'][vbdy_mask]
 
     # -- Add NEMO grid cell scale factors along boundary -- #
     ds_bdy['e1b'] = xr.DataArray(data=dask.array.zeros(ds_bdy["bdy"].size), dims=['bdy'])
-    ds_bdy['e1b'][ubdy_mask] = nemo[gridU]['e2u'].where(nemo[gridU]['umaskutil']).sel(i=ds_bdy['i_bdy'][ubdy_mask], j=ds_bdy['j_bdy'][ubdy_mask])
-    ds_bdy['e1b'][vbdy_mask] = nemo[gridV]['e1v'].where(nemo[gridV]['vmaskutil']).sel(i=ds_bdy['i_bdy'][vbdy_mask], j=ds_bdy['j_bdy'][vbdy_mask])
+    ds_bdy['e1b'][ubdy_mask] = nemo[f"{gridU}/e2u"].sel(i=ds_bdy['i_bdy'][ubdy_mask], j=ds_bdy['j_bdy'][ubdy_mask])
+    ds_bdy['e1b'][vbdy_mask] = nemo[f"{gridV}/e1v"].sel(i=ds_bdy['i_bdy'][vbdy_mask], j=ds_bdy['j_bdy'][vbdy_mask])
 
     ds_bdy['e3b'] = xr.DataArray(data=dask.array.zeros(dim_sizes), dims=[time_name, k_name, 'bdy'])
-    ds_bdy['e3b'][:, :, ubdy_mask] = nemo[gridU]['e3u'].where(nemo[gridU]['umask']).sel(i=ds_bdy['i_bdy'][ubdy_mask], j=ds_bdy['j_bdy'][ubdy_mask])
-    ds_bdy['e3b'][:, :, vbdy_mask] = nemo[gridV]['e3v'].where(nemo[gridV]['vmask']).sel(i=ds_bdy['i_bdy'][vbdy_mask], j=ds_bdy['j_bdy'][vbdy_mask])
+    ds_bdy['e3b'][:, :, ubdy_mask] = nemo[f"{gridU}/e3u"].sel(i=ds_bdy['i_bdy'][ubdy_mask], j=ds_bdy['j_bdy'][ubdy_mask])
+    ds_bdy['e3b'][:, :, vbdy_mask] = nemo[f"{gridV}/e3v"].sel(i=ds_bdy['i_bdy'][vbdy_mask], j=ds_bdy['j_bdy'][vbdy_mask])
 
     # -- [Optionally] Add scalar variables along-section -- #
     if vars is not None:
@@ -285,12 +286,12 @@ def update_boundary_dataset(
     
             # Linearly interpolate scalar variables onto NEMO model U/V grid points:
             ds_bdy[var][:, :, ubdy_mask] = 0.5 * (
-                nemo[gridT][var].where(nemo[gridT]['tmask']).sel(i=ds_bdy['i_bdy'][ubdy_mask] - 0.5, j=ds_bdy['j_bdy'][ubdy_mask]) +
-                nemo[gridT][var].where(nemo[gridT]['tmask']).sel(i=ds_bdy['i_bdy'][ubdy_mask] + 0.5, j=ds_bdy['j_bdy'][ubdy_mask])
+                nemo[f"{gridT}/{var}"].sel(i=ds_bdy['i_bdy'][ubdy_mask] - 0.5, j=ds_bdy['j_bdy'][ubdy_mask]) +
+                nemo[f"{gridT}/{var}"].sel(i=ds_bdy['i_bdy'][ubdy_mask] + 0.5, j=ds_bdy['j_bdy'][ubdy_mask])
                 )
             ds_bdy[var][:, :, vbdy_mask] = 0.5 * (
-                nemo[gridT][var].where(nemo[gridT]['tmask']).sel(i=ds_bdy['i_bdy'][vbdy_mask], j=ds_bdy['j_bdy'][vbdy_mask] - 0.5) +
-                nemo[gridT][var].where(nemo[gridT]['tmask']).sel(i=ds_bdy['i_bdy'][vbdy_mask], j=ds_bdy['j_bdy'][vbdy_mask] + 0.5)
+                nemo[f"{gridT}/{var}"].sel(i=ds_bdy['i_bdy'][vbdy_mask], j=ds_bdy['j_bdy'][vbdy_mask] - 0.5) +
+                nemo[f"{gridT}/{var}"].sel(i=ds_bdy['i_bdy'][vbdy_mask], j=ds_bdy['j_bdy'][vbdy_mask] + 0.5)
                 )
 
     return ds_bdy
