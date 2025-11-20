@@ -282,6 +282,54 @@ class NEMODataTree(xr.DataTree):
         return datatree
 
 
+    def __getitem__(
+        cls,
+        key: str
+    ) -> Self | xr.DataArray:
+        """
+        Access child nodes, variables, or coordinates stored in this NEMODataTree.
+
+        Returned object will be either a DataTree or DataArray object depending on
+        whether the key given points to a child or variable.
+
+        Overloads the __getitem__() method of xarray.DataTree to apply grid masks
+        to returned DataArrays accessed via variable paths (i.e, /grid/var).
+
+        Parameters
+        ----------
+        key : str
+            Name of variable / child within this node, or unix-like path to variable
+            / child within another node.
+
+        Returns
+        -------
+        NEMODataTree | xr.DataArray
+        """
+        # -- Access child node or variable -- #
+        item = super().__getitem__(key=key)
+        is_gridpath = key.startswith('/grid') or key.startswith('grid')
+
+        if isinstance(item, xr.DataArray) & is_gridpath:
+            # -- Get NEMO model grid properties -- #
+            var_name = key.split('/')[-1]
+            grid = key.replace(f"/{var_name}", "")
+            _, dom_prefix, _, grid_suffix = cls._get_properties(grid=grid, infer_dom=True)
+
+            # -- Apply NEMO model grid mask -- #
+            # Masking only non-mask variables:
+            if (var_name != f"{grid_suffix}mask") and (var_name != f"{grid_suffix}maskutil"):
+                if f"{dom_prefix}depth{grid_suffix}" in item.coords:
+                    # Get 3-dimensional t/u/v/f mask:
+                    mask = cls[grid][f"{grid_suffix}mask"]
+                else:
+                    # Get 2-dimensional t/u/v/f/w mask (unique points):
+                    mask = cls[grid][f"{grid_suffix}maskutil"]
+
+                item = item.where(mask)
+
+        return item
+
+
     def _get_properties(
         cls,
         dom: str | None = None,
@@ -906,9 +954,8 @@ class NEMODataTree(xr.DataTree):
             # Apply 3-dimensional t/u/v/f/w mask:
             dom_mask = cls[grid][f"{grid_suffix}mask"]
         else:
-            # Apply 2-dimensional t/u/v/f mask (unique points):
-            hgrid_type = grid_suffix if 'w' not in grid_suffix else 't'
-            dom_mask = cls[grid][f"{hgrid_type}maskutil"]
+            # Apply 2-dimensional t/u/v/f/w mask (unique points):
+            dom_mask = cls[grid][f"{grid_suffix}maskutil"]
 
         # -- Perform integration -- #
         if cum_dims is not None:
@@ -1162,9 +1209,8 @@ class NEMODataTree(xr.DataTree):
             # Apply 3-dimensional t/u/v/f/w mask:
             dom_mask = cls[grid][f"{grid_suffix}mask"]
         else:
-            # Apply 2-dimensional t/u/v/f mask (unique points):
-            hgrid_type = grid_suffix if 'w' not in grid_suffix else 't'
-            dom_mask = cls[grid][f"{hgrid_type}maskutil"]
+            # Apply 2-dimensional t/u/v/f/w mask (unique points):
+            dom_mask = cls[grid][f"{grid_suffix}maskutil"]
 
         da = cls[grid][var].where(dom_mask & mask_poly)
 
@@ -1450,9 +1496,8 @@ class NEMODataTree(xr.DataTree):
             # Apply 3-dimensional t/u/v/f/w mask:
             dom_mask = cls[grid][f"{grid_suffix}mask"]
         else:
-            # Apply 2-dimensional t/u/v/f mask (unique points):
-            hgrid_type = grid_suffix if 'w' not in grid_suffix else 't'
-            dom_mask = cls[grid][f"{hgrid_type}maskutil"]
+            # Apply 2-dimensional t/u/v/f/w mask (unique points):
+            dom_mask = cls[grid][f"{grid_suffix}maskutil"]
 
         # -- Calculate binned statistics -- #
         values_data = cls[grid][values]
@@ -1551,7 +1596,7 @@ class NEMODataTree(xr.DataTree):
         grid: str,
         var: str,
         to: str,
-        ) -> xr.DataArray:
+    ) -> xr.DataArray:
         """
         Transform variable defined on a NEMO model grid to a neighbouring
         horizontal grid using linear interpolation.
