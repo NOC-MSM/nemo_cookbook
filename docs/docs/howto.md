@@ -41,6 +41,22 @@ nemo = NEMODataTree.from_datasets(datasets=datasets)
 
 This example would be applicable to the outputs of a regional NEMO model configuration which is neither zonally periodic nor north-folding (by default, `iperio=False` & `nftype=None`).
 
+### Access Masked Grid Variables
+
+To access an unmasked (i.e., unchanged from the original model output files) variable stored within a given grid node of a `NEMODataTree`, we can use the follow syntax:
+
+```python
+nemo[{grid_name}][{variable_name}]
+```
+
+However, if we want to automatically mask the chosen variable with the appropriate domain mask, we can instead provide the direct path to the variable as follows:
+
+```python
+nemo["/gridT/thetao_con"]
+```
+
+In the example above, the 4-dimensional conservative temperature variable `thetao_con` is masked using the 3-dimensional `tmask` before being returned.
+
 ### Calculate Grid Cell Areas
 
 To calculate the area of a model grid cell face, we can use the `.cell_area()` method.
