@@ -255,32 +255,17 @@ class TestNEMODataTreeDatasets():
             nemo[grid] = xr.Dataset(data_vars={
                 'e1t': (("j", "i"), np.ones((10, 10))),
                 'e2t': (("j", "i"), np.ones((10, 10))),
-                'e3t': (("k", "j", "i"), np.ones((5, 10, 10)))
+                'e3t': (("k", "j", "i"), np.ones((5, 10, 10))),
+                'tmask': (("k", "j", "i"), np.ones((5, 10, 10)).astype(bool)),
+                'tmaskutil': (("j", "i"), np.ones((10, 10)).astype(bool))
             })
-            print(nemo[grid])
+
             # -- Verify output type -- #
             result = nemo._get_weights(grid=grid, dims=dims)
             assert isinstance(result, xr.DataArray)
             # -- Verify no zero weights -- #
             assert np.sum(result == 0) == 0
-            
 
-
-            
-
-
-
-
-
-
-
-# def test_get_properties():
-
-# def test_get_grid_paths():
-
-# def test_get_ijk_names():
-
-# def test_get_weights():
 
 # def test_cell_area():
 
