@@ -426,6 +426,7 @@ def _add_domain_vars(
                                                     iperio=iperio,
                                                     mask_opensea=mask_opensea
                                                     )
+    d_grids['gridW']['wmaskutil'] = d_grids['gridW']['wmask'][0, :, :].squeeze(drop=True)
     d_grids['gridW'] = d_grids['gridW'].assign_attrs(nftype=nftype, iperio=iperio)
 
     # F-grid:
@@ -878,7 +879,12 @@ def create_datatree_dict(
         Dictionary of DataTree paths and processed NEMO grids defining a hierarchical DataTree.
     """
     # -- Assign the parent domain -- #
-    d_tree = _process_parent(d_parent=d_parent, iperio=iperio, nftype=nftype, open_kwargs=open_kwargs)
+    d_tree = _process_parent(d_parent=d_parent,
+                             iperio=iperio,
+                             read_mask=read_mask,
+                             nftype=nftype,
+                             open_kwargs=open_kwargs
+                             )
 
     # -- Assign all child domains -- #
     if d_child is not None:
@@ -894,6 +900,7 @@ def create_datatree_dict(
                                          d_nests=d_nests,
                                          label=int(key),
                                          parent_label=None,
+                                         read_mask=read_mask,
                                          nbghost_child=nbghost_child,
                                          open_kwargs=open_kwargs
                                          ))
@@ -914,6 +921,7 @@ def create_datatree_dict(
                                          d_nests=d_nests,
                                          label=int(key),
                                          parent_label=int(d_nests['parent']),
+                                         read_mask=read_mask,
                                          nbghost_child=nbghost_child,
                                          open_kwargs=open_kwargs
                                          ))
