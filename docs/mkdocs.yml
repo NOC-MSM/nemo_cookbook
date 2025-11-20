@@ -62,9 +62,7 @@ markdown_extensions:
 
 nav:
   - Getting started: index.md
-  - User Guide:
-    - NEMODataTree: nemodatatree.md
-    - Example NEMODataTrees: examples.md
+  - User Guide: nemodatatree.md
   - How To...: howto.md
   - Recipes:
     - recipes.md
