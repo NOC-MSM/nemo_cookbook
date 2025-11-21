@@ -358,31 +358,37 @@ Group: /
 
 **2. `NOC Near-Present Day eORCA1`**
 
-Next, we'll consider monthly-mean outputs from the National Oceanography Centre Near-Present-Day global eORCA1 configuration of NEMO forced using JRA55-do from 1976-2024. 
+Next, we'll consider monthly-mean outputs from the National Oceanography Centre Near-Present-Day global eORCA1 configuration of NEMO forced using ERA5 atmospheric reanalysis from 1976-present. 
 
 For more details on this model configuration and the available outputs, users can explore the Near-Present-Day documentation [**here**](https://noc-msm.github.io/NOC_Near_Present_Day/).
 
 ---
 
-The eORCA1 JRA55v1 NPD data are publicly accessible as remote Zarr v2 stores via [JASMIN Object Store](https://help.jasmin.ac.uk/docs/short-term-project-storage/using-the-jasmin-object-store/), so we will use the NEMODataTree `.from_datasets()` constructor. 
+The eORCA1 ERA5v1 NPD data are stored in publicly available Icechunk repositories accessible via the NOC [**OceanDataStore**](https://noc-msm.github.io/OceanDataStore/catalog_guide/) library. In this example, we will show how to use to the **OceanDataCatalog** API to remotely access NOC NPD outputs and use the `.from_datasets()` constructor to create a NEMODataTree.
+
+Users can find more information on how to get started using the **OceanDataCatalog** to search for and access available NEMO model outputs [**here**](https://noc-msm.github.io/OceanDataStore/).
 
 ```python 
-base_url = "https://noc-msm-o.s3-ext.jc.rl.ac.uk/npd-eorca1-jra55v1"
+from OceanDataStore import OceanDataCatalog
+
+# Create a new OceanDataCatalog to access the NOC STAC:
+catalog = OceanDataCatalog(catalog_name="noc-model-stac")
 
 # Opening domain_cfg:
-ds_domain = (xr.open_zarr(f"{base_url}/domain/domain_cfg", consolidated=True, chunks={})
-             .squeeze(drop=True)
-             .rename({"z": "nav_lev"})
-             )
+ds_domain = catalog.open_dataset(id="noc-npd-era5/npd-eorca1-era5v1/gn/domain/domain_cfg")
 
-# Opening gridT dataset, including sea surface temperature (°C) and salinity (g kg-1):
-ds_gridT = xr.merge([xr.open_zarr(f"{base_url}/T1m/{var}", consolidated=True, chunks={})[var] for var in ['tos_con', 'sos_abs']], compat="override")
+# Opening gridT dataset, including sea surface temperature (°C) and sea surface height (m):
+ds_gridT = catalog.open_dataset(id="noc-npd-era5/npd-eorca1-era5v1/gn/T1m",
+                                variable_names=['tos_con', 'zos'],
+                                start_datetime='2000-01',
+                                end_datetime='2020-12',
+                                )
 ```
 
-Next, let's create a `NEMODataTree` from a dictionary of eORCA1 JRA55v1 `xarray.Datasets`, specifying that our global domain is zonally periodic (`iperio=True`) and north folding on T-points (`nftype = "F"`).
+Next, let's create a `NEMODataTree` from a dictionary of eORCA1 ERA5v1 `xarray.Datasets`, specifying that our global domain is zonally periodic (`iperio=True`) and north folding on T-points (`nftype = "F"`).
 
 ```python
-datasets = {"parent": {"domain": ds_domain, "gridT": ds_gridT}}
+datasets = {"parent": {"domain": ds_domain.squeeze(), "gridT": ds_gridT}}
 
 nemo = NEMODataTree.from_datasets(datasets=datasets, iperio=True, nftype="F")
 
@@ -392,12 +398,12 @@ nemo
 ```
 <xarray.DataTree>
 Group: /
-│   Dimensions:        (time_counter: 577)
+│   Dimensions:        (time_counter: 240)
 │   ...
 │ 
 ├── Group: /gridT
-│   Dimensions:        (time_counter: 577)
-│       Dimensions:        (time_counter: 577, j: 331, i: 360, k: 75)
+│   Dimensions:        (time_counter: 240)
+│       Dimensions:        (time_counter: 240, j: 331, i: 360, k: 75)
 │       Coordinates:
 │           time_centered  (time_counter) datetime64[ns] 5kB dask.array<chunksize=(1,), meta=np.ndarray>
 │           gphit          (j, i) float64 953kB dask.array<chunksize=(331, 360), meta=np.ndarray>
@@ -407,7 +413,7 @@ Group: /
 │         * i              (i) int64 3kB 1 2 3 4 5 6 7 8 ... 354 355 356 357 358 359 360
 │       Data variables:
 │           tos_con        (time_counter, j, i) float32 275MB dask.array<chunksize=(1, 331, 360), meta=np.ndarray>
-│           sos_abs        (time_counter, j, i) float32 275MB dask.array<chunksize=(1, 331, 360), meta=np.ndarray>
+│           zos            (time_counter, j, i) float32 275MB dask.array<chunksize=(1, 331, 360), meta=np.ndarray>
 │           e1t            (j, i) float64 953kB dask.array<chunksize=(331, 360), meta=np.ndarray>
 │           e2t            (j, i) float64 953kB dask.array<chunksize=(331, 360), meta=np.ndarray>
 │           top_level      (j, i) int32 477kB dask.array<chunksize=(331, 360), meta=np.ndarray>
