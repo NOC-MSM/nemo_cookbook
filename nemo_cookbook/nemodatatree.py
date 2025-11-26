@@ -369,7 +369,7 @@ class NEMODataTree(xr.DataTree):
             dom_suffix = "" if dom == "." else f"{dom}"
             return dom_prefix, dom_suffix
         else:
-            if grid not in list(cls.subtree):
+            if grid not in list(dict(cls.subtree_with_keys).keys()):
                 raise KeyError(f"grid '{grid}' not found in the NEMODataTree.")
             grid_suffix = f"{grid.lower()[-1]}"
 
@@ -401,7 +401,7 @@ class NEMODataTree(xr.DataTree):
             Dictionary of NEMO model grid paths.
         """
         # Collect paths to all NEMO model grids:
-        grid_paths = [path[0] for path in list(cls.subtree_with_keys)]
+        grid_paths = list(dict(cls.subtree_with_keys).keys())
 
         if dom == '.':
             grid_paths = [path for path in grid_paths if ("_" not in path) & ("grid" in path)]
@@ -522,7 +522,7 @@ class NEMODataTree(xr.DataTree):
             NEMO DataTree with geographical indexes added to specified model grid.
         """
         # -- Validate input -- #
-        if grid not in list(cls.subtree):
+        if grid not in list(dict(cls.subtree_with_keys).keys()):
             raise KeyError(f"grid '{grid}' not found in the NEMODataTree.")
 
         # -- Set geographical indexes -- #
@@ -924,7 +924,7 @@ class NEMODataTree(xr.DataTree):
 
         """
         # -- Validate input -- #
-        if grid not in list(cls.subtree):
+        if grid not in list(dict(cls.subtree_with_keys).keys()):
             raise KeyError(f"grid '{grid}' not found in the NEMODataTree.")
         if var not in cls[grid].data_vars:
             raise KeyError(f"variable '{var}' not found in grid '{grid}'.")
@@ -983,7 +983,7 @@ class NEMODataTree(xr.DataTree):
         NEMODataTree
             NEMO DataTree with specified model grid clipped to bounding box.
         """
-        if grid not in list(cls.subtree):
+        if grid not in list(dict(cls.subtree_with_keys).keys()):
             raise KeyError(f"grid '{grid}' not found in the NEMODataTree.")
         if not isinstance(bbox, tuple) or len(bbox) != 4:
             raise ValueError("bounding box must be a tuple (lon_min, lon_max, lat_min, lat_max).")
@@ -1114,7 +1114,7 @@ class NEMODataTree(xr.DataTree):
             raise TypeError("longitude & latitude coordinates of polygon must be numpy arrays or lists.")
         if (lon_poly[0] != lon_poly[-1]) or (lat_poly[0] != lat_poly[-1]):
             raise ValueError("longitude & latitude coordinates must form a closed polygon.")
-        if grid not in list(cls.subtree):
+        if grid not in list(dict(cls.subtree_with_keys).keys()):
             raise KeyError(f"grid '{grid}' not found in the NEMODataTree.")
 
         # -- Get NEMO model grid properties -- #
@@ -1175,7 +1175,7 @@ class NEMODataTree(xr.DataTree):
             Masked statistic of specified variable.
         """
         # -- Validate input -- #
-        if grid not in list(cls.subtree):
+        if grid not in list(dict(cls.subtree_with_keys).keys()):
             raise KeyError(f"grid '{grid}' not found in the NEMODataTree.")
         if var not in cls[grid].data_vars:
             raise KeyError(f"variable '{var}' not found in grid '{grid}'.")
@@ -1441,7 +1441,7 @@ class NEMODataTree(xr.DataTree):
             Values of the selected statistic in each bin.
         """
         # -- Validate input -- #
-        if grid not in list(cls.subtree):
+        if grid not in list(dict(cls.subtree_with_keys).keys()):
             raise KeyError(f"grid '{grid}' not found in the NEMODataTree.")
         if any(var not in cls[grid].data_vars for var in vars):
             raise KeyError(f"one or more variables {vars} not found in grid '{grid}'.")
@@ -1513,7 +1513,7 @@ class NEMODataTree(xr.DataTree):
             thicknesses adjusted for model bathymetry.
         """
         # -- Validate input -- #
-        if grid not in list(cls.subtree):
+        if grid not in list(dict(cls.subtree_with_keys).keys()):
             raise KeyError(f"Grid '{grid}' not found in the NEMODataTree.")
         if var not in cls[grid].data_vars:
             raise KeyError(f"Variable '{var}' not found in grid '{grid}'.")
@@ -1585,7 +1585,7 @@ class NEMODataTree(xr.DataTree):
             horizontal grid.
         """
         # -- Validate input -- #
-        if grid not in list(cls.subtree):
+        if grid not in list(dict(cls.subtree_with_keys).keys()):
             raise KeyError(f"grid '{grid}' not found in the NEMODataTree.")
         if var not in cls[grid].data_vars:
             raise KeyError(f"variable '{var}' not found in grid '{grid}'.")
