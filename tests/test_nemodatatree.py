@@ -138,7 +138,7 @@ class TestNEMODataTreeDatasets():
             NEMODataTree.from_datasets(datasets=datasets)
 
     def test_from_datasets_type(self, mocker):
-        mocker.patch("nemo_cookbook.nemodatatree.create_datatree_dict", return_value={'/gridT': xr.Dataset()})
+        mocker.patch("nemo_cookbook.nemodatatree.create_datatree_dict", return_value={'gridT': xr.Dataset()})
         # -- Create example datasets dict -- #
         datasets = {'parent': {}}
         # -- Verify output type -- #
@@ -173,7 +173,7 @@ class TestNEMODataTreeDatasets():
         def test_get_grid_properties(self, infer_dom: bool):
             # -- Create NEMODataTree instance -- #
             nemo = NEMODataTree()
-            nemo["/gridT"] = xr.Dataset()
+            nemo["gridT"] = xr.Dataset()
             # -- Verify grid properties -- #
             result = nemo._get_properties(grid="gridT", infer_dom=infer_dom)
             if infer_dom:
@@ -188,8 +188,8 @@ class TestNEMODataTreeDatasets():
         def test_get_grid_node_paths(self, dom: str):
             # -- Create NEMODataTree instance -- #
             nemo = NEMODataTree()
-            nemo["/gridT"] = xr.Dataset()
-            nemo["/gridT/1_gridT"] = xr.Dataset()
+            nemo["gridT"] = xr.Dataset()
+            nemo["gridT/1_gridT"] = xr.Dataset()
             # -- Verify grid node paths -- #
             result = nemo._get_grid_paths(dom=dom)
             assert isinstance(result, dict)
@@ -212,7 +212,7 @@ class TestNEMODataTreeDatasets():
                 expected_keys = {'i': f'i{dom}', 'j': f'j{dom}', 'k': f'k{dom}'}
             assert result == expected_keys
 
-        @pytest.mark.parametrize("grid", ["/gridT", "/gridT/1_gridT"])
+        @pytest.mark.parametrize("grid", ["gridT", "gridT/1_gridT"])
         def test_get_grid_ijk_names(self, grid: str):
             # -- Create NEMODataTree instance -- #
             nemo = NEMODataTree()
@@ -220,9 +220,9 @@ class TestNEMODataTreeDatasets():
             # -- Verify ijk names -- #
             result = nemo._get_ijk_names(grid=grid)
             assert isinstance(result, dict)
-            if grid == "/gridT":
+            if grid == "gridT":
                 expected_keys = {'i': 'i', 'j': 'j', 'k': 'k'}
-            elif grid == "/gridT/1_gridT":
+            elif grid == "gridT/1_gridT":
                 expected_keys = {'i': 'i1', 'j': 'j1', 'k': 'k1'}
             assert result == expected_keys
 
@@ -230,16 +230,16 @@ class TestNEMODataTreeDatasets():
         def test_get_grid_weights_value_error(self, dims: list):
             # -- Create NEMODataTree instance -- #
             nemo = NEMODataTree()
-            nemo["/gridT"] = xr.Dataset()
+            nemo["gridT"] = xr.Dataset()
             # -- Verify ValueError -- #
             expected_str = "dims must be a list containing one or more of the following dimensions: ['i', 'j', 'k']."
             with pytest.raises(ValueError, match=re.escape(expected_str)):
-                nemo._get_weights(grid="/gridT", dims=dims)
+                nemo._get_weights(grid="gridT", dims=dims)
 
         def test_get_missing_grid_weights(self):
             # -- Create NEMODataTree instance -- #
             nemo = NEMODataTree()
-            grid = "/gridT"
+            grid = "gridT"
             nemo[grid] = xr.Dataset()
             # -- Verify KeyError -- #
             dims = ["i"]
@@ -251,7 +251,7 @@ class TestNEMODataTreeDatasets():
         def test_get_grid_weights_type(self, dims: list):
             # -- Create NEMODataTree instance -- #
             nemo = NEMODataTree()
-            grid = "/gridT"
+            grid = "gridT"
             nemo[grid] = xr.Dataset(data_vars={
                 'e1t': (("j", "i"), np.ones((10, 10))),
                 'e2t': (("j", "i"), np.ones((10, 10))),
