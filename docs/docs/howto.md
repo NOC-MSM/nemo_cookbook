@@ -64,7 +64,7 @@ To calculate the area of a model grid cell face, we can use the `.cell_area()` m
 For example, to compute the horizontal area of cells centered on **T** grid points in the parent domain:
 
 ```python
-nemo.cell_area(grid="/gridT", dim="k")
+nemo.cell_area(grid="gridT", dim="k")
 ```
 
 Importantly, the `dim` argument represents the dimensional orthogonal to the grid cell area to be compute. For **T** grid points, this results in the following grid cell areas: 
@@ -82,7 +82,7 @@ To calculate the volume of model grid cells, we can use the `.cell_volume()` met
 For example, to compute the volume of each grid cell centered on a **V** grid point in the model parent domain:
 
 ```python
-nemo.cell_volumes(grid="/gridV")
+nemo.cell_volumes(grid="gridV")
 ```
 
 ### Indexing with Geographical Coordinates
@@ -92,7 +92,7 @@ To subset variables of a given model grid using their longitude & latitude coord
 For example, to enable geographical indexing of the parent **T** grid points & select the values of this dataset nearest to (-30°E, 60°N):
 
 ```python
-nemo_geo = nemo.add_geo_index(grid="/gridT")
+nemo_geo = nemo.add_geo_index(grid="gridT")
 
 nemo_geo.dataset.sel(gphit=60, glamt=-30, method='nearest')
 ```
@@ -106,7 +106,7 @@ For example, to clip the parent **T**-grid in the bounding box (-80°E, 0°E, 40
 ```python
 bbox = (-80, 0, 40, 80)
 
-nemo.clip_grid(grid="/gridT", bbox=bbox)
+nemo.clip_grid(grid="gridT", bbox=bbox)
 ```
 
 ### Clip a NEMO Model Domain
@@ -170,7 +170,7 @@ To integrate a variable along one or more dimensions of a given NEMO model grid,
 For example, to compute the integral of conservative temperature `thetao_con` along the vertical `k` dimension in the NEMO model parent domain:
 
 ```python
-nemo.integral(grid="/gridT", var="thetao_con", dims=["k"])
+nemo.integral(grid="gridT", var="thetao_con", dims=["k"])
 ```
 
 which will return an `xarray.DataArray` with one less dimension than `thetao_con`, in this case `k` since we have integrated vertically.
@@ -182,7 +182,7 @@ We can also use the `.integral()` method to calculate cumulative integrals along
 For example, to calculate the vertical meridional overturning stream function from the meridional velocity `vo` (*zonally integrated meridional velocity accumulated with increasing depth*):
 
 ```python
-nemo.integral(grid="/gridV",
+nemo.integral(grid="gridV",
               var="vo",
               dims=["i", "k"], 
               cum_dims=["k"],
@@ -200,7 +200,7 @@ Note, we can also pass the `mask` argument to `.integral()` to mask the variable
 To define a regional mask using the geographical coordinates of a closed polygon, we can use the `.mask_with_polygon()` method:
 
 ```python
-nemo.mask_with_polygon(grid="/gridT", lon_poly, lat_poly)
+nemo.mask_with_polygon(grid="gridT", lon_poly, lat_poly)
 ```
 
 where `lon_poly` and `lat_poly` are lists or ndarrays containing the longitude and latitude coordinates defining the closed polygon.
@@ -212,7 +212,7 @@ To calculate an aggregated statistic from only the model grid cells contained in
 For example, to compute the grid cell area-weighted mean sea surface temperature `tos_con` for a region enclosed in a polygon defined by `lon_poly` and `lat_poly` in a NEMO model nested child domain:
 
 ```python
-nemo.masked_statistic(grid="/gridT/1_gridT",
+nemo.masked_statistic(grid="gridT/1_gridT",
                       var="tos_con",
                       lon_poly,
                       lat_poly,
@@ -234,7 +234,7 @@ For example, to compute the mean depth associated with each isopycnal in discret
 ```python
 sigma0_bins = np.arange(22, 29.05, 0.05)
 
-nemo.binned_statistic(grid="/gridT",
+nemo.binned_statistic(grid="gridT",
                       vars=["sigma0"],
                       values="deptht",
                       keep_dims=["time_counter"],
@@ -254,7 +254,7 @@ To transform a variable defined on a given NEMO horizontal grid to a neighbourin
 For example, to transform conservative temperature `thetao_con` defined on scalar **T**-points to neighbouring **V**-points in a NEMO model parent domain:
 
 ```python
-nemo.transform_to(grid='/gridT', var='thetao_con', to='V')
+nemo.transform_to(grid='gridT', var='thetao_con', to='V')
 ```
 
 We can also transform variables defined on **U**- and **V**-points to either scalar or vector grid points. Unlike transforming scalar variables defined on **T**-points,
@@ -275,7 +275,7 @@ For example, if we wanted to transform the conservative temperature variable `to
 ```python
 e3t_target = xr.DataArray(np.repeat(200.0, 30), dims=['k_new'])
 
-nemo.transform_vertical_grid(grid='/gridT',
+nemo.transform_vertical_grid(grid='gridT',
                              var = 'thetao_con',
                              e3_new = e3t_target
                             )
