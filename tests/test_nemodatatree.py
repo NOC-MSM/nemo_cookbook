@@ -165,7 +165,7 @@ class TestNEMODataTreeDatasets():
             nemo = NEMODataTree()
             # -- Verify KeyError -- #
             grid = "gridT"
-            expected_str = f"grid '{grid}' not found in the NEMODataTree."
+            expected_str = f"grid '{grid}' not found in available NEMODataTree grids"
             with pytest.raises(KeyError, match=expected_str):
                 nemo._get_properties(grid=grid)
 
