@@ -32,7 +32,7 @@ Alternatively, we can create a `NEMODataTree` from a dictionary of single or mul
 
 ```python
 ds_domain = xr.open_zarr("https://some_remote_data/domain_cfg.zarr")
-ds_gridT = xr.open_zarr("https://some_remote_data/MY_MODEL_gridT.nc")
+ds_gridT = xr.open_zarr("https://some_remote_data/MY_MODEL_gridT.zarr")
 
 datasets = {"parent": {"domain": ds_domain, "gridT": ds_gridT}}
 
@@ -67,7 +67,7 @@ For example, to compute the horizontal area of cells centered on **T** grid poin
 nemo.cell_area(grid="gridT", dim="k")
 ```
 
-Importantly, the `dim` argument represents the dimensional orthogonal to the grid cell area to be compute. For **T** grid points, this results in the following grid cell areas: 
+Importantly, the `dim` argument represents the dimensional orthogonal to the grid cell area to be computed. For **T** grid points, this results in the following grid cell areas: 
 
 | `dim`   | Grid Cell Area           |
 | ----------- | ---------------------- |
@@ -161,7 +161,7 @@ For example, to compute the vertical component of the curl of the seawater veloc
 nemo.curl(dom="2", vars=["uo", "vo"])
 ```
 
-where, as in the case of `.divergence()`, the `vars` argument expects a list of the `i` anf `j` components of the vector field, respectively.
+where, as in the case of `.divergence()`, the `vars` argument expects a list of the `i` and `j` components of the vector field, respectively.
 
 ### Calculate Integrals
 
@@ -270,7 +270,7 @@ nemo['/gridV']['tauuo'] = nemo.transform_to(grid='/gridU', var='tauuo', to='V')
 
 To transform a variable defined on a given NEMO model vertical grid to a new vertical grid using conservative interpolation, we can use the `.transform_vertical_grid()` method.
 
-For example, if we wanted to transform the conservative temperature variable `tos_con` defined in a NEMO model parent domain from it's native 75 unevenly-spaced z-levels to regulary spaced z-levels at 200 m intervals:
+For example, if we wanted to transform the conservative temperature variable `thetao_con` defined in a NEMO model parent domain from it's native 75 unevenly-spaced z-levels to regularly spaced z-levels at 200 m intervals:
 
 ```python
 e3t_target = xr.DataArray(np.repeat(200.0, 30), dims=['k_new'])
