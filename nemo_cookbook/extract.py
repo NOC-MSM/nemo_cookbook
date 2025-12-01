@@ -58,7 +58,7 @@ def create_section_polygon(
         lat_poly = np.concatenate([lat_sec, np.array([lat_sec[0] - dlat, lat_sec[0] - dlat, lat_sec[0]])])
     elif lat_sec[0] > lat_sec[-1]:
         lon_poly = np.concatenate([lon_sec, np.array([lon_sec[-1], lon_sec[0], lon_sec[0]])])
-        lat_poly = np.concatenate([lat_sec, np.array([lat_sec[-1] - dlat, lat_sec[-1] - dlat, lat_sec[-1]])])
+        lat_poly = np.concatenate([lat_sec, np.array([lat_sec[-1] - dlat, lat_sec[-1] - dlat, lat_sec[0]])])
     elif all(lat == lat_sec[0] for lat in lat_sec):
         raise ValueError("extracting zonal hydrographic sections is not supported.")
 

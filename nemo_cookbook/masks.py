@@ -389,7 +389,10 @@ def get_mask_boundary(
     """
     # -- Extract mask boundary -- #
     mask_data = mask.astype('int').values
-    boundary = measure.find_contours(image=mask_data, level=0.5)
+    boundary = measure.find_contours(image=mask_data,
+                                     level=0.5,
+                                     fully_connected='high'
+                                     )
 
     # -- Classify boundary grid points -- #
     # Store (i, j) coordinates on NEMO model grid.
