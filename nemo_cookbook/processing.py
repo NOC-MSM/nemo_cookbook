@@ -515,8 +515,6 @@ def _process_grid(
     if f"depth{grid_type}" in data.coords:
         data = data.rename_dims({f"depth{grid_type}": k_name})
         d_vars.update({f"depth{grid_type}": f"{label}depth{grid_type}"})
-    if "nav_lev" in data.dims:
-        d_vars.update({"nav_lev": k_name})
 
     # Rename mask variable:
     if mask_name in data.data_vars:
