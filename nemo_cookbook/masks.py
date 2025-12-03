@@ -16,6 +16,60 @@ from matplotlib.path import Path
 
 from .lbc import lbc_nfd
 
+def read_dom_mask(
+    ka: xr.DataArray,
+    ds_domain: xr.Dataset,
+    cd_nat: str,
+) -> xr.DataArray:
+    """
+    Read land/ocean mask arrays at tracer points, horizontal velocity
+    points (u & v) and vorticity points (f) points from domain dataset.
+
+    Expected dimensions are: (y, x) for 2D arrays and (nav_lev) for
+    1D vertical level array. All dimensions are expected to use
+    zero-based indexing.
+
+    Parameters
+    ----------
+    ka : xr.DataArray
+        1D array of vertical levels indexes (Fortran-based indexing).
+    ds_domain : xr.Dataset
+        NEMO model domain dataset.
+    cd_nat : str
+        Nature of array grid-points to read land/sea mask for.
+        Options are 'T', 'W', 'U', 'V' or 'F'.
+
+    Returns
+    -------
+    xr.DataArray
+        Read land/ocean mask for the specified grid point type.
+    """
+    if not isinstance(ka, xr.DataArray):
+        raise TypeError("ka must be an xarray DataArray")
+    if ka.ndim != 1:
+        raise ValueError("ka must be a 1D xarray DataArray")
+    if not isinstance(ds_domain, xr.Dataset):
+        raise TypeError("ds_domain must be an xarray Dataset")
+    if cd_nat not in ["T", "U", "V", "W", "F"]:
+        raise ValueError("cd_nat must be one of 'T', 'U', 'V', 'W', or 'F'")
+    
+    # -- Read mask from domain dataset -- #
+    try:
+        mask = ds_domain[f"{cd_nat.lower()}mask"]
+    except AttributeError as e:
+        raise AttributeError(f"missing '{cd_nat.lower()}mask' variable in domain dataset -> {e}")
+    
+    # Update coordinates to use zero-based indexing:
+    mask = (mask
+            .assign_coords(
+            {"nav_lev": ka,
+            "y": mask["y"],
+            "x": mask["x"]
+            })
+            )
+    
+    return mask
+
 
 def create_dom_mask(
     ka: xr.DataArray,
@@ -46,7 +100,7 @@ def create_dom_mask(
     bottom_level : xr.DataArray
         Bottom wet level in each grid column.
     cd_nat : str
-        Nature of array grid-points to compute the mask for.
+        Nature of array grid-points to compute land/sea mask for.
         Options are 'T', 'W', 'U', 'V' or 'F'.
     c_NFtype : str, optional
         Type of North Fold boundary condition to apply.

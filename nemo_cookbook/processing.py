@@ -11,7 +11,7 @@ Ollie Tooth (oliver.tooth@noc.ac.uk)
 import glob
 import numpy as np
 import xarray as xr
-from .masks import create_dom_mask
+from .masks import create_dom_mask, read_dom_mask
 
 
 def _add_parent_indices(
@@ -335,10 +335,10 @@ def _add_domain_vars(
         raise AttributeError(f"missing required T-grid variable in domain dataset -> {e}")
 
     if read_mask:
-        try:
-            d_grids['gridT']['tmask'] = domain["tmask"]
-        except AttributeError as e:
-            raise AttributeError(f"missing 'tmask' variable in domain dataset -> {e}")
+        d_grids['gridT']['tmask'] = read_dom_mask(ka=ka,
+                                                  ds_domain=domain,
+                                                  cd_nat="T"
+                                                  )
     else:
         d_grids['gridT']['tmask'] = create_dom_mask(ka=ka,
                                                     top_level=domain["top_level"],
@@ -361,10 +361,10 @@ def _add_domain_vars(
         raise AttributeError(f"missing required U-grid variable in domain dataset -> {e}")
 
     if read_mask:
-        try:
-            d_grids['gridU']['umask'] = domain["umask"]
-        except AttributeError as e:
-            raise AttributeError(f"missing 'umask' variable in domain dataset -> {e}")
+        d_grids['gridU']['umask'] = read_dom_mask(ka=ka,
+                                                  ds_domain=domain,
+                                                  cd_nat="U"
+                                                  )
     else:
         d_grids['gridU']['umask'] = create_dom_mask(ka=ka,
                                                     top_level=domain["top_level"],
@@ -387,10 +387,10 @@ def _add_domain_vars(
         raise AttributeError(f"missing required V-grid variable in domain dataset -> {e}")
 
     if read_mask:
-        try:
-            d_grids['gridV']['vmask'] = domain["vmask"]
-        except AttributeError as e:
-            raise AttributeError(f"missing 'vmask' variable in domain dataset -> {e}")
+        d_grids['gridV']['vmask'] = read_dom_mask(ka=ka,
+                                                    ds_domain=domain,
+                                                    cd_nat="V"
+                                                    )
     else:
         d_grids['gridV']['vmask'] = create_dom_mask(ka=ka,
                                                     top_level=domain["top_level"],
@@ -413,10 +413,10 @@ def _add_domain_vars(
         raise AttributeError(f"missing required W-grid variable in domain dataset -> {e}")
 
     if read_mask:
-        try:
-            d_grids['gridW']['wmask'] = domain["wmask"]
-        except AttributeError as e:
-            raise AttributeError(f"missing 'wmask' variable in domain dataset -> {e}")
+        d_grids['gridW']['wmask'] = read_dom_mask(ka=ka,
+                                                  ds_domain=domain,
+                                                  cd_nat="W"
+                                                  )
     else:
         d_grids['gridW']['wmask'] = create_dom_mask(ka=ka,
                                                     top_level=domain["top_level"],
@@ -440,10 +440,10 @@ def _add_domain_vars(
         raise AttributeError(f"missing required F-grid variable in domain dataset -> {e}")
 
     if read_mask:
-        try:
-            d_grids['gridF']['fmask'] = domain["fmask"]
-        except AttributeError as e:
-            raise AttributeError(f"missing 'fmask' variable in domain dataset -> {e}")
+        d_grids['gridF']['fmask'] = read_dom_mask(ka=ka,
+                                                  ds_domain=domain,
+                                                  cd_nat="F"
+                                                  )
     else:
         d_grids['gridF']['fmask'] = create_dom_mask(ka=ka,
                                                     top_level=domain["top_level"],
