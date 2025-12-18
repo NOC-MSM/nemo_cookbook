@@ -1,0 +1,71 @@
+name: 🐛 Bug Report
+description: File a bug report to help us improve NEMO Cookbook.
+labels: [bug, "needs triage"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: |
+        Thanks for reporting a bug! Please provide a concise description of what happened.
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-did-you-expect-to-happen
+    attributes:
+      label: What did you expect to happen?
+      description: |
+        Describe what you expected to happen.
+    validations:
+      required: false
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: Provide a minimal, self-contained copy-pastable example that demonstrates the issue.
+    validations:
+      required: true
+
+  - type: textarea
+    id: log-output
+    attributes:
+      label: Relevant Log Output
+      description: Copy and paste any relevant output. This will be automatically formatted into code, so no need for markdown backticks.
+      render: Python
+    validations:
+      required: true
+
+  - type: dropdown
+    id: python-version
+    attributes:
+      label: Python Version
+      options:
+        - "3.9"
+        - "3.10"
+        - "3.11"
+        - "3.12"
+        - "3.13"
+    validations:
+      required: true
+
+  - type: textarea
+    id: show-versions
+    attributes:
+      label: Environment
+      description: |
+        Include the OS, installation method, and relevant dependencies including the output of `xr.show_versions()`.
+      placeholder: |
+        OS: Linux / macOS / Windows
+        Install: pip / conda / source
+        ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else we need to know?
+      description: |
+        Please include any other information you want to share.

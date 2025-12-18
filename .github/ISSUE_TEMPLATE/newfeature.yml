@@ -1,0 +1,35 @@
+name: 💡 Feature Request
+description: Suggest an idea for a new NEMO Cookbook feature.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Is your feature request related to a problem?
+      description: |
+        Please search our existing issues to make sure that this feature has not been requested previously.
+        Please provide a clear and concise description of the problem you would like to solve.
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Describe the solution you'd like...
+      description: |
+        A clear and concise description of the behavior you would like to implement.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Describe any alternatives you've considered...
+      description: |
+        A clear and concise description of alternative solutions or features you've already considered.
+    validations:
+      required: false
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context
+      description: |
+        Add any other context about the feature request here.
+    validations:
+      required: false

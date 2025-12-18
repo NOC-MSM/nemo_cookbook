@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: ❓ Usage Question
+    url: https://github.com/NOC-MSM/nemo_cookbook/discussions
+    about: |
+      Ask questions and share ideas with other NEMO Cookbook community members here.
+      If you have a question like "How do I calculate eddy kinetic energy?" then
+      please include a self-contained, reproducible example if possible.
