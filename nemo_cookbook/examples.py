@@ -9,9 +9,11 @@ demonstrators.
 Author:
 Ollie Tooth (oliver.tooth@noc.ac.uk)
 """
+
 import os
 import pooch
 import importlib.resources as ir
+
 
 def _create_pooch_manager() -> pooch.Pooch:
     """
@@ -27,7 +29,7 @@ def _create_pooch_manager() -> pooch.Pooch:
         # Use the default cache folder for the operating system:
         path=pooch.os_cache("nemo_cookbook"),
         base_url="https://noc-msm-o.s3-ext.jc.rl.ac.uk/nemo-cookbook/example_data/",
-        registry=None
+        registry=None,
     )
     registry_path = str(ir.files("nemo_cookbook") / "registry.txt")
     pooch_manager.load_registry(registry_path)
@@ -35,9 +37,7 @@ def _create_pooch_manager() -> pooch.Pooch:
     return pooch_manager
 
 
-def get_filepaths(
-    example: str
-    ) -> str:
+def get_filepaths(example: str) -> str:
     """
     Retrieve filepaths for example outputs for a given
     NEMO model reference configuration.
@@ -58,10 +58,8 @@ def get_filepaths(
         raise TypeError("`example` must be a string.")
     valid_examples = ["AGRIF_DEMO", "AMM12", "IHO"]
     if example not in valid_examples:
-        raise ValueError(
-            f"`example` must be one of {valid_examples}, got {example}."
-        )
-    
+        raise ValueError(f"`example` must be one of {valid_examples}, got {example}.")
+
     # -- Collect filepath as dictionary -- #
     pooch_data = _create_pooch_manager()
     registry = pooch_data.registry
@@ -107,7 +105,7 @@ def _create_pooch_registry():
         "AMM12/AMM12_1d_20120102_20120110_grid_T.nc": f"{base_url}AMM12/AMM12_1d_20120102_20120110_grid_T.nc",
         "AMM12/AMM12_1d_20120102_20120110_grid_U.nc": f"{base_url}AMM12/AMM12_1d_20120102_20120110_grid_U.nc",
         "AMM12/AMM12_1d_20120102_20120110_grid_V.nc": f"{base_url}AMM12/AMM12_1d_20120102_20120110_grid_V.nc",
-        "IHO/IHO_World_Seas_v3_polygons.parquet": f"{base_url}IHO/IHO_World_Seas_v3_polygons.parquet"
+        "IHO/IHO_World_Seas_v3_polygons.parquet": f"{base_url}IHO/IHO_World_Seas_v3_polygons.parquet",
     }
 
     # Create a new directory to download output files:
@@ -118,10 +116,6 @@ def _create_pooch_registry():
     with open("registry.txt", "w") as registry:
         for fname, url in fnames_and_urls.items():
             # Download each data file to example_data/:
-            path = pooch.retrieve(
-                url=url, known_hash=None, fname=fname, path=directory
-            )
+            path = pooch.retrieve(url=url, known_hash=None, fname=fname, path=directory)
             # Append the filename, hash, and URL to a new registry file:
-            registry.write(
-                f"{fname} {pooch.file_hash(path)} {url}\n"
-            )
+            registry.write(f"{fname} {pooch.file_hash(path)} {url}\n")
