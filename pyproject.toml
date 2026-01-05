@@ -27,7 +27,7 @@ dependencies = [
   "numbagg>=0.8",
   "numba>=0.59",
   "numpy<2.3",    # numba has not updated yet: https://github.com/numba/numba/issues/10105
-  "netCDF==1.7.3",
+  "netCDF4<=1.7.3",
   "pooch",
   "requests>=2.32.3",
   "scikit-learn>=1.7.1",
