@@ -65,3 +65,15 @@ include = ["nemo_cookbook*"]
 
 [tool.setuptools.package-data]
 nemo_cookbook = ["registry.txt"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B"]
+ignore = ["E501"]
+
+[tool.ruff.format]
+quote-style = "double"
+
