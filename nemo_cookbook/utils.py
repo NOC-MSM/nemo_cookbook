@@ -8,6 +8,7 @@ the NEMODataTree structure.
 Author:
 Ollie Tooth (oliver.tooth@noc.ac.uk)
 """
+
 import numpy as np
 from sklearn.neighbors import BallTree
 from xarray.indexes.nd_point_index import TreeAdapter
@@ -21,6 +22,7 @@ class SklearnGeoBallTreeAdapter(TreeAdapter):
     See:
     https://xarray-indexes.readthedocs.io/blocks/ndpoint.html
     """
+
     def __init__(self, points: np.ndarray, options: dict):
         """
         Initialize the BallTree with Haversine metric.
@@ -36,11 +38,7 @@ class SklearnGeoBallTreeAdapter(TreeAdapter):
         options.update({"metric": "haversine"})
         self._balltree = BallTree(np.deg2rad(points), **options)
 
-
-    def query(
-        self,
-        points: np.ndarray
-    ) -> tuple[np.ndarray, np.ndarray]:
+    def query(self, points: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """
         Query the BallTree for nearest neighbors.
 
@@ -49,7 +47,7 @@ class SklearnGeoBallTreeAdapter(TreeAdapter):
         points : ndarray
             Array of shape (n_query, 2) containing latitude-longitude
             coordinates in degrees.
-        
+
         Returns
         -------
         tuple of ndarrays
@@ -57,11 +55,7 @@ class SklearnGeoBallTreeAdapter(TreeAdapter):
         """
         return self._balltree.query(np.deg2rad(points))
 
-
-    def equals(
-        self,
-        other: "SklearnGeoBallTreeAdapter"
-    ) -> bool:
+    def equals(self, other: "SklearnGeoBallTreeAdapter") -> bool:
         """
         Check equality with alternative xarray TreeAdapter.
 
@@ -70,6 +64,4 @@ class SklearnGeoBallTreeAdapter(TreeAdapter):
         other : TreeAdapter
             Another TreeAdapter instance to compare against.
         """
-        return np.array_equal(
-            self._balltree.data, other._balltree.data
-        )
+        return np.array_equal(self._balltree.data, other._balltree.data)

@@ -9,9 +9,11 @@ domains.
 Author:
 Ollie Tooth (oliver.tooth@noc.ac.uk)
 """
+
 import numpy as np
 import numpy.typing as npt
 from numba import guvectorize, prange
+
 
 # -- Internal Functions -- #
 @guvectorize(
@@ -69,7 +71,7 @@ def transform_vertical_coords(
         e3t_adjusted[0] = total_thickness
     else:
         last_index = valid_indices[-1].item()
-        e3t_adjusted = e3_target[:last_index + 2].copy()
+        e3t_adjusted = e3_target[: last_index + 2].copy()
         e3t_adjusted[-1] = total_thickness - e3t_adjusted[:-1].sum()
 
     n_target = e3t_adjusted.size
