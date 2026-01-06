@@ -149,6 +149,11 @@ def create_dom_mask(
 
     # Mask closed seas:
     if mask_opensea is not None:
+        # Use Fortran-based indexing for (nav_lev, x, y) coordinates:
+        mask_opensea = mask_opensea.assign_coords(
+            {"x": mask_opensea["x"] + 1, "y": mask_opensea["y"] + 1}
+        )
+        # Apply open-sea mask to top & bottom levels:
         top_level = top_level.where(mask_opensea)
         bottom_level = bottom_level.where(mask_opensea)
 
