@@ -52,7 +52,7 @@ nemo[{grid_name}][{variable_name}]
 However, if we want to automatically mask the chosen variable with the appropriate domain mask, we can instead provide the direct path to the variable as follows:
 
 ```python
-nemo["/gridT/thetao_con"]
+nemo["gridT/thetao_con"]
 ```
 
 In the example above, the 4-dimensional conservative temperature variable `thetao_con` is masked using the 3-dimensional `tmask` before being returned.
@@ -82,7 +82,7 @@ To calculate the volume of model grid cells, we can use the `.cell_volume()` met
 For example, to compute the volume of each grid cell centered on a **V** grid point in the model parent domain:
 
 ```python
-nemo.cell_volumes(grid="gridV")
+nemo.cell_volume(grid="gridV")
 ```
 
 ### Indexing with Geographical Coordinates
@@ -263,7 +263,7 @@ this is achieved by linearly interpolating the grid cell face area-weighted flux
 For example, to transform the zonal wind stress defined on **U**-points to neighbouring **V**-points in a NEMO model parent domain and store this in the **V**-grid node of our NEMODataTree:
 
 ```python
-nemo['/gridV']['tauuo'] = nemo.transform_to(grid='/gridU', var='tauuo', to='V')
+nemo['gridV']['tauuo'] = nemo.transform_to(grid='gridU', var='tauuo', to='V')
 ```
 
 ### Transform a Vertical Grid
