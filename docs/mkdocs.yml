@@ -30,11 +30,21 @@ theme:
     - search.suggest
 
   palette:
-    # Light Mode
-    - scheme: default
+    # Light Mode (system preference)
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
       toggle:
         icon: material/weather-night
-        name: Light mode
+        name: Light Mode
+      primary: light blue
+      accent: deep orange
+
+    # Dark Mode (system preference)
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/weather-sunny
+        name: Dark Mode
       primary: light blue
       accent: deep orange
 
