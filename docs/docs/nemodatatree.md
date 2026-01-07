@@ -18,12 +18,14 @@ This is where the `xarray.DataTree` comes in.
 The `xarray.DataTree` extends the more familiar collection of xarray data structures (e.g., `xarray.Dataset`) to allow hierarchical grouping of datasets, similar to a local file system. Each `xarray.DataTree` is composed of a hierarchy of nodes, each containing a separate `xarray.Dataset`. 
 
 ```
-DataTree('root')
-└──global
-    └── regional_nest
+<xarray.DataTree 'OceanModel'>
+Group: /
+└── Group: /global
+    ├── Group: /global/regional_nest_1
+    └── Group: /global/regional_nest_2
 ```
 
-The root node sits at the top of the DataTree ('/') and each of its child nodes can have children (or sub-groups) of their own. In the example above, the root node has a single child node (`global`) storing the global domain outputs of an ocean model simulation. This in-turn has a single child node (`regional_nest`) storing the outputs of a regional nest inside the global domain.
+The root node sits at the top of the DataTree ('/') and each of its child nodes can have children (or sub-groups) of their own. In the example above, the root node has a single child node (`global`) storing the global domain outputs of an ocean model simulation `OceanModel`. This in-turn has two child nodes (`regional_nest_1` & `regional_nest_2`) storing the outputs of two regional nests located inside the global domain.
 
 We can hence describe each node in a DataTree in terms of the `parent` to which the node belongs, and its `children` - child nodes to which it is the parent. The root node is an important exception however, since it has no `parent` node.
 
