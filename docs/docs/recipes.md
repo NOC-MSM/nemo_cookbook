@@ -19,20 +19,20 @@
 
 8. Vertical coordinate transformations.
 
+9. Barotropic stream functions.
+
 ### Recipes In Development
 ---
 
-1. Barotropic stream functions.
+1. Meridional overturning stream functions in multi-envelope sigma coordinates.
 
-2. Meridional overturning stream functions in multi-envelope sigma coordinates.
+2. Ocean heat content & mixed layer heat content. 
 
-3. Ocean heat content & mixed layer heat content. 
+3. Sea ice diagnostics.
 
-4. Sea ice diagnostics.
-
-5. Vorticity diagnostics.
+4. Vorticity diagnostics.
 
 ### Contributing New Recipes...
 ---
 
-If you've used `NEMODataTree` to calculate a frequently used diagnostic not currently included in the **Recipe Lists** above, we'd strongly encourage you to visit the [Contributing] page to learn more how to add this to the **NEMO Cookbook**.
+If you've used `NEMODataTree` to calculate a commonly used diagnostic not currently included in the **Recipe Lists** above, we'd strongly encourage you to visit the [Contributing] page to learn more how to add this to the **NEMO Cookbook**.
