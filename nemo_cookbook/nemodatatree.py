@@ -2079,6 +2079,8 @@ class NEMODataTree(xr.DataTree):
         )
 
         # -- Update interpolated variable -- #
+        # Retain input variable name:
+        result.name = da.name
         # Reorder dimensions (time_counter, [k], j, i):
         new_dims = (result.dims[-1], *result.dims[:-1])
         result = result.transpose(*new_dims)
