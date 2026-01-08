@@ -171,8 +171,8 @@ For a nested NEMO model configuration, including a parent, child and grandchild 
 <xarray.DataTree 'nemo'>
 Group: /
 ├── Group: /gridT
-|   └── Group: /gridU/1_gridU
-|       └── Group: /gridU/1_gridU/2_gridU
+|   └── Group: /gridT/1_gridT
+|       └── Group: /gridT/1_gridT/2_gridT
 ├── Group: /gridU
 |   └── Group: /gridU/1_gridU
 |       └── Group: /gridU/1_gridU/2_gridU
@@ -496,9 +496,6 @@ Group: /
 │   Dimensions:               (time_counter: 8, axis_nbounds: 2)
 │   ...
 │ 
-├── Group: /gridT
-│   Dimensions:               (time_counter: 8, axis_nbounds: 2)
-│   ...
 ├── Group: /gridT
 │       Dimensions:               (time_counter: 8, axis_nbounds: 2, j: 224, i: 198,
 │                                  k: 51)
