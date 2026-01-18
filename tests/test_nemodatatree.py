@@ -243,7 +243,7 @@ class TestNEMODataTreeDatasets():
             nemo[grid] = xr.Dataset()
             # -- Verify KeyError -- #
             dims = ["i"]
-            expected_str = f"weights missing for dimensions {dims} of NEMO model grid {grid}:"
+            expected_str = f"weights missing for dimensions {dims} of NEMO model grid {grid}"
             with pytest.raises(KeyError, match=re.escape(expected_str)):
                 nemo._get_weights(grid=grid, dims=dims)
 
