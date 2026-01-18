@@ -258,7 +258,7 @@ def _open_grid_datasets(
             d_data["domain"] = xr.open_dataset(d_in["domain"])
             _check_grid_dims(ds=d_data["domain"], grid="domain")
         except FileNotFoundError as e:
-            raise FileNotFoundError(f"could not open domain configuration file: {e}")
+            raise FileNotFoundError("could not open domain configuration file") from e
     else:
         raise KeyError("missing 'domain' key in paths dictionary.")
 
@@ -272,7 +272,7 @@ def _open_grid_datasets(
                     d_data[key] = xr.open_dataset(d_in[key], **open_kwargs)
                 _check_grid_dims(ds=d_data[key], grid=key)
             except FileNotFoundError as e:
-                raise FileNotFoundError(f"could not open {key} file: {e}")
+                raise FileNotFoundError(f"could not open {key} file(s)") from e
         else:
             d_data[key] = xr.Dataset()
 
@@ -363,8 +363,8 @@ def _add_domain_vars(
         d_grids["gridT"]["bottom_level"] = domain["bottom_level"]
     except AttributeError as e:
         raise AttributeError(
-            f"missing required T-grid variable in domain dataset -> {e}"
-        )
+            "missing required T-grid variable in domain dataset"
+        ) from e
 
     if read_mask:
         d_grids["gridT"]["tmask"] = read_dom_mask(ka=ka, ds_domain=domain, cd_nat="T")
@@ -391,8 +391,8 @@ def _add_domain_vars(
         d_grids["gridU"]["glamu"] = domain["glamu"]
     except AttributeError as e:
         raise AttributeError(
-            f"missing required U-grid variable in domain dataset -> {e}"
-        )
+            "missing required U-grid variable in domain dataset"
+        ) from e
 
     if read_mask:
         d_grids["gridU"]["umask"] = read_dom_mask(ka=ka, ds_domain=domain, cd_nat="U")
@@ -419,8 +419,8 @@ def _add_domain_vars(
         d_grids["gridV"]["glamv"] = domain["glamv"]
     except AttributeError as e:
         raise AttributeError(
-            f"missing required V-grid variable in domain dataset -> {e}"
-        )
+            "missing required V-grid variable in domain dataset"
+        ) from e
 
     if read_mask:
         d_grids["gridV"]["vmask"] = read_dom_mask(ka=ka, ds_domain=domain, cd_nat="V")
@@ -447,8 +447,8 @@ def _add_domain_vars(
         d_grids["gridW"]["glamt"] = domain["glamt"]
     except AttributeError as e:
         raise AttributeError(
-            f"missing required W-grid variable in domain dataset -> {e}"
-        )
+            "missing required W-grid variable in domain dataset"
+        ) from e
 
     if read_mask:
         d_grids["gridW"]["wmask"] = read_dom_mask(ka=ka, ds_domain=domain, cd_nat="W")
@@ -476,8 +476,8 @@ def _add_domain_vars(
         d_grids["gridF"]["glamf"] = domain["glamf"]
     except AttributeError as e:
         raise AttributeError(
-            f"missing required F-grid variable in domain dataset -> {e}"
-        )
+            "missing required F-grid variable in domain dataset"
+        ) from e
 
     if read_mask:
         d_grids["gridF"]["fmask"] = read_dom_mask(ka=ka, ds_domain=domain, cd_nat="F")
@@ -617,7 +617,7 @@ def _process_parent(
     iperio: bool = False,
     nftype: str | None = None,
     read_mask: bool = False,
-    open_kwargs: dict[str, any] = {},
+    open_kwargs: dict[str, any] | None = None,
 ) -> dict[str, xr.Dataset]:
     """
     Create Dictionary of grid datasets defining a NEMO model parent domain.
@@ -673,6 +673,10 @@ def _process_parent(
             '/gridF': xr.Dataset
         }
     """
+    # Define default open_kwargs:
+    if open_kwargs is None:
+        open_kwargs = {}
+
     # Open NEMO domain and grid datasets:
     if isinstance(d_parent, dict) and all(
         isinstance(entry, str) for entry in d_parent.values()
@@ -733,7 +737,7 @@ def _process_child(
     parent_label: int,
     read_mask: bool = False,
     nbghost_child: int = 4,
-    open_kwargs: dict[str, any] = {},
+    open_kwargs: dict[str, any] | None = None,
 ) -> dict[str, xr.Dataset]:
     """
     Create Dictionary of grid datasets defining a NEMO model (grand)child domain.
@@ -812,6 +816,10 @@ def _process_child(
         }
 
     """
+    # Define default open_kwargs:
+    if open_kwargs is None:
+        open_kwargs = {}
+
     # Open NEMO (grand)child domain and grid datasets:
     if isinstance(d_child, dict) and all(
         isinstance(entry, str) for entry in d_child.values()
@@ -906,7 +914,7 @@ def create_datatree_dict(
     nftype: str | None = None,
     read_mask: bool = False,
     nbghost_child: int = 4,
-    open_kwargs: dict[str, any] = {},
+    open_kwargs: dict[str, any] | None = None,
 ) -> dict[str, xr.Dataset]:
     """
     Create Dictionary of DataTree paths (keys) and xarray Datasets (values)
@@ -941,6 +949,10 @@ def create_datatree_dict(
     dict[str, xr.Dataset]
         Dictionary of DataTree paths and processed NEMO grids defining a hierarchical DataTree.
     """
+    # Define default open_kwargs:
+    if open_kwargs is None:
+        open_kwargs = {}
+
     # -- Assign the parent domain -- #
     d_tree = _process_parent(
         d_parent=d_parent,

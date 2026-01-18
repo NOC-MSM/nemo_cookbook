@@ -528,8 +528,8 @@ class NEMODataTree(xr.DataTree):
             weights_list = [cls[f"{grid}/{weights_dict[dim]}"] for dim in dims]
         except KeyError as e:
             raise KeyError(
-                f"weights missing for dimensions {dims} of NEMO model grid {grid}: {e}"
-            )
+                f"weights missing for dimensions {dims} of NEMO model grid {grid}"
+            ) from e
 
         if len(weights_list) == 1:
             weights = weights_list[0]
@@ -821,10 +821,10 @@ class NEMODataTree(xr.DataTree):
                         {dim_name: slice(1, None)}
                     )
                     gradient = gradient.drop_vars([f"{dom_prefix}deptht"])
-                except KeyError:
+                except KeyError as e:
                     raise KeyError(
                         f"NEMO model grid: '{gridW}' does not contain vertical scale factor 'e3w' required to calculate gradients along the k-dimension."
-                    )
+                    ) from e
 
         # Update DataArray properties:
         gradient.name = f"grad_{var}_{dim_name}"
@@ -1492,7 +1492,7 @@ class NEMODataTree(xr.DataTree):
     def extract_mask_boundary(
         cls,
         mask: xr.DataArray,
-        uv_vars: list = ["uo", "vo"],
+        uv_vars: list | None = None,
         vars: list | None = None,
         dom: str = ".",
     ) -> xr.Dataset:
@@ -1541,6 +1541,13 @@ class NEMODataTree(xr.DataTree):
             raise ValueError(
                 "dom must be a string specifying prefix of a NEMO domain (e.g., '.', '1', '2', etc.)."
             )
+        if uv_vars is None:
+            uv_vars = ["uo", "vo"]
+        else:
+            if not isinstance(uv_vars, list) or len(uv_vars) != 2:
+                raise ValueError(
+                    "uv_vars must be a list of velocity variables to extract (e.g., ['u', 'v'])."
+                )
 
         # -- Get NEMO model grid properties -- #
         dom_prefix, dom_suffix = cls._get_properties(dom=dom)
@@ -1667,7 +1674,7 @@ class NEMODataTree(xr.DataTree):
         cls,
         lon_section: np.ndarray,
         lat_section: np.ndarray,
-        uv_vars: list = ["uo", "vo"],
+        uv_vars: list | None = None,
         vars: list | None = None,
         dom: str = ".",
     ) -> xr.Dataset:
@@ -1711,6 +1718,23 @@ class NEMODataTree(xr.DataTree):
         --------
         extract_mask_boundary
         """
+        # -- Validate input -- #
+        if not isinstance(lon_section, np.ndarray):
+            raise TypeError("lon_section must be a numpy array.")
+        if not isinstance(lat_section, np.ndarray):
+            raise TypeError("lat_section must be a numpy array.")
+        if not isinstance(dom, str):
+            raise ValueError(
+                "dom must be a string specifying prefix of a NEMO domain (e.g., '.', '1', '2', etc.)."
+            )
+        if uv_vars is None:
+            uv_vars = ["uo", "vo"]
+        else:
+            if not isinstance(uv_vars, list) or len(uv_vars) != 2:
+                raise ValueError(
+                    "uv_vars must be a list of velocity variables to extract (e.g., ['u', 'v'])."
+                )
+
         # -- Get NEMO model grid properties -- #
         grid_paths = cls._get_grid_paths(dom=dom)
 

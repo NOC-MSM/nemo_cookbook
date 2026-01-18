@@ -33,7 +33,7 @@ def masked_average(
         Masked average of a DataArray collection.
     """
     # Define sum of non-masked DataArray values:
-    data_sum = sum([xr.where(mask, da, 0) for da, mask in zip(da_list, mask_list)])
+    data_sum = sum([xr.where(mask, da, 0) for da, mask in zip(da_list, mask_list, strict=True)])
 
     # Determine number of non-masked values:
     mask_sum = sum([mask.fillna(False).astype(int) for mask in mask_list])

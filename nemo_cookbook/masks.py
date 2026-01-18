@@ -386,7 +386,7 @@ def create_polygon_mask(
     lat_grid = lat_grid.values
 
     # Prepare polygon:
-    poly_coords = list(zip(lon_poly, lat_poly))
+    poly_coords = list(zip(lon_poly, lat_poly, strict=True))
     polygon = Path(poly_coords)
 
     # Define coords of polygon bbox:
@@ -409,7 +409,7 @@ def create_polygon_mask(
         # Find model coordinates within bbox & polygon:
         lon_mdl = lon_grid[j_bbox, i_bbox]
         lat_mdl = lat_grid[j_bbox, i_bbox]
-        mdl_coords = np.array(list(zip(lon_mdl, lat_mdl)))
+        mdl_coords = np.array(list(zip(lon_mdl, lat_mdl, strict=True)))
         mask_points = polygon.contains_points(mdl_coords)
 
         # Populate mask where model grid cells are within polygon:
