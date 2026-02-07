@@ -1,27 +1,86 @@
 # Summary
 
-### Available Recipes
+### :book: Available Recipes
 ---
 
-1. Meridional overturning stream function in an arbitrary tracer coordinates.
+<div class="grid cards" markdown>
 
-2. Meridional overturning stream function in depth coordinates (z/z*).
+-   __Meridional Overturning - Tracer__
 
-3. Meridional heat & salt transports.
+    ---
 
-4. Surface-forced water mass transformation in potential density coordinates.
+    Meridional overturning stream function in an arbitrary tracer coordinates.
 
-5. Volume census in T-S coordinates.
+    [:octicons-arrow-right-24: Recipe](https://noc-msm.github.io/nemo_cookbook/recipe_moc_tracer/)
 
-6. Masked statistics using bounding boxes and polygons.
+-   __Meridional Overturning - Vertical__
 
-7. Extracting volume transports and properties along the Overturning in the Subpolar North Atlantic array.
+    ---
 
-8. Vertical coordinate transformations.
+    Meridional overturning stream function in vertical coordinates (z/z*).
 
-9. Barotropic stream functions.
+    [:octicons-arrow-right-24: Recipe](https://noc-msm.github.io/nemo_cookbook/recipe_moc_z/)
 
-### Recipes In Development
+-   __Ocean Transports__
+
+    ---
+
+    Seawater volume, heat and freshwater transports.
+
+    [:octicons-arrow-right-24: Recipe](https://noc-msm.github.io/nemo_cookbook/)
+
+-   __Volume Census__
+
+    ---
+
+    Seawater volume census in discrete temperature - salinity coordinates.
+
+    [:octicons-arrow-right-24: Recipe](https://noc-msm.github.io/nemo_cookbook/recipe_volume_census)
+
+-   __Water Mass Transformation__
+
+    ---
+
+    Surface-forced water mass transformation in discrete potential density coordinates.
+
+    [:octicons-arrow-right-24: Recipe](https://noc-msm.github.io/nemo_cookbook/recipe_sfwmt_sigma0)
+
+-   __Masked Statistics__
+
+    ---
+
+    Grid-aware masked statistics using bounding boxes and geographical polyons.
+
+    [:octicons-arrow-right-24: Recipe](https://noc-msm.github.io/nemo_cookbook/recipe_masked_stats)
+
+-   __Barotropic Stream Function__
+
+    ---
+
+    Regional barotropic stream functions using grid-aware integration.
+
+    [:octicons-arrow-right-24: Recipe](https://noc-msm.github.io/nemo_cookbook/recipe_barotropic_sf)
+
+-   __Vertical Coordinate Transformations__
+
+    ---
+
+    Transforming vertical coordinates using conservative remapping.
+
+    [:octicons-arrow-right-24: Recipe](https://noc-msm.github.io/nemo_cookbook/recipe_transform_vertical_coords)
+
+-   __Extracting Hydrographic Sections__
+
+    ---
+
+    Extracting volume transports and properties along the Overturning in the Subpolar North Atlantic array.
+
+    [:octicons-arrow-right-24: Recipe](https://noc-msm.github.io/nemo_cookbook/recipe_extract_osnap)
+
+</div>
+
+
+### :hammer: Recipes In Development
 ---
 
 1. Meridional overturning stream functions in multi-envelope sigma coordinates.
@@ -35,4 +94,6 @@
 ### Contributing New Recipes...
 ---
 
-If you've used `NEMODataTree` to calculate a commonly used diagnostic not currently included in the **Recipe Lists** above, we'd strongly encourage you to visit the [Contributing] page to learn more how to add this to the **NEMO Cookbook**.
+If you've used `NEMODataTree` to calculate a commonly used diagnostic not currently included in the **Recipe Lists** above, we'd strongly encourage you to visit the [Contributing] page to learn more about contributing to the **NEMO Cookbook**.
+
+[Contributing]: contributing.md
