@@ -193,7 +193,19 @@ where `dims` is a list of the names of all grid dimensions along which integrati
 
 The `dir` argument is used to define the direction of cumulative integration, where `dir = "+1"` means accumulating along the chosen dimension, such that grid indices are increasing. Conversely, `dir = "-1"` means that cumulative integration is performed after reversing the chosen dimension, such that grid dimensions are decreasing.
 
-Note, we can also pass the `mask` argument to `.integral()` to mask the variable `var` prior to performing the integration. 
+Note, we can also pass the `mask` argument to `.integral()` to mask the variable `var` prior to performing the integration.
+
+### Calculate Depth Integrals
+
+To integrate a variable of a given NEMO model grid in depth coordinates between two limits, we can use the `.depth_integral()` method.
+
+For example, to compute the vertical integral of conservative temperature `thetao_con` in the upper 100 m in the NEMO model parent domain:
+
+```python
+nemo.depth_integral(grid='gridT', var='thetao_con', limits=(0, 100))
+```
+
+where `limits` is a tuple of the form (depth_lower, depth_upper) where depth_lower and depth_upper are the lower and upper limits of vertical integration, respectively.
 
 ### Create Regional Masks using Polygons
 
