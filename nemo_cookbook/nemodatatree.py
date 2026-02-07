@@ -17,6 +17,7 @@ from xarray.indexes import NDPointIndex
 from nemo_cookbook.utils import SklearnGeoBallTreeAdapter
 from typing import Self
 
+from .core import compute_depth_integral
 from .interpolate import interpolate_grid
 from .masks import create_polygon_mask, get_mask_boundary
 from .processing import create_datatree_dict
@@ -1168,6 +1169,89 @@ class NEMODataTree(xr.DataTree):
         else:
             # Integration only:
             result = da.weighted(weights).sum(dim=dims, skipna=True)
+
+        return result
+
+    def depth_integral(
+        cls, grid: str, var: str, limits: tuple[int | float]
+    ) -> xr.Dataset:
+        """
+        Integrate a variable in depth coordinates between two limits.
+
+        Parameters
+        ----------
+        grid : str
+            Path to NEMO model grid where variable is stored (e.g., 'gridT').
+        var : str
+            Name of the variable to vertically integrate.
+        limits : tuple[int | float]
+            Limits of depth integration given as a tuple of the form
+            (depth_lower, depth_upper) where depth_lower and depth_upper are
+            the lower and upper limits of vertical integration, respectively.
+
+        Returns
+        -------
+        xr.DataArray
+            Vertical integral of chosen variable between depth surfaces (depth_lower, depth_upper).
+
+        Examples
+        --------
+        Vertically integrate the conservative temperature variable `thetao_con` defined in a
+        NEMO model parent domain from the sea surface to 100 m depth:
+
+        >>> nemo.depth_integral(grid='gridT',
+        ...                     var='thetao_con',
+        ...                     limits=(0, 100)
+        ...                              )
+
+        See Also
+        --------
+        integral
+        """
+        # -- Validate input -- #
+        grid_keys = list(dict(cls.subtree_with_keys).keys())
+        if grid not in grid_keys:
+            raise KeyError(
+                f"grid '{grid}' not found in available NEMODataTree grids {grid_keys}."
+            )
+        if var not in cls[grid].data_vars:
+            raise KeyError(f"Variable '{var}' not found in grid '{grid}'.")
+        if (not isinstance(limits, tuple)) | (len(limits) != 2):
+            raise TypeError(
+                "depth limits of integration should be given by a tuple of the form (depth_lower, depth_upper)"
+            )
+        if (limits[0] < 0) | (limits[1] < 0):
+            raise ValueError("depth limits of integration must be non-negative.")
+        if limits[0] >= limits[1]:
+            raise ValueError(
+                "lower depth limit must be less than upper depth limit."
+            )
+
+        # -- Get NEMO model grid properties -- #
+        dom, _, _, grid_suffix = cls._get_properties(grid=grid, infer_dom=True)
+        ijk_names = cls._get_ijk_names(dom=dom)
+        i_name, j_name, k_name = ijk_names["i"], ijk_names["j"], ijk_names["k"]
+
+        # -- Define input variables -- #
+        var_in = cls[f"{grid}/{var}"]
+        e3_in = cls[f"{grid}/e3{grid_suffix}"]
+
+        # -- Vertically integrate w.r.t depth -- #
+        result = xr.apply_ufunc(
+            compute_depth_integral,
+            e3_in,
+            var_in,
+            np.array([limits[1]]),
+            np.array([limits[0]]),
+            input_core_dims=[[k_name], [k_name], [None], [None]],
+            output_core_dims=[["k_new"]],
+            dask="allowed",
+        )
+
+        # -- Create variable integral DataArray -- #
+        t_name = var_in.dims[0]
+        result = result.transpose(t_name, "k_new", j_name, i_name).squeeze()
+        result.name = f"{var}_integral"
 
         return result
 
