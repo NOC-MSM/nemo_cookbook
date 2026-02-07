@@ -23,7 +23,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install pytest pytest-mock
-          pip install git+https://github.com/NOC-MSM/nemo_cookbook.git
+          pip install .
 
       - name: 🧪 Run Pytest
         run: |
