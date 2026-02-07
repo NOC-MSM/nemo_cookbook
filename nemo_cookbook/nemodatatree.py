@@ -17,6 +17,7 @@ from xarray.indexes import NDPointIndex
 from nemo_cookbook.utils import SklearnGeoBallTreeAdapter
 from typing import Self
 
+from .core import compute_depth_integral
 from .interpolate import interpolate_grid
 from .masks import create_polygon_mask, get_mask_boundary
 from .processing import create_datatree_dict
@@ -1171,6 +1172,89 @@ class NEMODataTree(xr.DataTree):
 
         return result
 
+    def depth_integral(
+        cls, grid: str, var: str, limits: tuple[int | float]
+    ) -> xr.Dataset:
+        """
+        Integrate a variable in depth coordinates between two limits.
+
+        Parameters
+        ----------
+        grid : str
+            Path to NEMO model grid where variable is stored (e.g., 'gridT').
+        var : str
+            Name of the variable to vertically integrate.
+        limits : tuple[int | float]
+            Limits of depth integration given as a tuple of the form
+            (depth_lower, depth_upper) where depth_lower and depth_upper are
+            the lower and upper limits of vertical integration, respectively.
+
+        Returns
+        -------
+        xr.DataArray
+            Vertical integral of chosen variable between depth surfaces (depth_lower, depth_upper).
+
+        Examples
+        --------
+        Vertically integrate the conservative temperature variable `thetao_con` defined in a
+        NEMO model parent domain from the sea surface to 100 m depth:
+
+        >>> nemo.depth_integral(grid='gridT',
+        ...                     var='thetao_con',
+        ...                     limits=(0, 100)
+        ...                              )
+
+        See Also
+        --------
+        integral
+        """
+        # -- Validate input -- #
+        grid_keys = list(dict(cls.subtree_with_keys).keys())
+        if grid not in grid_keys:
+            raise KeyError(
+                f"grid '{grid}' not found in available NEMODataTree grids {grid_keys}."
+            )
+        if var not in cls[grid].data_vars:
+            raise KeyError(f"Variable '{var}' not found in grid '{grid}'.")
+        if (not isinstance(limits, tuple)) | (len(limits) != 2):
+            raise TypeError(
+                "depth limits of integration should be given by a tuple of the form (depth_lower, depth_upper)"
+            )
+        if (limits[0] < 0) | (limits[1] < 0):
+            raise ValueError("depth limits of integration must be non-negative.")
+        if limits[0] >= limits[1]:
+            raise ValueError(
+                "lower depth limit must be less than upper depth limit."
+            )
+
+        # -- Get NEMO model grid properties -- #
+        dom, _, _, grid_suffix = cls._get_properties(grid=grid, infer_dom=True)
+        ijk_names = cls._get_ijk_names(dom=dom)
+        i_name, j_name, k_name = ijk_names["i"], ijk_names["j"], ijk_names["k"]
+
+        # -- Define input variables -- #
+        var_in = cls[f"{grid}/{var}"]
+        e3_in = cls[f"{grid}/e3{grid_suffix}"]
+
+        # -- Vertically integrate w.r.t depth -- #
+        result = xr.apply_ufunc(
+            compute_depth_integral,
+            e3_in,
+            var_in,
+            np.array([limits[1]]),
+            np.array([limits[0]]),
+            input_core_dims=[[k_name], [k_name], [None], [None]],
+            output_core_dims=[["k_new"]],
+            dask="allowed",
+        )
+
+        # -- Create variable integral DataArray -- #
+        t_name = var_in.dims[0]
+        result = result.transpose(t_name, "k_new", j_name, i_name).squeeze()
+        result.name = f"{var}_integral"
+
+        return result
+
     def clip_grid(
         cls,
         grid: str,
@@ -1236,7 +1320,7 @@ class NEMODataTree(xr.DataTree):
 
         # Update shallow copy of NEMODataTree:
         cls_copy = cls.copy()
-        cls_copy[grid] = grid_clipped
+        cls_copy[grid].dataset = grid_clipped
 
         return cls_copy
 
@@ -1285,41 +1369,41 @@ class NEMODataTree(xr.DataTree):
             )
 
         # -- Get NEMO model grid properties -- #
-        dom_prefix, _ = cls._get_properties(dom=dom)
         grid_paths = cls._get_grid_paths(dom=dom)
+        ijk_names = cls._get_ijk_names(dom=dom)
+        i_name, j_name = ijk_names["i"], ijk_names["j"]
 
         # -- Clip grids to given bounding box -- #
         if not grid_paths:
             raise ValueError(f"NEMO model domain '{dom}' not found in the DataTree.")
         else:
-            # Update shallow copy of NEMODataTree:
-            cls_copy = cls.copy()
             for grid in grid_paths.values():
-                # Use (glamt, gphit) coords for W-grids:
+                # Identify grid type:
                 grid_suffix = cls._get_properties(grid=grid)
-                hgrid_type = grid_suffix if "w" not in grid_suffix else "t"
-                # Indexing with a mask requires eager loading:
-                glam = cls[grid][f"{dom_prefix}glam{hgrid_type}"].load()
-                gphi = cls[grid][f"{dom_prefix}gphi{hgrid_type}"].load()
 
-                grid_clipped = cls[grid].dataset.where(
-                    (glam >= bbox[0])
-                    & (glam <= bbox[1])
-                    & (gphi >= bbox[2])
-                    & (gphi <= bbox[3]),
-                    drop=True,
-                )
+                if grid_suffix == "t":
+                    # Clip shallow copy of NEMODataTree T-grid using lon/lat bbox:
+                    cls_copy = cls.copy().clip_grid(grid=grid, bbox=bbox)
+                    # Store (i, j) coords of bbox on T-grid:
+                    i_bbox = cls_copy[grid][i_name]
+                    j_bbox = cls_copy[grid][j_name]
 
-                d_dtypes = {
-                    var: cls[grid][var].dtype for var in cls[grid].dataset.data_vars
-                }
-                for var, dtype in d_dtypes.items():
-                    if dtype in [np.int32, np.int64, bool]:
-                        grid_clipped[var] = grid_clipped[var].fillna(0).astype(dtype)
+                else:
+                    # Clip adjacent horizontal grid using (i, j) coords of clipped T-grid:
+                    match grid_suffix:
+                        case "u":
+                            grid_clipped = cls[grid].dataset.sel(i=i_bbox + 0.5, j=j_bbox)
+                        case "v":
+                            grid_clipped = cls[grid].dataset.sel(i=i_bbox, j=j_bbox + 0.5)
+                        case "w":
+                            grid_clipped = cls[grid].dataset.sel(i=i_bbox, j=j_bbox)
+                        case "f":
+                            grid_clipped = cls[grid].dataset.sel(i=i_bbox + 0.5, j=j_bbox + 0.5)
 
-                if bbox != (-180, 180, -90, 90):
-                    grid_clipped = grid_clipped.assign_attrs({"iperio": False})
-                cls_copy[grid] = grid_clipped
+                    if bbox != (-180, 180, -90, 90):
+                        grid_clipped = grid_clipped.assign_attrs({"iperio": False})
+                    # Update shallow copy of NEMODataTree:
+                    cls_copy[grid].dataset = grid_clipped
 
         return cls_copy
 
