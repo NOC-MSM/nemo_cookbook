@@ -413,10 +413,10 @@ def create_polygon_mask(
         mask_points = polygon.contains_points(mdl_coords)
 
         # Populate mask where model grid cells are within polygon:
-        mask = np.zeros(mdl_shape, dtype=np.bool)
+        mask = np.zeros(mdl_shape, dtype=bool)
         mask[j_bbox[mask_points], i_bbox[mask_points]] = True
     else:
-        mask = np.zeros(mdl_shape, dtype=np.bool)
+        mask = np.zeros(mdl_shape, dtype=bool)
 
     return xr.DataArray(data=mask, dims=dims)
 
