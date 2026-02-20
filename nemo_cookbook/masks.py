@@ -60,8 +60,8 @@ def read_dom_mask(
         mask = ds_domain[f"{cd_nat.lower()}mask"]
     except AttributeError as e:
         raise AttributeError(
-            f"missing '{cd_nat.lower()}mask' variable in domain dataset -> {e}"
-        )
+            f"missing '{cd_nat.lower()}mask' variable in domain dataset"
+        ) from e
 
     # Update coordinates to use zero-based indexing:
     mask = mask.assign_coords({"nav_lev": ka, "y": mask["y"], "x": mask["x"]})
