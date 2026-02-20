@@ -42,7 +42,7 @@ complete = ["nemo_cookbook[parallel,viz,interactive]"]
 parallel = ["dask[complete]"]
 viz = ["cartopy>=0.23", "matplotlib", "nc-time-axis"]
 interactive = ["jupyter>=1.1.1", "notebook>=7.4.1", "ipykernel>=6.29.5", "pyarrow>=21.0.0"]
-test = ["pytest >=8.3.3"]
+test = ["pytest >=8.3.3", "pytest-mock >= 3.15.1"]
 
 [project.readme]
 file = "README.md"
