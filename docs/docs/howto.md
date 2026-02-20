@@ -92,7 +92,7 @@ To subset variables of a given model grid using their longitude & latitude coord
 For example, to enable geographical indexing of the parent **T** grid points & select the values of this dataset nearest to (-30°E, 60°N):
 
 ```python
-nemo_geo = nemo.add_geo_index(grid="gridT")
+nemo_geo = nemo.add_geoindex(grid="gridT")
 
 nemo_geo.dataset.sel(gphit=60, glamt=-30, method='nearest')
 ```
