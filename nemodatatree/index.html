@@ -1,0 +1,1893 @@
+<!DOCTYPE html><html lang="en" class="no-js"><head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://noc-msm.github.io/nemo_cookbook/nemodatatree/">
+      
+      
+        <link rel="prev" href="..">
+      
+      
+        <link rel="next" href="../howto/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/icons/favicon.ico">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.2">
+    
+    
+      
+        <title>User Guide - NEMO Cookbook Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  <link href="../assets/stylesheets/glightbox.min.css" rel="stylesheet"><script src="../assets/javascripts/glightbox.min.js"></script><style id="glightbox-style">
+            html.glightbox-open { overflow: initial; height: 100%; }
+            .gslide-title { margin-top: 0px; user-select: text; }
+            .gslide-desc { color: #666; user-select: text; }
+            .gslide-image img { background: white; }
+            .gscrollbar-fixer { padding-right: 15px; }
+            .gdesc-inner { font-size: 0.75rem; }
+            body[data-md-color-scheme="slate"] .gdesc-inner { background: var(--md-default-bg-color); }
+            body[data-md-color-scheme="slate"] .gslide-title { color: var(--md-default-fg-color); }
+            body[data-md-color-scheme="slate"] .gslide-desc { color: var(--md-default-fg-color); }
+        </style></head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="light-blue" data-md-color-accent="deep-orange">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#nemodatatree" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="NEMO Cookbook Documentation" class="md-header__button md-logo" aria-label="NEMO Cookbook Documentation" data-md-component="logo">
+      
+  <img src="../assets/icons/noc_logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            NEMO Cookbook Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              User Guide
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="light-blue" data-md-color-accent="deep-orange" aria-label="Light Mode" type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Light Mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"></path></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="light-blue" data-md-color-accent="deep-orange" aria-label="Dark Mode" type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Dark Mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"></path></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/NOC-MSM/nemo_cookbook" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"></path></svg>
+  </div>
+  <div class="md-source__repository">
+    nemo_cookbook
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Getting started
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
+        
+  
+  
+    
+  
+  User Guide
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../howto/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  How To...
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../recipes/" class="md-tabs__link">
+          
+  
+  
+  Recipes
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../reference/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  API
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../contributing/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Contributing
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="NEMO Cookbook Documentation" class="md-nav__button md-logo" aria-label="NEMO Cookbook Documentation" data-md-component="logo">
+      
+  <img src="../assets/icons/noc_logo.png" alt="logo">
+
+    </a>
+    NEMO Cookbook Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/NOC-MSM/nemo_cookbook" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"></path></svg>
+  </div>
+  <div class="md-source__repository">
+    nemo_cookbook
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-is-a-datatree" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What is a DataTree?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-is-a-nemodatatree" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What is a NEMODataTree? |
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="What is a NEMODataTree? |">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nemo-model-grid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NEMO Model Grid
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nemo-outputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NEMO Outputs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#defining-a-simple-nemodatatree" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Defining a Simple NEMODataTree
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Defining a Simple NEMODataTree">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#domain-variables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Domain Variables
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dimensions-coordinates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dimensions &amp; Coordinates
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Summary
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#defining-a-nested-nemodatatree" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Defining a Nested NEMODataTree
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Defining a Nested NEMODataTree">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#domain-variables_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Domain Variables
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dimensions-coordinates_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dimensions &amp; Coordinates
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#summary_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Summary
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example-nemodatatrees" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example NEMODataTrees
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Example NEMODataTrees">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#global-ocean-sea-ice-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Global Ocean Sea-Ice Models:
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#regional-ocean-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Regional Ocean Models:
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nested-global-ocean-sea-ice-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Nested Global Ocean Sea-Ice Models:
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#coupled-climate-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Coupled Climate Models:
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../howto/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How To...
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4">
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Recipes
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Recipes
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../recipes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Summary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../recipe_moc_z/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Meridional Overturning - Depth Space
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../recipe_moc_tracer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Meridional Overturning - Tracer Space
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../recipe_barotropic_sf/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Barotropic Stream Functions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../recipe_masked_stats/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Regional Masked Statistics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../recipe_volume_census/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Volume Census in T-S Space
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../recipe_sfwmt_sigma0/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Surface-Forced Water Mass Transformation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../recipe_extract_osnap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extracting Hydrographic Sections
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../recipe_transform_vertical_coords/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vertical Coordinate Transformation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/NOC-MSM/nemo_cookbook/edit/main/docs/nemodatatree.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75z"></path></svg>
+    </a>
+  
+  
+
+
+<h1 id="nemodatatree">NEMODataTree</h1>
+<p>Each recipe in the NEMO Cookbook leverages the <code>NEMODataTree</code> object to store NEMO ocean model outputs and to help perform diagnostic calculations.</p>
+<p>In this User Guide, we provide an introduction to the <code>NEMODataTree</code>, including examples using outputs from the NEMO version 5 <code>AGRIF_DEMO</code> and <code>AMM12</code> reference configurations.</p>
+<p>For further details on <code>NEMODataTree</code> constructors, properties and computation patterns, users are referred to the API documentation.</p>
+<h2 id="what-is-a-datatree">What is a DataTree? <span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M48 24C48 10.7 37.3 0 24 0S0 10.7 0 24v368c0 30.9 25.1 56 56 56h184v-48H56c-4.4 0-8-3.6-8-8V160h192v-48H48zm288 200h192c26.5 0 48-21.5 48-48V80c0-26.5-21.5-48-48-48h-82.7c-8.5 0-16.6-3.4-22.6-9.4l-8.6-8.6c-9-9-21.2-14.1-33.9-14.1L336 0c-26.5 0-48 21.5-48 48v128c0 26.5 21.5 48 48 48m0 288h192c26.5 0 48-21.5 48-48v-96c0-26.5-21.5-48-48-48h-82.7c-8.5 0-16.6-3.4-22.6-9.4l-8.6-8.6c-9-9-21.2-14.1-33.9-14.1l-44.2.1c-26.5 0-48 21.5-48 48v128c0 26.5 21.5 48 48 48"></path></svg></span></h2>
+<hr>
+<p>Ocean model simulations produce large collections of datasets, including physics, biogeochemistry, and sea ice diagnostics, which are defined on different grids. Moreover, ocean models configuration often include nested domains, where datasets of model diagnostics are produced for each of the parent, child and grandchild domains.</p>
+<p>Organising these gridded datasets into a single, interpretable data structure has traditionally been a major challenge for researchers when developing their data analysis workflows.</p>
+<p>This is where the <code>xarray.DataTree</code> comes in.</p>
+<p>The <code>xarray.DataTree</code> extends the more familiar collection of xarray data structures (e.g., <code>xarray.Dataset</code>) to allow hierarchical grouping of datasets, similar to a local file system. Each <code>xarray.DataTree</code> is composed of a hierarchy of nodes, each containing a separate <code>xarray.Dataset</code>. </p>
+<pre><code>&lt;xarray.DataTree 'OceanModel'&gt;
+Group: /
+└── Group: /global
+    ├── Group: /global/regional_nest_1
+    └── Group: /global/regional_nest_2
+</code></pre>
+<p>The root node sits at the top of the DataTree ('/') and each of its child nodes can have children (or sub-groups) of their own. In the example above, the root node has a single child node (<code>global</code>) storing the global domain outputs of an ocean model simulation <code>OceanModel</code>. This in-turn has two child nodes (<code>regional_nest_1</code> &amp; <code>regional_nest_2</code>) storing the outputs of two regional nests located inside the global domain.</p>
+<p>We can hence describe each node in a DataTree in terms of the <code>parent</code> to which the node belongs, and its <code>children</code> - child nodes to which it is the parent. The root node is an important exception however, since it has no <code>parent</code> node.</p>
+<p>To access a node in our DataTree, we use Python's standard dictionary syntax to define the path to the target node in the DataTree as follows:</p>
+<pre><code>dt['global/regional_nest']
+</code></pre>
+<p>We can then access the variables stored in the <code>xarray.Dataset</code> associated with a given node as follows:</p>
+<pre><code>ds['global/regional_nest']['var_name']
+</code></pre>
+<p>In summary, an <code>xarray.DataTree</code> can help ocean modellers organise complex outputs (nested domains, groups of variables) in a natural, hierarchical way by acting as a container for a collection of related  <code>xarray.Datasets</code>.</p>
+<h2 id="what-is-a-nemodatatree">What is a NEMODataTree? <img alt="🌊" class="twemoji" src="https://cdn.jsdelivr.net/gh/jdecked/twemoji@16.0.1/assets/svg/1f30a.svg" title=":ocean:">  |  <span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M48 24C48 10.7 37.3 0 24 0S0 10.7 0 24v368c0 30.9 25.1 56 56 56h184v-48H56c-4.4 0-8-3.6-8-8V160h192v-48H48zm288 200h192c26.5 0 48-21.5 48-48V80c0-26.5-21.5-48-48-48h-82.7c-8.5 0-16.6-3.4-22.6-9.4l-8.6-8.6c-9-9-21.2-14.1-33.9-14.1L336 0c-26.5 0-48 21.5-48 48v128c0 26.5 21.5 48 48 48m0 288h192c26.5 0 48-21.5 48-48v-96c0-26.5-21.5-48-48-48h-82.7c-8.5 0-16.6-3.4-22.6-9.4l-8.6-8.6c-9-9-21.2-14.1-33.9-14.1l-44.2.1c-26.5 0-48 21.5-48 48v128c0 26.5 21.5 48 48 48"></path></svg></span></h2>
+<hr>
+<p><code>NEMODataTree</code> is an extension of the <code>xarray.DataTree</code> structure designed to store NEMO model output datasets as nodes in a hierarchical tree.</p>
+<h3 id="nemo-model-grid"><strong>NEMO Model Grid</strong></h3>
+<p>The NEMO Ocean Engine (<a href="https://doi.org/10.5281/zenodo.14515373">Madec et al., 2024</a>) solves the Primitive Equations using the traditional, centred second-order finite difference approximation.</p>
+<p>Variables are spatially discretised using a 3-dimensional Arakawa “C” grid (<a href="https://core.ac.uk/download/pdf/141499575.pdf">Mesinger and Arakawa, 1976</a>), consisting of cells centred on scalar points <strong>T</strong> (e.g. temperature, salinity, density, and horizontal divergence).</p>
+<figure>
+  <a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../assets/images/nemo_c_grid.png" data-desc-position="bottom"><img alt="" src="../assets/images/nemo_c_grid.png" width="300"></a>
+</figure>
+<p>Vector points (<strong>u</strong>, <strong>v</strong>, <strong>w</strong>) are defined at the centre of each cell face. The relative and planetary vorticity, ζ and f, are defined at <strong>f</strong> points, which are located at the centre of each vertical edge.</p>
+<p>In NEMO, the ocean mesh (i.e. the position of all the scalar and vector points) is defined in terms of a set of orthogonal curvilinear grid indices (<strong>i</strong>, <strong>j</strong>, <strong>k</strong>), such that geographical coordinates are given as functions of these grid indices (i.e., <strong>λ</strong>(<strong>j</strong>, <strong>i</strong>), <strong>φ</strong>(<strong>j</strong>, <strong>i</strong>), <strong>z</strong>(<strong>k</strong>)).</p>
+<p>All grid-points on the ocean mesh are located at integer or integer and a half values of (<strong>i</strong>, <strong>j</strong>, <strong>k</strong>) as shown below:</p>
+<table>
+<thead>
+<tr>
+<th>Grid Type</th>
+<th>Grid Indices</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>T</code></td>
+<td>(i, j, k)</td>
+</tr>
+<tr>
+<td><code>U</code></td>
+<td>(i + 1/2, j, k)</td>
+</tr>
+<tr>
+<td><code>V</code></td>
+<td>(i, j + 1/2, k)</td>
+</tr>
+<tr>
+<td><code>W</code></td>
+<td>(i, j, k + 1/2)</td>
+</tr>
+<tr>
+<td><code>F</code></td>
+<td>(i + 1/2, j + 1/2, k)</td>
+</tr>
+</tbody>
+</table>
+<p>For each type of grid-point, three grid scale factors are defined... </p>
+<ul>
+<li>Horizontal scale factors (e1, e2)</li>
+<li>Vertical scale factor (e3)</li>
+</ul>
+<p>...such that the volume of a given type of grid cell is given by (e1<sub><em>k</em></sub> e2<sub><em>k</em></sub> e3<sub><em>k</em></sub>), where <em>k</em> is the grid point type. Similarly, the horizontal grid cell area is given by (e1<sub><em>k</em></sub> e2<sub><em>k</em></sub>).</p>
+<p>For more information on the spatial discretisation of variables in NEMO, see <a href="https://doi.org/10.5281/zenodo.14515373">Chapter 3 of the NEMO Reference Manual</a>.</p>
+<h3 id="nemo-outputs"><strong>NEMO Outputs</strong></h3>
+<p>Although many experienced researchers will be familiar with the typical output format of NEMO model simulations, we provide a brief summary below for new users.</p>
+<p>NEMO model simulations write time-averaged diagnostics to output files in netCDF4 format using an external I/O
+library and server named <a href="https://forge.ipsl.jussieu.fr/ioserver/wiki/documentation/">XIOS</a>.</p>
+<p>Typically, separate netCDF files are produced at each time-averaging interval (e.g., monthly) for groups of variables located at the same type of grid points. This results in the following types of netCDF files:</p>
+<ul>
+<li>
+<p><code>...grid_T.nc</code> <span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg></span> scalar variables (e.g., conservative temperature &amp; absolute salinity) defined at the centre of each model grid cell.</p>
+</li>
+<li>
+<p><code>...grid_U.nc</code> <span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg></span> vector variables (e.g., zonal seawater velocity) defined at the centre of each eastern grid cell face.</p>
+</li>
+<li>
+<p><code>...grid_V.nc</code> <span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg></span> vector variables (e.g., meridional seawater velocity) defined at the centre of each northern grid cell face.</p>
+</li>
+<li>
+<p><code>...grid_W.nc</code> <span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg></span> vector variables (e.g., vertical seawater velocity) defined at the centre of each bottom grid cell face.</p>
+</li>
+<li>
+<p><code>...grid_F.nc</code> <span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg></span> vector variables (e.g., relative vorticity) defined at the centre of each vertical edge.</p>
+</li>
+</ul>
+<p>Often global scalar diagnostics (e.g., global mean temperature) are also produced, resulting in a further type of netCDF file:</p>
+<ul>
+<li><code>...scalar.nc</code> <span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg></span> 1-dimensional scalar variables calculated by aggregating a variable defined on the model <strong>T</strong> grid.</li>
+</ul>
+<p>When the NEMO ocean engine is coupled to a sea ice model (e.g., <a href="https://doi.org/10.5281/zenodo.7534900"><strong>SI3</strong></a>), netCDF files will also be produced for sea ice variables using the following suffix:</p>
+<ul>
+<li><code>...icemod.nc</code> <span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg></span> sea ice variables (e.g., sea ice concetration) defined at the centre of each model grid cell.</li>
+</ul>
+<h3 id="defining-a-simple-nemodatatree"><strong>Defining a Simple NEMODataTree</strong></h3>
+<p>For a typical NEMO model configuration, consisting of a global parent domain coupled to a sea ice model, we can define a simple <code>DataTree</code>:</p>
+<pre><code>&lt;xarray.DataTree 'nemo'&gt;
+Group: /
+├── Group: /gridT
+├── Group: /gridU
+├── Group: /gridV
+├── Group: /gridW
+└── Group: /gridF
+</code></pre>
+<p>where the <code>gridT</code> child node contains time series of scalar variables stored in the <code>...grid_T.nc</code> files in a single <code>xarray.Dataset</code> and so on.</p>
+<h4 id="domain-variables"><strong>Domain Variables</strong></h4>
+<p>Importantly, a <code>NEMODataTree</code> does not need a <code>domain</code> node to store the grid scale factors and masks associated with each model domain. </p>
+<p><em>Why?</em></p>
+<p>This is because domain variables are assigned to their respective grid nodes during pre-processing (e.g., horizontal grid scale factors <code>e1t</code> and <code>e2t</code> are stored in <code>gridT</code> etc.).</p>
+<h4 id="dimensions-coordinates"><strong>Dimensions &amp; Coordinates</strong></h4>
+<p>Typically, the netCDF files output by NEMO model simulations have dimensions (<code>depth{k}</code>, <code>y</code>, <code>x</code>), where <em>k</em> is the grid point type.</p>
+<p>During the construction of a NEMODataTree, these coordinate dimensions are transformed into the NEMO model grid indices (<strong>i</strong>, <strong>j</strong>, <strong>k</strong>) according to the Table included in the <strong>NEMO Model Grid</strong> section above. This has two important implications:</p>
+<ol>
+<li>
+<p>The <code>xarray.Datasets</code> stored in each grid node share the same coordinate dimension names (<code>i</code>, <code>j</code>, <code>k</code>), but are staggered according to where variables are position on the NEMO model grid.</p>
+</li>
+<li>
+<p>All grid indices use Fortran (1-based) indexing consistent with their definition in the original NEMO model code.</p>
+</li>
+</ol>
+<p>In practice, this means that a variable defined at the first T-point will be at (<code>i=1</code>, <code>j=1</code>), whereas a variable located at the first U-point will be at (<code>i=1.5</code>, <code>j=1</code>). This approach was chosen to ensure users encounter alignment errors when attempting to calculate diagnostics using variables defined on different grids. Instead, scalar or vector variables should be interpolated onto the desired grid before computation.</p>
+<p>A further practical implication is that users should always use <code>.sel()</code> to subset data variables according to their grid indices on the NEMO ocean mesh.</p>
+<h4 id="summary"><strong>Summary</strong></h4>
+<p>Below we summarise the steps required to define a <code>NEMODataTree</code> from a collection of output netCDF files:</p>
+<div class="admonition example">
+<p class="admonition-title">Steps to Define a NEMODataTree</p>
+<ol>
+<li>
+<p>For each type of netCDF output, open all available files as a single <code>xarray.Dataset</code> using <code>xarray.open_mfdataset()</code>.</p>
+</li>
+<li>
+<p>Add domain variables stored in the <strong>domain_cfg.nc</strong> file to the each grid dataset (e.g., <code>e1t</code>, <code>e2t</code> are added to <code>gridT</code>).</p>
+</li>
+<li>
+<p>Add / calculate masks for each grid type (e.g., <code>tmask</code> is added to <code>gridT</code>).</p>
+</li>
+<li>
+<p>Redefine the <code>dims</code> and <code>coords</code> of each grid dataset to use <code>i</code>, <code>j</code>, <code>k</code> as used to define the semi-discrete equations in NEMO.</p>
+</li>
+<li>
+<p>Assemble the <code>xarray.DataTree</code> using a dictionary of processed NEMO model grid datasets.</p>
+</li>
+</ol>
+</div>
+<p>The steps above highlight that the <code>NEMODataTree</code> is simply a specific case of the more general <code>xarray.DataTree</code> structure.</p>
+<h3 id="defining-a-nested-nemodatatree"><strong>Defining a Nested NEMODataTree</strong></h3>
+<p>For a nested NEMO model configuration, including a parent, child and grandchild domain, we can define a more complex <code>NEMODataTree</code>:</p>
+<pre><code>&lt;xarray.DataTree 'nemo'&gt;
+Group: /
+├── Group: /gridT
+|   └── Group: /gridT/1_gridT
+|       └── Group: /gridT/1_gridT/2_gridT
+├── Group: /gridU
+|   └── Group: /gridU/1_gridU
+|       └── Group: /gridU/1_gridU/2_gridU
+├── Group: /gridV
+|   └── Group: /gridV/1_gridV
+|       └── Group: /gridV/1_gridV/2_gridV
+├── Group: /gridW
+|   └── Group: /gridW/1_gridW
+|       └── Group: /gridW/1_gridW/2_gridW
+└── Group: /gridF
+    └── Group: /gridF/1_gridF
+        └── Group: /gridF/1_gridF/2_gridF
+</code></pre>
+<p>where each parent grid node (e.g., <code>gridT</code>) has a corresponding child grid node (e.g., <code>1_gridT</code>), which itself has a corresponding child (grandchild) node (e.g., <code>2_gridT</code>).</p>
+<h4 id="domain-variables_1"><strong>Domain Variables</strong></h4>
+<p>Nested child / grandchild domain variables are also assigned to their respective grid nodes during pre-processing (e.g., horizontal grid scale factors <code>e1t</code> and <code>e2t</code> are stored in <code>gridT</code> etc.).</p>
+<h4 id="dimensions-coordinates_1"><strong>Dimensions &amp; Coordinates</strong></h4>
+<p>To ensure that the dimensions of nested child / grandchild domains are distinct from their parent, a prefix is added to all grid indices and associated geographical coordinate variables.</p>
+<p>The prefix corresponds to the unique domain number used to identify each child and grandchild domain during the construction the <code>NEMODataTree</code>. Hence, in the example above, the child grid node <code>1_gridT</code> will have NEMO model grid indices (<code>i1</code>, <code>j1</code>, <code>k1</code>) and associated coordinates <code>1_glamt(j1, i1)</code>, <code>1_gphit(j1, i1)</code> etc.</p>
+<h4 id="summary_1"><strong>Summary</strong></h4>
+<p>In summary, defining a <code>NEMODataTree</code> for a nested configuration includes two important additional steps:</p>
+<div class="admonition example">
+<p class="admonition-title">Steps to Define a NEMODataTree</p>
+<ol>
+<li>
+<p>For each type of netCDF output, open all available files as a single <code>xarray.Dataset</code> using <code>xarray.open_mfdataset()</code>.</p>
+</li>
+<li>
+<p>Add domain variables stored in the <strong>domain_cfg.nc</strong> file to the each grid dataset (e.g., <code>e1t</code>, <code>e2t</code> are added to <code>gridT</code>).</p>
+</li>
+<li>
+<p>Add / calculate masks for each grid type (e.g., <code>tmask</code> is added to <code>gridT</code>).</p>
+</li>
+<li>
+<p>Redefine the <code>dims</code> and <code>coords</code> of each grid dataset to use <code>i{dom}</code>, <code>j{dom}</code>, <code>k{dom}</code> as used to define the semi-discrete equations in NEMO, where <em>dom</em> is the unique domain number.</p>
+</li>
+<li>
+<p><strong>Clip nested child domains to remove ghost points along the boundaries &amp; add a mapping from the parent grid indices to the child grid indices to the <code>coords</code>.</strong></p>
+</li>
+<li>
+<p><strong>Assemble dictionaries of processed NEMO model grid datasets for each of the parent, child and grandchild domains.</strong></p>
+</li>
+<li>
+<p>Assemble the <code>xarray.DataTree</code> using a nested dictionary of NEMO model domains.</p>
+</li>
+</ol>
+</div>
+<h2 id="example-nemodatatrees">Example NEMODataTrees</h2>
+<p>In this section, we demonstrate how to construct <code>NEMODataTrees</code> using global, regional, nested and coupled NEMO ocean sea-ice outputs.</p>
+<blockquote>
+<p>Users can also explore the following examples using the <code>example_nemodatatrees.ipynb</code> Jupyter Notebook available in the <code>recipes</code> directory.</p>
+</blockquote>
+<p>To get started, let's begin by importing the Python packages we'll be using:</p>
+<pre><code class="language-python">import xarray as xr
+import nemo_cookbook as nc
+from nemo_cookbook import NEMODataTree
+</code></pre>
+<h3 id="global-ocean-sea-ice-models"><strong>Global Ocean Sea-Ice Models:</strong></h3>
+<hr>
+<p><strong>1. <code>AGRIF_DEMO</code></strong></p>
+<p>Let's start by creating a <code>NEMODataTree</code> using example outputs from the global <code>AGRIF_DEMO</code> NEMO reference configuration.</p>
+<p><code>AGRIF_DEMO</code> is based on the <code>ORCA2_ICE_PISCES</code> reference configuration with the inclusion of 3 online nested domains.</p>
+<p>Here, we will only consider the 2° global parent domain.</p>
+<p>Further information on this reference configuration can be found <a href="https://sites.nemo-ocean.io/user-guide/cfgs.html#agrif-demo"><strong>here</strong></a>.</p>
+<hr>
+<p><strong>NEMO Cookbook</strong> includes a selection of example NEMO model output datasets accessible via cloud object storage.</p>
+<p><code>nemo_cookbook.examples.get_filepaths()</code> is a convenience function used to download and generate local filepaths for an available NEMO reference configuration.</p>
+<pre><code class="language-python">filepaths = nc.examples.get_filepaths("AGRIF_DEMO")
+
+filepaths
+</code></pre>
+<p>The <code>get_filepaths()</code> function will download each of the files to your local machine, returning a dictionary of filepaths for the chosen configuration (<code>AGRIF_DEMO</code>):</p>
+<pre><code>{'domain_cfg.nc': '/Users/me/Library/Caches/nemo_cookbook/AGRIF_DEMO/domain_cfg.nc',
+ '2_domain_cfg.nc': '/Users/me/Library/Caches/nemo_cookbook/AGRIF_DEMO/2_domain_cfg.nc',
+ '3_domain_cfg.nc': '/Users/me/Library/Caches/nemo_cookbook/AGRIF_DEMO/3_domain_cfg.nc',
+ 'ORCA2_5d_00010101_00010110_grid_T.nc': '/Users/me/Library/Caches/nemo_cookbook/AGRIF_DEMO/ORCA2_5d_00010101_00010110_grid_T.nc',
+ ...
+ '3_Nordic_5d_00010101_00010110_icemod.nc': '/Users/me/Library/Caches/nemo_cookbook/AGRIF_DEMO/3_Nordic_5d_00010101_00010110_icemod.nc'
+ }
+</code></pre>
+<p>Next, we need to define the <code>paths</code> dictionary, which contains the filepaths corresponding to our global parent domain.</p>
+<p>We populate the <code>parent</code> dictionary with the filepaths to the <code>domain_cfg</code> and <code>gridT/U/V/W</code> netCDF files produced for the <code>AGRIF_DEMO</code> parent domain. </p>
+<pre><code class="language-python">paths = {"parent": {
+         "domain": filepaths["domain_cfg.nc"],
+         "gridT": filepaths["ORCA2_5d_00010101_00010110_grid_T.nc"],
+         "gridU": filepaths["ORCA2_5d_00010101_00010110_grid_U.nc"],
+         "gridV": filepaths["ORCA2_5d_00010101_00010110_grid_V.nc"],
+         "gridW": filepaths["ORCA2_5d_00010101_00010110_grid_W.nc"],
+         "icemod": filepaths["ORCA2_5d_00010101_00010110_icemod.nc"]
+        },
+        }
+</code></pre>
+<p>We can construct a new <code>NEMODataTree</code> called <code>nemo</code> using the <code>.from_paths()</code> constructor.</p>
+<p>Notice, that we also need to specify that our global parent domain is zonally periodic (<code>iperio=True</code>) and north folding on T-points (<code>nftype = "T"</code>) rather than a closed (regional) domain.</p>
+<pre><code class="language-python">nemo = NEMODataTree.from_paths(paths, iperio=True, nftype="T")
+
+nemo
+</code></pre>
+<p>This returns the following <code>xarray.DataTree</code>, where we have truncated the outputs for improved readability:</p>
+<pre><code>&lt;xarray.DataTree&gt;
+Group: /
+│   Dimensions:               (time_counter: 2, axis_nbounds: 2, ncatice: 5)
+│   ...
+│ 
+├── Group: /gridT
+│       Dimensions:               (time_counter: 2, axis_nbounds: 2, j: 148, i: 180,
+│                                  ncatice: 5, k: 31)
+│       Coordinates:
+│           time_centered         (time_counter) object 16B 0001-01-03 12:00:00 0001-...
+│         * deptht                (k) float32 124B 5.0 15.0 25.0 ... 4.75e+03 5.25e+03
+│           time_instant          (time_counter) object 16B ...
+│           gphit                 (j, i) float64 213kB ...
+│           glamt                 (j, i) float64 213kB ...
+│         * k                     (k) int64 248B 1 2 3 4 5 6 7 ... 25 26 27 28 29 30 31
+│         * j                     (j) int64 1kB 1 2 3 4 5 6 ... 143 144 145 146 147 148
+│         * i                     (i) int64 1kB 1 2 3 4 5 6 ... 175 176 177 178 179 180
+│       Dimensions without coordinates: axis_nbounds
+│       Data variables: (12/87)
+│           time_centered_bounds  (time_counter, axis_nbounds) object 32B 0001-01-01 ...
+│           time_counter_bounds   (time_counter, axis_nbounds) object 32B 0001-01-01 ...
+│           simsk                 (time_counter, j, i) float32 213kB ...
+│           simsk05               (time_counter, j, i) float32 213kB ...
+│           simsk15               (time_counter, j, i) float32 213kB ...
+│           snvolu                (time_counter, j, i) float32 213kB ...
+│           ...                    ...
+│           e1t                   (j, i) float64 213kB ...
+│           e2t                   (j, i) float64 213kB ...
+│           top_level             (j, i) int32 107kB ...
+│           bottom_level          (j, i) int32 107kB ...
+│           tmask                 (k, j, i) bool 826kB False False False ... False False
+│           tmaskutil             (j, i) bool 27kB False False False ... False False
+│       Attributes:
+│           name:         ORCA2_5d_00010101_00010110_icemod
+│           description:  ice variables
+│           title:        ice variables
+│           Conventions:  CF-1.6
+│           timeStamp:    2025-Sep-13 17:44:13 GMT
+│           uuid:         c6c24bd5-1d2b-4d7b-98b5-8d379c94e84b
+│           nftype:       T
+│           iperio:       True
+├── Group: /gridU
+│       Dimensions:               (k: 31, axis_nbounds: 2, time_counter: 2, j: 148,
+│                                  i: 180)
+│       ...
+├── Group: /gridV
+│       Dimensions:               (k: 31, axis_nbounds: 2, time_counter: 2, j: 148,
+│                                  i: 180)
+│       ...
+├── Group: /gridW
+│       Dimensions:               (k: 31, axis_nbounds: 2, time_counter: 2, j: 148,
+│                                  i: 180)
+│       ...
+└── Group: /gridF
+        Dimensions:       (j: 148, i: 180, k: 31)
+        ...
+</code></pre>
+<hr>
+<p><strong>2. <code>NOC Near-Present Day eORCA1</code></strong></p>
+<p>Next, we'll consider monthly-mean outputs from the National Oceanography Centre Near-Present-Day global eORCA1 configuration of NEMO forced using ERA5 atmospheric reanalysis from 1976-present. </p>
+<p>For more details on this model configuration and the available outputs, users can explore the Near-Present-Day documentation <a href="https://noc-msm.github.io/NOC_Near_Present_Day/"><strong>here</strong></a>.</p>
+<hr>
+<p>The eORCA1 ERA5v1 NPD data are stored in publicly available Icechunk repositories accessible via the NOC <a href="https://noc-msm.github.io/OceanDataStore/catalog_guide/"><strong>OceanDataStore</strong></a> library. In this example, we will show how to use to the <strong>OceanDataCatalog</strong> API to remotely access NOC NPD outputs and use the <code>.from_datasets()</code> constructor to create a NEMODataTree.</p>
+<p>Users can find more information on how to get started using the <strong>OceanDataCatalog</strong> to search for and access available NEMO model outputs <a href="https://noc-msm.github.io/OceanDataStore/"><strong>here</strong></a>.</p>
+<pre><code class="language-python">from OceanDataStore import OceanDataCatalog
+
+# Create a new OceanDataCatalog to access the NOC STAC:
+catalog = OceanDataCatalog(catalog_name="noc-model-stac")
+
+# Opening domain_cfg:
+ds_domain = catalog.open_dataset(id="noc-npd-era5/npd-eorca1-era5v1/gn/domain/domain_cfg")
+
+# Opening gridT dataset, including sea surface temperature (°C) and sea surface height (m):
+ds_gridT = catalog.open_dataset(id="noc-npd-era5/npd-eorca1-era5v1/gn/T1m",
+                                variable_names=['tos_con', 'zos'],
+                                start_datetime='2000-01',
+                                end_datetime='2020-12',
+                                )
+</code></pre>
+<p>Next, let's create a <code>NEMODataTree</code> from a dictionary of eORCA1 ERA5v1 <code>xarray.Datasets</code>, specifying that our global domain is zonally periodic (<code>iperio=True</code>) and north folding on T-points (<code>nftype = "F"</code>).</p>
+<pre><code class="language-python">datasets = {"parent": {"domain": ds_domain.squeeze(), "gridT": ds_gridT}}
+
+nemo = NEMODataTree.from_datasets(datasets=datasets, iperio=True, nftype="F")
+
+nemo
+</code></pre>
+<pre><code>&lt;xarray.DataTree&gt;
+Group: /
+│   Dimensions:        (time_counter: 240)
+│   ...
+│ 
+├── Group: /gridT
+│   Dimensions:        (time_counter: 240)
+│       Dimensions:        (time_counter: 240, j: 331, i: 360, k: 75)
+│       Coordinates:
+│           time_centered  (time_counter) datetime64[ns] 5kB dask.array&lt;chunksize=(1,), meta=np.ndarray&gt;
+│           gphit          (j, i) float64 953kB dask.array&lt;chunksize=(331, 360), meta=np.ndarray&gt;
+│           glamt          (j, i) float64 953kB dask.array&lt;chunksize=(331, 360), meta=np.ndarray&gt;
+│         * k              (k) int64 600B 1 2 3 4 5 6 7 8 9 ... 68 69 70 71 72 73 74 75
+│         * j              (j) int64 3kB 1 2 3 4 5 6 7 8 ... 325 326 327 328 329 330 331
+│         * i              (i) int64 3kB 1 2 3 4 5 6 7 8 ... 354 355 356 357 358 359 360
+│       Data variables:
+│           tos_con        (time_counter, j, i) float32 275MB dask.array&lt;chunksize=(1, 331, 360), meta=np.ndarray&gt;
+│           zos            (time_counter, j, i) float32 275MB dask.array&lt;chunksize=(1, 331, 360), meta=np.ndarray&gt;
+│           e1t            (j, i) float64 953kB dask.array&lt;chunksize=(331, 360), meta=np.ndarray&gt;
+│           e2t            (j, i) float64 953kB dask.array&lt;chunksize=(331, 360), meta=np.ndarray&gt;
+│           top_level      (j, i) int32 477kB dask.array&lt;chunksize=(331, 360), meta=np.ndarray&gt;
+│           bottom_level   (j, i) int32 477kB dask.array&lt;chunksize=(331, 360), meta=np.ndarray&gt;
+│           tmask          (k, j, i) bool 9MB False False False ... False False False
+│           tmaskutil      (j, i) bool 119kB False False False ... False False False
+│       Attributes:
+│           nftype:   F
+│           iperio:   True
+├── Group: /gridU
+│       Dimensions:       (j: 331, i: 360, k: 75)
+│       ...
+├── Group: /gridV
+│       Dimensions:       (j: 331, i: 360, k: 75)
+│       ...
+├── Group: /gridW
+│       Dimensions:       (j: 331, i: 360, k: 75)
+│       ...
+└── Group: /gridF
+        Dimensions:       (j: 331, i: 360, k: 75)
+        ...
+</code></pre>
+<h3 id="regional-ocean-models"><strong>Regional Ocean Models:</strong></h3>
+<hr>
+<p><strong><code>AMM12</code></strong></p>
+<p>We can also construct a <code>NEMODataTree</code> using outputs from regional NEMO ocean model simulations.</p>
+<p>Here, we will consider example outputs from the regional <code>AMM12</code> NEMO reference configuration.</p>
+<p>The AMM, Atlantic Margins Model, is a regional model covering the Northwest European Shelf domain on a regular lat-lon grid at approximately 12km horizontal resolution. <code>AMM12</code> uses the vertical s-coordinates system, GLS turbulence scheme, and tidal lateral boundary conditions using a flather scheme.</p>
+<p>Further information on this reference configuration can be found <a href="https://sites.nemo-ocean.io/user-guide/cfgs.html#amm12"><strong>here</strong></a>.</p>
+<hr>
+<pre><code class="language-python">filepaths = nc.examples.get_filepaths("AMM12")
+
+filepaths
+</code></pre>
+<pre><code>{'domain_cfg.nc': '/Users/me/Library/Caches/nemo_cookbook/AMM12/domain_cfg.nc',
+ 'AMM12_1d_20120102_20120110_grid_T.nc': '/Users/me/Library/Caches/nemo_cookbook/AMM12/AMM12_1d_20120102_20120110_grid_T.nc',
+ 'AMM12_1d_20120102_20120110_grid_U.nc': '/Users/me/Library/Caches/nemo_cookbook/AMM12/AMM12_1d_20120102_20120110_grid_U.nc',
+ 'AMM12_1d_20120102_20120110_grid_V.nc': '/Users/me/Library/Caches/nemo_cookbook/AMM12/AMM12_1d_20120102_20120110_grid_V.nc'
+ }
+</code></pre>
+<p>As we showed in the <code>AGRIF_DEMO</code> example, we need to populate the <code>paths</code> dictionary with the <code>domain_cfg</code> and <code>gridT/U/V</code> filepaths corresponding to our regional model domain.</p>
+<pre><code class="language-python">paths = {"parent": {
+         "domain": filepaths["domain_cfg.nc"],
+         "gridT": filepaths["AMM12_1d_20120102_20120110_grid_T.nc"],
+         "gridU": filepaths["AMM12_1d_20120102_20120110_grid_U.nc"],
+         "gridV": filepaths["AMM12_1d_20120102_20120110_grid_V.nc"],
+        },
+        }
+</code></pre>
+<p>Next, we can construct a new <code>NEMODataTree</code> called <code>nemo</code> using the <code>.from_paths()</code> constructor.</p>
+<p>Note, we do not actually need to specify that our regional domain is not zonally periodic in this case, given that, by default, <code>iperio=False</code>.</p>
+<pre><code class="language-python">nemo = NEMODataTree.from_paths(paths, iperio=False)
+
+nemo
+</code></pre>
+<pre><code>&lt;xarray.DataTree&gt;
+Group: /
+│   Dimensions:               (time_counter: 8, axis_nbounds: 2)
+│   ...
+│ 
+├── Group: /gridT
+│       Dimensions:               (time_counter: 8, axis_nbounds: 2, j: 224, i: 198,
+│                                  k: 51)
+│       Coordinates:
+│           time_centered         (time_counter) datetime64[ns] 64B ...
+│           gphit                 (j, i) float64 355kB ...
+│           glamt                 (j, i) float64 355kB ...
+│         * k                     (k) int64 408B 1 2 3 4 5 6 7 ... 45 46 47 48 49 50 51
+│         * j                     (j) int64 2kB 1 2 3 4 5 6 ... 219 220 221 222 223 224
+│         * i                     (i) int64 2kB 1 2 3 4 5 6 ... 193 194 195 196 197 198
+│       Dimensions without coordinates: axis_nbounds
+│       Data variables:
+│           time_centered_bounds  (time_counter, axis_nbounds) datetime64[ns] 128B ...
+│           time_counter_bounds   (time_counter, axis_nbounds) datetime64[ns] 128B ...
+│           tos                   (time_counter, j, i) float32 1MB ...
+│           sos                   (time_counter, j, i) float32 1MB ...
+│           zos                   (time_counter, j, i) float32 1MB ...
+│           e1t                   (j, i) float64 355kB ...
+│           e2t                   (j, i) float64 355kB ...
+│           top_level             (j, i) int32 177kB ...
+│           bottom_level          (j, i) int32 177kB ...
+│           tmask                 (k, j, i) bool 2MB False False False ... False False
+│           tmaskutil             (j, i) bool 44kB False False False ... False False
+│       Attributes:
+│           nftype:   None
+│           iperio:   False
+├── Group: /gridU
+│       Dimensions:               (time_counter: 8, axis_nbounds: 2, j: 224, i: 198,
+│                                  k: 51)
+│       ...
+├── Group: /gridV
+│       Dimensions:               (time_counter: 8, axis_nbounds: 2, j: 224, i: 198,
+│                                  k: 51)
+│       ...
+├── Group: /gridW
+│       Dimensions:       (j: 224, i: 198, k: 51)
+│       ...
+└── Group: /gridF
+        Dimensions:       (j: 224, i: 198, k: 51)
+        ...
+</code></pre>
+<h3 id="nested-global-ocean-sea-ice-models"><strong>Nested Global Ocean Sea-Ice Models:</strong></h3>
+<hr>
+<p><code>AGRIF_DEMO</code></p>
+<p>Returning to our <code>AGRIF_DEMO</code> NEMO reference configuration, we can also construct a more complex <code>NEMODataTree</code> to store the outputs of the global parent and its child domains in a single data structure.</p>
+<p>We will make use of the two successively nested domains located in the Nordic Seas, with the finest grid (1/6°) spanning the Denmark strait. This grandchild domain also benefits from “vertical nesting”, meaning that it has 75 geopotential z-coordinate levels, compared with 31 levels in its parent domain.</p>
+<hr>
+<pre><code class="language-python">filepaths = nc.examples.get_filepaths("AGRIF_DEMO")
+</code></pre>
+<p>Let's start by defining the <code>paths</code> dictionary for the ORCA2 global parent domain and its child and grandchild domains. Notice, that for <code>child</code> and <code>grandchild</code> domains, we must also specify a unique domain number, given that we could include further child or grandchild nests.</p>
+<pre><code class="language-python">paths = {"parent": {
+        "domain": filepaths["domain_cfg.nc"],
+        "gridT": filepaths["ORCA2_5d_00010101_00010110_grid_T.nc"],
+        "gridU": filepaths["ORCA2_5d_00010101_00010110_grid_U.nc"],
+        "gridV": filepaths["ORCA2_5d_00010101_00010110_grid_V.nc"],
+        "gridW": filepaths["ORCA2_5d_00010101_00010110_grid_W.nc"],
+        "icemod": filepaths["ORCA2_5d_00010101_00010110_icemod.nc"]
+        },
+        "child": {
+        "1":{
+        "domain": filepaths["2_domain_cfg.nc"],
+        "gridT": filepaths["2_Nordic_5d_00010101_00010110_grid_T.nc"],
+        "gridU": filepaths["2_Nordic_5d_00010101_00010110_grid_U.nc"],
+        "gridV": filepaths["2_Nordic_5d_00010101_00010110_grid_V.nc"],
+        "gridW": filepaths["2_Nordic_5d_00010101_00010110_grid_W.nc"],
+        "icemod": filepaths["2_Nordic_5d_00010101_00010110_icemod.nc"]
+        }},
+        "grandchild": {
+        "2":{
+        "domain": filepaths["3_domain_cfg.nc"],
+        "gridT": filepaths["3_Nordic_5d_00010101_00010110_grid_T.nc"],
+        "gridU": filepaths["3_Nordic_5d_00010101_00010110_grid_U.nc"],
+        "gridV": filepaths["3_Nordic_5d_00010101_00010110_grid_V.nc"],
+        "gridW": filepaths["3_Nordic_5d_00010101_00010110_grid_W.nc"],
+        "icemod": filepaths["3_Nordic_5d_00010101_00010110_icemod.nc"]
+        }},
+        }
+</code></pre>
+<p>Next, we need to construct a <code>nests</code> dictionary which contains the properties which define each nested domain. These include:</p>
+<ul>
+<li>Unique domain number (mapping properties to entries in our <code>paths</code> directory).</li>
+<li>Parent domain (to which unique domain does this belong).</li>
+<li>Zonal periodicity of child / grandchild domain (<code>iperio</code>).</li>
+<li>Horizontal grid refinement factors (<code>rx</code>, <code>ry</code>).</li>
+<li>Start (<code>imin</code>, <code>jmin</code>) and end (<code>imax</code>, <code>jmax</code>) grid indices in both directions (<strong>i</strong>, <strong>j</strong>) of the parent grid.</li>
+</ul>
+<p>The latter information should be copied directly from the <code>AGRIF_FixedGrids.in</code> anicillary file used to define nested domains in NEMO.</p>
+<hr>
+<p><strong><code>Example AGRIF_FixedGrids.in</code></strong></p>
+<p><strong>1</strong> (Number of nested domains - parent).</p>
+<p><strong>121 146 113 133 4 4 4</strong> (imin, imax, jmin, jmax, rx, ry, rt)</p>
+<p><strong>1</strong> (Number of nested domains - child)</p>
+<p><strong>20 60 27 60 3 3 3</strong> (imin, imax, jmin, jmax, rx, ry, rt)</p>
+<p><strong>0</strong> (Number of nested domains - grandchild)</p>
+<hr>
+<p><strong>Important: we must specify the start and end grid indices using Fortran (1-based) indexes rather than Python (0-based) indexes.</strong></p>
+<pre><code class="language-python">nests = {
+    "1": {
+    "parent": "/",
+    "rx": 4,
+    "ry": 4,
+    "imin": 121,
+    "imax": 146,
+    "jmin": 113,
+    "jmax": 133,
+    "iperio": False
+    },
+    "2": {
+    "parent": "1",
+    "rx": 3,
+    "ry": 3,
+    "imin": 20,
+    "imax": 60,
+    "jmin": 27,
+    "jmax": 60,
+    "iperio": False
+    }
+    }
+</code></pre>
+<p>Finally, we can construct a new <code>NEMODataTree</code> called <code>nemo</code> using the <code>.from_paths()</code> constructor.</p>
+<p>Again, we also need to specify that our global parent domain is zonally periodic (<code>iperio=True</code>) and north folding on T-points (<code>nftype = "T"</code>) rather than a closed (regional) domain.</p>
+<p>We can also include additional keyword arguments to pass onto <code>xarray.open_dataset</code> or <code>xr.open_mfdataset</code> when opening NEMO model output files.</p>
+<pre><code class="language-python">nemo = NEMODataTree.from_paths(paths=paths, nests=nests, iperio=True, nftype="T", engine="netcdf4")
+
+nemo
+</code></pre>
+<pre><code>&lt;xarray.DataTree&gt;
+Group: /
+│   Dimensions:               (time_counter: 2, axis_nbounds: 2, ncatice: 5)
+│   ...
+│ 
+├── Group: /gridT
+│   │   Dimensions:               (time_counter: 2, axis_nbounds: 2, j: 148, i: 180,
+│   │                              ncatice: 5, k: 31)
+│   │   ...
+│   └── Group: /gridT/1_gridT
+│       │   Dimensions:               (time_counter: 2, axis_nbounds: 2, j1: 80, i1: 100,
+│       │                              ncatice: 5, k1: 29)
+│       │   ...
+│       └── Group: /gridT/1_gridT/2_gridT
+│               Dimensions:               (time_counter: 2, axis_nbounds: 2, j2: 99, i2: 120,
+│                                          ncatice: 5, k2: 60)
+│               ...
+├── Group: /gridU
+│   │   Dimensions:               (k: 31, axis_nbounds: 2, time_counter: 2, j: 148,
+│   │                              i: 180)
+│   │   ...
+│   └── Group: /gridU/1_gridU
+│       │   Dimensions:               (k1: 29, axis_nbounds: 2, time_counter: 2, j1: 80,
+│       │                              i1: 100)
+│       │   ...
+│       └── Group: /gridU/1_gridU/2_gridU
+│               Dimensions:               (k2: 60, axis_nbounds: 2, time_counter: 2, j2: 99,
+│                                          i2: 120)
+│               ...
+├── Group: /gridV
+│   │   Dimensions:               (k: 31, axis_nbounds: 2, time_counter: 2, j: 148,
+│   │                              i: 180)
+│   │   ...
+│   └── Group: /gridV/1_gridV
+│       │   Dimensions:               (k1: 29, axis_nbounds: 2, time_counter: 2, j1: 80,
+│       │                              i1: 100)
+│       │   ...
+│       └── Group: /gridV/1_gridV/2_gridV
+│               Dimensions:               (k2: 60, axis_nbounds: 2, time_counter: 2, j2: 99,
+│                                          i2: 120)
+│               ...
+├── Group: /gridW
+│   │   Dimensions:               (k: 31, axis_nbounds: 2, time_counter: 2, j: 148,
+│   │                              i: 180)
+│   │   ...
+│   └── Group: /gridW/1_gridW
+│       │   Dimensions:               (k1: 29, axis_nbounds: 2, time_counter: 2, j1: 80,
+│       │                              i1: 100)
+│       │   ...
+│       └── Group: /gridW/1_gridW/2_gridW
+│               Dimensions:               (k2: 60, axis_nbounds: 2, time_counter: 2, j2: 99,
+│                                          i2: 120)
+│               ...
+└── Group: /gridF
+    │   Dimensions:       (j: 148, i: 180, k: 31)
+    │   ...
+    └── Group: /gridF/1_gridF
+        │   Dimensions:       (j1: 80, i1: 100, k1: 29)
+        │   ...
+        └── Group: /gridF/1_gridF/2_gridF
+                Dimensions:       (j2: 99, i2: 120, k2: 60)
+                ...
+</code></pre>
+<h3 id="coupled-climate-models"><strong>Coupled Climate Models:</strong></h3>
+<p><code>UKESM1-0-LL</code></p>
+<p>In addition to ocean-only and ocean sea-ice hindcast simulations (prescribing surface atmospheric forcing), NEMO models are also used as the ocean components in many coupled climate models, including the UK Earth System Model (UKESM) developed jointly by the UK Met Office and Natural Environment Research Council (NERC).</p>
+<p>Here, we show how to construct a <code>NEMODataTree</code> from the 1° global ocean sea-ice component of <a href="https://doi.org/10.1029/2019MS001739"><strong>UKESM1-0-LL</strong></a> included in the sixth Coupled Model Intercomparsion Project (<a href="https://wcrp-cmip.org/cmip-phases/cmip6/"><strong>CMIP6</strong></a>) using outputs accessible via the <a href="https://help.ceda.ac.uk/article/4801-cmip6-data"><strong>CEDA Archive</strong></a>.</p>
+<p>Since CMIP6 outputs are processed and formatted according to the CMIP Community Climate Model Output Rewriter (CMOR) software, we will need to include a few additional pre-processing steps to reformat our NEMO model outputs in order to construct a <code>NEMODataTree</code></p>
+<p><strong>Important: only CMIP model outputs variables stored on their original NEMO ocean model grid (i.e, <code>gn</code>) can be used to construct a <code>NEMODataTree</code></strong></p>
+<pre><code class="language-python"># Open domain_cfg:
+ds_domain_cfg = xr.open_dataset("/path/to/MOHC/Ofx/domain_cfg_Ofx_UKESM1.nc")
+
+# Define time decoder to handle CMIP6 time units:
+time_decoder = xr.coders.CFDatetimeCoder(use_cftime=True)
+
+# Open potential temperature (°C) dataset:
+base_filepath = "/badc/cmip6/data/CMIP6/CMIP/MOHC/UKESM1-0-LL/historical/r4i1p1f2/Omon/thetao/gn/latest"
+ds_ukesm1_gridT = xr.open_mfdataset(f"{base_filepath}/thetao_Omon_UKESM1-0-LL_historical_r4i1p1f2_gn_*.nc",
+                                    data_vars='all',
+                                    decode_times=time_decoder
+                                   )
+
+# Adding mixed layer depth (m) to dataset:
+ds_ukesm1_gridT['mlotst'] = xr.open_mfdataset(f"{base_filepath}/mlotst_Omon_UKESM1-0-LL_historical_r4i1p1f2_gn_*.nc",
+                                              data_vars='all',
+                                              decode_times=time_decoder
+                                              )['mlotst']
+</code></pre>
+<p>Now we have defined our <code>domain</code> and <code>gridT</code> datasets, let's define a <code>datasets</code> dictionary ensuring that we rename CMORISED dimensions to be consistent with standard NEMO model outputs.</p>
+<p>We can then define a <code>NEMODataTree</code> using the <code>.from_datasets()</code> constructor, specifying that our global parent domain is zonally periodic and north-folding on F-points.</p>
+<pre><code class="language-python">datasets = {"parent": {
+                "domain": ds_domain_cfg.rename({'z':'nav_lev'}),
+                "gridT": ds_ukesm1_gridT.rename({'time':'time_counter', 'i':'x', 'j':'y', 'lev':'deptht'}),
+                }}
+
+nemo = NEMODataTree.from_datasets(datasets=datasets, iperio=True, nftype="F")
+
+nemo
+</code></pre>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer">
+        
+          
+          <a href=".." class="md-footer__link md-footer__link--prev" aria-label="Previous: Getting started">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Getting started
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../howto/" class="md-footer__link md-footer__link--next" aria-label="Next: How To...">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                How To...
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://github.com/NOC-MSM/nemo_cookbook" target="_blank" rel="noopener" title="GitHub" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"></path></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["content.action.edit", "content.tabs.link", "content.code.copy", "content.code.annotate", "content.code.select", "toc.integrate", "navigation.tabs", "navigation.path", "navigation.footer", "search.suggest"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="../javascripts/mathjax.js"></script>
+      
+        <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  
+<script id="init-glightbox">const lightbox = GLightbox({"touchNavigation": true, "loop": false, "zoomable": true, "draggable": true, "openEffect": "zoom", "closeEffect": "zoom", "slideEffect": "slide"});
+document$.subscribe(()=>{ lightbox.reload(); });
+</script></body></html>
