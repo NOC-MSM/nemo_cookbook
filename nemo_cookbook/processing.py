@@ -14,6 +14,7 @@ import numpy as np
 import xarray as xr
 from .masks import create_dom_mask, read_dom_mask
 
+_DEFAULT_NBGHOST_CHILD = 4
 
 def _add_parent_indices(ds: xr.Dataset, grid: str, label: str) -> xr.Dataset:
     """
@@ -736,7 +737,7 @@ def _process_child(
     label: int,
     parent_label: int,
     read_mask: bool = False,
-    nbghost_child: int = 4,
+    nbghost_child: int = _DEFAULT_NBGHOST_CHILD,
     open_kwargs: dict[str, any] | None = None,
 ) -> dict[str, xr.Dataset]:
     """
@@ -788,8 +789,8 @@ def _process_child(
         If True, read NEMO model land/sea mask from domain files. Default is False, meaning masks are computed
         from top_level and bottom_level domain variables.
 
-    nbghost_child : int = 4
-        Number of ghost cells to remove from the western/southern boundaries of the (grand)child domain. Default is 4.
+    nbghost_child : int = _DEFAULT_NBGHOST_CHILD
+        Number of ghost cells to remove from the western/southern boundaries of the (grand)child domain. Default is 4 (`_DEFAULT_NBGHOST_CHILD`).
 
     open_kwargs: dict[str, any], optional
         Additional keyword arguments to pass to xarray.open_dataset or xarray.open_mfdataset when opening
@@ -913,7 +914,7 @@ def create_datatree_dict(
     iperio: bool = False,
     nftype: str | None = None,
     read_mask: bool = False,
-    nbghost_child: int = 4,
+    nbghost_child: int = _DEFAULT_NBGHOST_CHILD,
     open_kwargs: dict[str, any] | None = None,
 ) -> dict[str, xr.Dataset]:
     """
@@ -937,9 +938,8 @@ def create_datatree_dict(
         pivot or 'F' for F-point pivot. By default, no north fold lateral boundary condition is applied (None).
     read_mask : bool = False
         If True, read NEMO model land/sea mask from domain files. Default is False, meaning masks are computed from top_level and bottom_level domain variables.
-    nbghost_child : int = 4
-        Number of ghost cells to remove from the western/southern boundaries of the (grand)child domain.
-        Default is 4.
+    nbghost_child : int = _DEFAULT_NBGHOST_CHILD
+        Number of ghost cells to remove from the western/southern boundaries of the (grand)child domain. Default is 4 (`_DEFAULT_NBGHOST_CHILD`).
     open_kwargs : dict[str, any], optional
         Additional keyword arguments passed to `xarray.open_dataset` or `xarray.open_mfdataset` when
         opening NEMO grid files.
