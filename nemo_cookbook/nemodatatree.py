@@ -18,23 +18,24 @@ import xarray as xr
 from xarray.indexes import NDPointIndex
 from xoak import SklearnGeoBallTreeAdapter
 
-from .core import compute_depth_integral
-from .extract import (
+from nemo_cookbook.core import compute_depth_integral
+from nemo_cookbook.extract import (
     create_boundary_dataset,
     create_section_polygon,
     get_section_indexes,
     update_boundary_dataset,
 )
-from .interpolate import interpolate_grid
-from .masks import create_polygon_mask, get_mask_boundary
-from .processing import create_datatree_dict
-from .stats import compute_binned_statistic
-from .transform import transform_vertical_coords
+from nemo_cookbook.interpolate import interpolate_grid
+from nemo_cookbook.masks import create_polygon_mask, get_mask_boundary
+from nemo_cookbook.processing import create_datatree_dict
+from nemo_cookbook.stats import compute_binned_statistic
+from nemo_cookbook.transform import transform_vertical_coords
+from nemo_cookbook.utils import SklearnGeoBallTreeAdapter
 
 
 class NEMODataTree(xr.DataTree):
     """
-    A hierarchical data structure containing collections of NEMO ocean model outputs.
+    Hierarchical data structure containing collections of NEMO ocean model outputs.
 
     This class extends `xarray.DataTree` to provide methods for processing
     and analysing NEMO output xarray objects defining one or more model domains.
@@ -66,6 +67,7 @@ class NEMODataTree(xr.DataTree):
         cls,
         paths: dict[str, str],
         nests: dict[str, str] | None = None,
+        name : str = "NEMO model",
         iperio: bool = False,
         nftype: str | None = None,
         read_mask: bool = False,
@@ -118,6 +120,9 @@ class NEMODataTree(xr.DataTree):
             define the indices of the child (grandchild) domain within the parent (child) domain. Zonally
             periodic nested domains should be specified with `iperio=True`.
 
+        name: str, optional
+            Name of the NEMODataTree. Default is "NEMO model".
+
         iperio: bool = False
             Zonal periodicity of the parent domain. Default is False.
 
@@ -153,7 +158,7 @@ class NEMODataTree(xr.DataTree):
         ...          "icemod": "path/to/*_icemod.nc",
         ...          }}
 
-        >>> NEMODataTree.from_paths(paths, iperio=True, nftype="T")
+        >>> NEMODataTree.from_paths(paths, name="eORCA", iperio=True, nftype="T")
 
         See Also
         --------
@@ -163,6 +168,8 @@ class NEMODataTree(xr.DataTree):
             raise TypeError("paths must be a dictionary or nested dictionary.")
         if not isinstance(nests, (dict, type(None))):
             raise TypeError("nests must be a dictionary or None.")
+        if not isinstance(name, str):
+            raise TypeError("name must be a string.")
         if not isinstance(iperio, bool):
             raise TypeError("zonal periodicity of parent domain must be a boolean.")
         if nftype is not None and nftype not in ("T", "F"):
@@ -209,6 +216,7 @@ class NEMODataTree(xr.DataTree):
         )
 
         datatree = super().from_dict(d_tree)
+        datatree.name = name
 
         return datatree
 
@@ -217,6 +225,7 @@ class NEMODataTree(xr.DataTree):
         cls,
         datasets: dict[str, dict[str, xr.Dataset]],
         nests: dict[str, dict[str, str]] | None = None,
+        name : str = "NEMO model",
         iperio: bool = False,
         nftype: str | None = None,
         read_mask: bool = False,
@@ -252,6 +261,9 @@ class NEMODataTree(xr.DataTree):
             where `rx` and `ry` are the horizontal refinement factors, and `imin`, `imax`, `jmin`, `jmax`
             define the indices of the child (grandchild) domain within the parent (child) domain.
 
+        name: str, optional
+            Name of the NEMODataTree. Default is "NEMO model".
+
         iperio: bool = False
             Zonal periodicity of the parent domain.
 
@@ -282,7 +294,7 @@ class NEMODataTree(xr.DataTree):
 
         >>> datasets = {"parent": {"domain": ds_domain, "gridT": ds_gridT}}
 
-        >>> nemo = NEMODataTree.from_datasets(datasets=datasets)
+        >>> nemo = NEMODataTree.from_datasets(datasets=datasets, name="My NEMO Model", iperio=True, nftype="T")
 
         See Also
         --------
@@ -292,6 +304,8 @@ class NEMODataTree(xr.DataTree):
             raise TypeError("datasets must be a dictionary or nested dictionary.")
         if not isinstance(nests, (dict, type(None))):
             raise TypeError("nests must be a dictionary or None.")
+        if not isinstance(name, str):
+            raise TypeError("name must be a string.")
         if not isinstance(iperio, bool):
             raise TypeError("zonal periodicity of parent domain must be a boolean.")
         if nftype is not None and nftype not in ("T", "F"):
@@ -333,7 +347,9 @@ class NEMODataTree(xr.DataTree):
             read_mask=read_mask,
             nbghost_child=nbghost_child,
         )
+
         datatree = super().from_dict(d_tree)
+        datatree.name = name
 
         return datatree
 

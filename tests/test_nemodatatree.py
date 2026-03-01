@@ -28,6 +28,13 @@ class TestNEMODataTreePaths():
         expected_str = "nests must be a dictionary or None."
         with pytest.raises(TypeError, match=expected_str):
             NEMODataTree.from_paths(paths={}, nests=nests)
+
+    @pytest.mark.parametrize("name", [[], None, 123])
+    def test_name_errors(self, name):
+        # -- Verify TypeError -- #
+        expected_str = "name must be a string."
+        with pytest.raises(TypeError, match=expected_str):
+            NEMODataTree.from_paths(paths={}, name=name)
     
     @pytest.mark.parametrize("iperio", ["False", 0])
     def test_iperio_errors(self, iperio):
@@ -94,6 +101,13 @@ class TestNEMODataTreeDatasets():
         expected_str = "nests must be a dictionary or None."
         with pytest.raises(TypeError, match=expected_str):
             NEMODataTree.from_datasets(datasets={}, nests=nests)
+    
+    @pytest.mark.parametrize("name", [[], None, 123])
+    def test_name_errors(self, name):
+        # -- Verify TypeError -- #
+        expected_str = "name must be a string."
+        with pytest.raises(TypeError, match=expected_str):
+            NEMODataTree.from_datasets(datasets={}, name=name)
     
     @pytest.mark.parametrize("iperio", ["False", 0])
     def test_iperio_errors(self, iperio):
@@ -265,34 +279,3 @@ class TestNEMODataTreeDatasets():
             assert isinstance(result, xr.DataArray)
             # -- Verify no zero weights -- #
             assert np.sum(result == 0) == 0
-
-
-# def test_cell_area():
-
-# def_test_cell_volume():
-
-# def test_gradient():
-
-# def test_divergence():
-
-# def test_curl():
-
-# def test_integral():
-
-# def test_clip_grid():
-
-# def test_clip_domain():
-
-# def test_mask_with_polygon():
-
-# def test_masked_statistic():
-
-# def test_extract_mask_boundary():
-
-# def test_extract_section():
-
-# def test_binned_statistic():
-
-# def test_transform_vertical_grid():
-
-# def test_transform_to():
