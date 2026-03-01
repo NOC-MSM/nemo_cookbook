@@ -1,0 +1,66 @@
+[workspace]
+authors = ["Ollie Tooth <oliver.tooth@noc.ac.uk>"]
+preview = ["pixi-build"]
+channels = ["conda-forge"]
+platforms = ["win-64", "linux-64", "osx-arm64"]
+
+[package]
+name = "nemo_cookbook"
+version = "9999.0.0"
+
+[package.build]
+backend = { name = "pixi-build-python", version = ">=0.4.4" }
+
+[package.host-dependencies]
+setuptools = "*"
+setuptools_scm = "*"
+
+[package.run-dependencies]
+python = "*"
+aiohttp = "*"
+dask = "*"
+flox = "*"
+fsspec = "*"
+gsw = "*"
+matplotlib = "*"
+numbagg = "*"
+numba = "0.62*"
+numpy = "2.3*"   # numba 0.62 added support for numpy 2.3
+netCDF4 = "*"
+pooch = "*"
+requests = "*"
+scikit-learn = "*"
+scikit-image = "*"
+xarray = "*"
+zarr = "*"
+git = "*"  # needed for dynamic versioning
+
+[dependencies]
+nemo_cookbook = { path = "." }
+python = "3.13.*"
+
+[feature.test.pypi-dependencies]
+pytest = "*"
+pytest-mock = "*"
+
+[feature.test.tasks]
+test = "pytest --maxfail=1 --disable-warnings --tb=short"
+
+[feature.docs.pypi-dependencies]
+mkdocs-material = "*"
+mkdocs-glightbox = "*"
+mkdocs-jupyter = "*"
+mkdocstrings = "*"
+mkdocstrings-python = "*"
+
+[feature.docs.tasks]
+build_docs = "mkdocs serve"
+
+[feature.dev.dependencies]
+ipykernel = "*"
+
+[environments]
+default = { solve-group = "default" }
+test = { features = ["test"], solve-group = "default" }
+docs = { features = ["docs"], solve-group = "default" }
+dev = { features = ["dev"], solve-group = "default" }
