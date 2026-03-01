@@ -1,17 +1,17 @@
 """
-core.py
+integrate.py
 
 Description:
-This module includes functions to perform core scalar and vector
-operations on NEMO ocean general circulation model domains.
+This module includes functions to perform integration operations
+on NEMO ocean general circulation model domains.
 
 Author:
 Ollie Tooth (oliver.tooth@noc.ac.uk)
 """
 
-from numba import guvectorize
-import numpy.typing as npt
 import numpy as np
+import numpy.typing as npt
+from numba import guvectorize
 
 
 @guvectorize(
@@ -69,4 +69,3 @@ def compute_depth_integral(
         )
 
         result[:] = np.sum(dz * var_masked)
-
