@@ -69,6 +69,14 @@ class TestNEMODataTreePaths():
         with pytest.raises(ValueError, match=re.escape(expected_str)):
             NEMODataTree.from_paths(paths=paths)
 
+    def test_paths_missing_nests_errors(self):
+        # -- Create example paths dict -- #
+        paths = {'parent': {}, 'child': {}}
+        # -- Verify ValueError -- #
+        expected_str = "nests dictionary must be provided when defining NEMO child domains."
+        with pytest.raises(ValueError, match=re.escape(expected_str)):
+            NEMODataTree.from_paths(paths=paths)
+
     def test_paths_key_errors(self):
         # -- Create example paths dict -- #
         key = 'unexpected_key'
@@ -139,6 +147,14 @@ class TestNEMODataTreeDatasets():
     def test_datasets_value_errors(self, datasets):
         # -- Verify ValueError -- #
         expected_str = "Invalid datasets structure. Expected a nested dictionary defining NEMO 'parent', 'child' and 'grandchild' domains."
+        with pytest.raises(ValueError, match=re.escape(expected_str)):
+            NEMODataTree.from_datasets(datasets=datasets)
+
+    def test_datasets_missing_nests_errors(self):
+        # -- Create example datasets dict -- #
+        datasets = {'parent': {}, 'child': {}}
+        # -- Verify ValueError -- #
+        expected_str = "nests dictionary must be provided when defining NEMO child domains."
         with pytest.raises(ValueError, match=re.escape(expected_str)):
             NEMODataTree.from_datasets(datasets=datasets)
 

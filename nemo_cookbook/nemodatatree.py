@@ -164,6 +164,7 @@ class NEMODataTree(xr.DataTree):
         --------
         from_datasets
         """
+        # -- Validate input -- #
         if not isinstance(paths, dict):
             raise TypeError("paths must be a dictionary or nested dictionary.")
         if not isinstance(nests, (dict, type(None))):
@@ -194,7 +195,12 @@ class NEMODataTree(xr.DataTree):
                 if key == "parent":
                     d_parent = paths["parent"]
                 elif key == "child":
-                    d_child = paths["child"]
+                    if nests is None:
+                        raise ValueError(
+                            "nests dictionary must be provided when defining NEMO child domains."
+                        )
+                    else:
+                        d_child = paths["child"]
                 elif key == "grandchild":
                     d_grandchild = paths["grandchild"]
         else:
@@ -328,7 +334,12 @@ class NEMODataTree(xr.DataTree):
                 if key == "parent":
                     d_parent = datasets["parent"]
                 elif key == "child":
-                    d_child = datasets["child"]
+                    if nests is None:
+                        raise ValueError(
+                            "nests dictionary must be provided when defining NEMO child domains."
+                        )
+                    else:
+                        d_child = datasets["child"]
                 elif key == "grandchild":
                     d_grandchild = datasets["grandchild"]
         else:
@@ -1333,6 +1344,7 @@ class NEMODataTree(xr.DataTree):
                 grid_clipped[var] = grid_clipped[var].fillna(0).astype(dtype)
 
         if bbox != (-180, 180, -90, 90):
+            # Update zonal periodicity of grid node:
             grid_clipped = grid_clipped.assign_attrs({"iperio": False})
 
         # Update shallow copy of NEMODataTree:
@@ -1418,6 +1430,7 @@ class NEMODataTree(xr.DataTree):
                             grid_clipped = self[grid].dataset.sel(i=i_bbox + 0.5, j=j_bbox + 0.5)
 
                     if bbox != (-180, 180, -90, 90):
+                        # Update zonal periodicity of NEMO model grid:
                         grid_clipped = grid_clipped.assign_attrs({"iperio": False})
                     # Update shallow copy of NEMODataTree:
                     self_copy[grid].dataset = grid_clipped
