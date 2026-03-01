@@ -12,9 +12,11 @@ Ollie Tooth (oliver.tooth@noc.ac.uk)
 """
 from typing import Self
 
+import numpy as np
 import xarray as xr
 
 from nemo_cookbook import NEMODataTree
+from nemo_cookbook.integrate import compute_depth_integral
 
 
 class NEMODataArray:
@@ -341,6 +343,181 @@ class NEMODataArray:
         new_grid = f"{self._grid.replace(self._grid[-1], 'W' if k_name in new_dim_frac else new_grid_suffix.upper())}"
         result = NEMODataArray(da=result, tree=self._tree, grid=new_grid)
         result = result.masked
+
+        return result
+
+    def integral(
+        self,
+        dims: list,
+        cum_dims: list | None = None,
+        dir: str | None = None,
+        mask: xr.DataArray | None = None,
+    ) -> Self:
+        """
+        Integrate variable along one or more dimensions of a NEMO model grid.
+
+        Parameters
+        ----------
+        dims : list
+            Dimensions over which to integrate (e.g., ['i', 'k']).
+        cum_dims : list, optional
+            Dimensions over which to cumulatively integrate (e.g., ['k']).
+            Specified dimensions must also be included in `dims`.
+        dir : str, optional
+            Direction of cumulative integration. Options are '+1' (along
+            increasing cum_dims) or '-1' (along decreasing cum_dims).
+        mask: xr.DataArray, optional
+            Boolean mask identifying NEMO model grid points to be included (1)
+            or neglected (0) from integration.
+
+        Returns
+        -------
+        NEMODataArray
+            Variable integrated along specified dimensions of the NEMO model grid.
+
+
+        Examples
+        --------
+        Compute the integral of conservative temperature `thetao_con` along the vertical
+        `k` dimension in the NEMO parent domain:
+
+        >>> nemo['gridT/thetao_con'].integral(dims=["k"])
+
+        Compute the vertical meridional overturning stream function from the meridional
+        velocity `vo` (zonally integrated meridional velocity accumulated with increasing
+        depth):
+
+        >>> nemo['gridV/vo'].integral(dims=["i", "k"],
+        ...                           cum_dims=["k"],
+        ...                           dir="+1",
+        ...                           )
+
+        See Also
+        --------
+        depth_integral
+        """
+        # -- Validate input -- #
+        if cum_dims is not None:
+            for dim in cum_dims:
+                if dim not in dims:
+                    raise ValueError(
+                        f"cumulative integration dimension '{dim}' not included in `dims`."
+                    )
+            if dir not in ["+1", "-1"]:
+                raise ValueError(
+                    f"invalid direction of cumulative integration '{dir}'. Expected '+1' or '-1'."
+                )
+        if mask is not None:
+            if not isinstance(mask, xr.DataArray):
+                raise ValueError("mask must be an xarray.DataArray.")
+            if any(dim not in self.dims for dim in mask.dims):
+                raise ValueError(
+                    f"mask must have dimensions subset from {self.dims}."
+                )
+
+        # -- Collect variable, weights & mask -- #
+        da = (
+            self.masked.data.where(mask)
+            if mask is not None
+            else self.masked.data
+            )
+        weights = self._tree._get_weights(grid=self._grid, dims=dims)
+
+        # -- Perform integration -- #
+        if cum_dims is not None:
+            sum_dims = [dim for dim in dims if dim not in cum_dims]
+            if dir == "+1":
+                # Cumulative integration along ordered dimension:
+                result = (
+                    da.weighted(weights)
+                    .sum(dim=sum_dims, skipna=True)
+                    .cumsum(dim=cum_dims, skipna=True)
+                )
+            elif dir == "-1":
+                # Cumulative integration along reversed dimension:
+                result = (
+                    da.weighted(weights)
+                    .sum(dim=sum_dims, skipna=True)
+                    .reindex({dim: self[dim][::-1] for dim in cum_dims})
+                    .cumsum(dim=cum_dims, skipna=True)
+                )
+        else:
+            result = da.weighted(weights).sum(dim=dims, skipna=True)
+
+        # -- Apply land-sea mask & return NEMODataArray -- #
+        result.name = f"integral_{', '.join(dims)}({self.name})"
+        result = self._wrap(result).masked
+
+        return result
+    
+    def depth_integral(
+        self, limits: tuple[int | float]
+    ) -> xr.Dataset:
+        """
+        Integrate a variable in depth coordinates between two limits.
+
+        Parameters
+        ----------
+        limits : tuple[int | float]
+            Limits of depth integration given as a tuple of the form
+            (depth_min, depth_max) where depth_min and depth_max are
+            the lower and upper limits of vertical integration, respectively.
+
+        Returns
+        -------
+        NEMODataArray
+            Vertical integral of chosen variable between two depth surfaces (depth_min, depth_max).
+
+        Examples
+        --------
+        Vertically integrate the conservative temperature variable `thetao_con` defined in a
+        NEMO model parent domain from the sea surface to 100 m depth:
+
+        >>> nemo["gridT/thetao_con"].depth_integral(limits=(0, 100))
+
+        See Also
+        --------
+        integral
+        """
+        # -- Validate input -- #
+        if (not isinstance(limits, tuple)) | (len(limits) != 2):
+            raise TypeError(
+                "depth limits of integration should be given by a tuple of the form (depth_min, depth_max)"
+            )
+        if (limits[0] < 0) | (limits[1] < 0):
+            raise ValueError("depth limits of integration must be non-negative.")
+        if limits[0] >= limits[1]:
+            raise ValueError(
+                "lower depth limit must be less than upper depth limit."
+            )
+
+        # -- Get NEMO model grid properties -- #
+        ijk_names = self._tree._get_ijk_names(dom=self._dom)
+        i_name, j_name, k_name = ijk_names["i"], ijk_names["j"], ijk_names["k"]
+
+        # -- Define input variables -- #
+        var_in = self.masked.data
+        e3_in = self.metrics["e3"]
+
+        # -- Vertically integrate w.r.t depth -- #
+        result = xr.apply_ufunc(
+            compute_depth_integral,
+            e3_in,
+            var_in,
+            np.array([limits[1]]),
+            np.array([limits[0]]),
+            input_core_dims=[[k_name], [k_name], [None], [None]],
+            output_core_dims=[["k_new"]],
+            dask="allowed",
+        )
+
+        # -- Define integral variable DataArray -- #
+        t_name = var_in.dims[0]
+        result = result.transpose(t_name, "k_new", j_name, i_name).squeeze()
+        result.name = f"integral_z({self.name})"
+
+        # -- Apply land-sea mask & return NEMODataArray -- #
+        result = self._wrap(result).masked
 
         return result
     
