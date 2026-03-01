@@ -35,8 +35,10 @@ def example_global_nemodatatree() -> NEMODataTree:
     # -- Create Example NEMODataTree -- #
     nemo = NEMODataTree()
 
-    # Add NEMODataTree Attributes:
-    nemo.attrs = {"nftype": None, "iperio": False}
+    # Add NEMODataTree attributes:
+    nftype = "T"
+    iperio = True
+    nemo.attrs = {"nftype": nftype, "iperio": iperio}
 
     # T-points:
     nemo["gridT"] = xr.Dataset(data_vars={
@@ -60,6 +62,8 @@ def example_global_nemodatatree() -> NEMODataTree:
     nemo["gridT"]["tmask"][:, 1, 4:6] = False
     # Add tmaskutil:
     nemo["gridT"]["tmaskutil"] = nemo["gridT"]["tmask"].isel(k=0).copy()
+    # Add NEMO grid attributes:
+    nemo["gridT"].dataset = nemo["gridT"].dataset.assign_attrs(nftype=nftype, iperio=iperio)
 
     # U-points:
     nemo["gridU"] = xr.Dataset(data_vars={
@@ -83,6 +87,8 @@ def example_global_nemodatatree() -> NEMODataTree:
     nemo["gridU"]["umask"][:, 1, 3:6] = False
     # Add umaskutil:
     nemo["gridU"]["umaskutil"] = nemo["gridU"]["umask"].isel(k=0).copy()
+    # Add NEMO grid attributes:
+    nemo["gridU"].dataset = nemo["gridU"].dataset.assign_attrs(nftype=nftype, iperio=iperio)
 
     # V-points:
     nemo["gridV"] = xr.Dataset(data_vars={
@@ -107,6 +113,8 @@ def example_global_nemodatatree() -> NEMODataTree:
     nemo["gridV"]["vmask"][:, 1, 4:6] = False
     # Add vmaskutil:
     nemo["gridV"]["vmaskutil"] = nemo["gridV"]["vmask"].isel(k=0).copy()
+    # Add NEMO grid attributes:
+    nemo["gridV"].dataset = nemo["gridV"].dataset.assign_attrs(nftype=nftype, iperio=iperio)
 
     # W-points:
     nemo["gridW"] = xr.Dataset(data_vars={
@@ -130,6 +138,8 @@ def example_global_nemodatatree() -> NEMODataTree:
     nemo["gridW"]["wmask"][:, 1, 4:6] = False
     # Add wmaskutil:
     nemo["gridW"]["wmaskutil"] = nemo["gridW"]["wmask"].isel(k=0).copy()
+    # Add NEMO grid attributes:
+    nemo["gridW"].dataset = nemo["gridW"].dataset.assign_attrs(nftype=nftype, iperio=iperio)
 
     # F-points:
     nemo["gridF"] = xr.Dataset(data_vars={
@@ -154,6 +164,8 @@ def example_global_nemodatatree() -> NEMODataTree:
     nemo["gridF"]["fmask"][:, 1, 3:6] = False
     # Add fmaskutil:
     nemo["gridF"]["fmaskutil"] = nemo["gridF"]["fmask"].isel(k=0).copy()
+    # Add NEMO grid attributes:
+    nemo["gridF"].dataset = nemo["gridF"].dataset.assign_attrs(nftype=nftype, iperio=iperio)
 
     # -- Add Example Scalar Variable -- #
     time_data = np.arange(np.datetime64('2000-01'), np.datetime64('2000-04'))
@@ -204,6 +216,33 @@ def example_global_nemodatatree() -> NEMODataTree:
                                             )
     # Apply vmask to vo:
     nemo['gridV']['vo'] = nemo['gridV']['vo'].where(nemo['gridV']['vmask'])
+
+    # Add scalar vorticity (1 s^-1) field to F-grid:
+    nemo['gridF']['fo'] = xr.DataArray(data=np.ones((nt, nk, nj, ni)),
+                                       dims=('time_counter', 'k', 'j', 'i'),
+                                       coords={'time_counter': time_data,
+                                               'k': nemo['gridF']['k'],
+                                               'j': nemo['gridF']['j'],
+                                               'i': nemo['gridF']['i']
+                                               }
+                                            )
+    # Apply fmask to fo:
+    nemo['gridF']['fo'] = nemo['gridF']['fo'].where(nemo['gridF']['fmask'])
+
+    # Add vertical velocity (1 m/s) field to W-grid:
+    nemo['gridW']['wo'] = xr.DataArray(data=np.ones((nt, nk, nj, ni)),
+                                       dims=('time_counter', 'k', 'j', 'i'),
+                                       coords={'time_counter': time_data,
+                                               'k': nemo['gridW']['k'],
+                                               'j': nemo['gridW']['j'],
+                                               'i': nemo['gridW']['i']
+                                               }
+                                            )
+    # Apply wmask to wo:
+    nemo['gridW']['wo'] = nemo['gridW']['wo'].where(nemo['gridW']['wmask'])
+
+    # Add name attribute to the NEMODataTree:
+    nemo.name = "Example Global NEMO Model"
 
     return nemo
 
@@ -230,7 +269,9 @@ def example_regional_nemodatatree() -> NEMODataTree:
     nemo = NEMODataTree()
 
     # Add NEMODataTree Attributes:
-    nemo.attrs = {"nftype": "T", "iperio": True}
+    nftype = None
+    iperio = False
+    nemo.attrs = {"nftype": nftype, "iperio": iperio}
 
     # T-points:
     nemo["gridT"] = xr.Dataset(data_vars={
@@ -255,6 +296,8 @@ def example_regional_nemodatatree() -> NEMODataTree:
     nemo["gridT"]["tmask"][:, 1, 4:6] = False
     # Add tmaskutil:
     nemo["gridT"]["tmaskutil"] = nemo["gridT"]["tmask"].isel(k=0).copy()
+    # Add NEMO grid attributes:
+    nemo["gridT"].dataset = nemo["gridT"].dataset.assign_attrs(nftype=nftype, iperio=iperio)
 
     # U-points:
     nemo["gridU"] = xr.Dataset(data_vars={
@@ -279,6 +322,8 @@ def example_regional_nemodatatree() -> NEMODataTree:
     nemo["gridU"]["umask"][:, 1, 3:6] = False
     # Add umaskutil:
     nemo["gridU"]["umaskutil"] = nemo["gridU"]["umask"].isel(k=0).copy()
+    # Add NEMO grid attributes:
+    nemo["gridU"].dataset = nemo["gridU"].dataset.assign_attrs(nftype=nftype, iperio=iperio)
 
     # V-points:
     nemo["gridV"] = xr.Dataset(data_vars={
@@ -304,6 +349,8 @@ def example_regional_nemodatatree() -> NEMODataTree:
     nemo["gridV"]["vmask"][:, 1, 4:6] = False
     # Add vmaskutil:
     nemo["gridV"]["vmaskutil"] = nemo["gridV"]["vmask"].isel(k=0).copy()
+    # Add NEMO grid attributes:
+    nemo["gridV"].dataset = nemo["gridV"].dataset.assign_attrs(nftype=nftype, iperio=iperio)
 
     # W-points:
     nemo["gridW"] = xr.Dataset(data_vars={
@@ -328,6 +375,8 @@ def example_regional_nemodatatree() -> NEMODataTree:
     nemo["gridW"]["wmask"][:, 1, 4:6] = False
     # Add wmaskutil:
     nemo["gridW"]["wmaskutil"] = nemo["gridW"]["wmask"].isel(k=0).copy()
+    # Add NEMO grid attributes:
+    nemo["gridW"].dataset = nemo["gridW"].dataset.assign_attrs(nftype=nftype, iperio=iperio)
 
     # F-points:
     nemo["gridF"] = xr.Dataset(data_vars={
@@ -354,6 +403,8 @@ def example_regional_nemodatatree() -> NEMODataTree:
     nemo["gridF"]["fmask"][:, 1, 3:6] = False
     # Add fmaskutil:
     nemo["gridF"]["fmaskutil"] = nemo["gridF"]["fmask"].isel(k=0).copy()
+    # Add NEMO grid attributes:
+    nemo["gridF"].dataset = nemo["gridF"].dataset.assign_attrs(nftype=nftype, iperio=iperio)
 
     # -- Add Example Scalar Variable -- #
     time_data = np.arange(np.datetime64('2000-01'), np.datetime64('2000-04'))
@@ -404,5 +455,32 @@ def example_regional_nemodatatree() -> NEMODataTree:
                                             )
     # Apply vmask to vo:
     nemo['gridV']['vo'] = nemo['gridV']['vo'].where(nemo['gridV']['vmask'])
+
+    # Add scalar vorticity (1 s^-1) field to F-grid:
+    nemo['gridF']['fo'] = xr.DataArray(data=np.ones((nt, nk, nj, ni)),
+                                       dims=('time_counter', 'k', 'j', 'i'),
+                                       coords={'time_counter': time_data,
+                                               'k': nemo['gridF']['k'],
+                                               'j': nemo['gridF']['j'],
+                                               'i': nemo['gridF']['i']
+                                               }
+                                            )
+    # Apply fmask to fo:
+    nemo['gridF']['fo'] = nemo['gridF']['fo'].where(nemo['gridF']['fmask'])
+
+    # Add vertical velocity (1 m/s) field to W-grid:
+    nemo['gridW']['wo'] = xr.DataArray(data=np.ones((nt, nk, nj, ni)),
+                                       dims=('time_counter', 'k', 'j', 'i'),
+                                       coords={'time_counter': time_data,
+                                               'k': nemo['gridW']['k'],
+                                               'j': nemo['gridW']['j'],
+                                               'i': nemo['gridW']['i']
+                                               }
+                                            )
+    # Apply wmask to wo:
+    nemo['gridW']['wo'] = nemo['gridW']['wo'].where(nemo['gridW']['wmask'])
+
+    # Add name attribute to the NEMODataTree:
+    nemo.name = "Example Regional NEMO Model"
 
     return nemo
