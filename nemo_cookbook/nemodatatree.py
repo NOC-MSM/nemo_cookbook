@@ -18,19 +18,18 @@ import xarray as xr
 from xarray.indexes import NDPointIndex
 from xoak import SklearnGeoBallTreeAdapter
 
-from nemo_cookbook.core import compute_depth_integral
 from nemo_cookbook.extract import (
     create_boundary_dataset,
     create_section_polygon,
     get_section_indexes,
     update_boundary_dataset,
 )
+from nemo_cookbook.integrate import compute_depth_integral
 from nemo_cookbook.interpolate import interpolate_grid
 from nemo_cookbook.masks import create_polygon_mask, get_mask_boundary
 from nemo_cookbook.processing import create_datatree_dict
 from nemo_cookbook.stats import compute_binned_statistic
 from nemo_cookbook.transform import transform_vertical_coords
-from nemo_cookbook.index import SklearnGeoBallTreeAdapter
 
 
 class NEMODataTree(xr.DataTree):
