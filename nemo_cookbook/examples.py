@@ -10,9 +10,10 @@ Author:
 Ollie Tooth (oliver.tooth@noc.ac.uk)
 """
 
-import os
-import pooch
 import importlib.resources as ir
+import os
+
+import pooch
 
 
 def _create_pooch_manager() -> pooch.Pooch:

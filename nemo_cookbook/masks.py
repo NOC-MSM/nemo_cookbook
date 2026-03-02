@@ -12,10 +12,10 @@ Ollie Tooth (oliver.tooth@noc.ac.uk)
 
 import numpy as np
 import xarray as xr
-from skimage import measure
 from matplotlib.path import Path
+from skimage import measure
 
-from .lbc import lbc_nfd
+from nemo_cookbook.lbc import lbc_nfd
 
 
 def read_dom_mask(
