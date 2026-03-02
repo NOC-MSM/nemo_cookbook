@@ -70,6 +70,7 @@ class NEMODataTree(xr.DataTree):
         iperio: bool = False,
         nftype: str | None = None,
         read_mask: bool = False,
+        key_linssh: bool = False,
         nbghost_child: int = 4,
         **open_kwargs: dict[str, any],
     ) -> Self:
@@ -132,6 +133,10 @@ class NEMODataTree(xr.DataTree):
         read_mask: bool = False
             If True, read NEMO model land/sea mask from domain files. Default is False, meaning masks are computed from top_level and bottom_level domain variables.
 
+        key_linssh: bool = False
+            Linear free-surface approximation. If True, vertical coordinates are time-independent and given by (e3t_0, e3u_0, e3v_0, e3w_0) in domain_cfg.
+            If False, vertical coordinates are time-dependent and must be specified in NEMO model grid datasets. Default is False.
+
         nbghost_child : int = 4
             Number of ghost cells to remove from the western/southern boundaries of the (grand)child domains. Default is 4.
 
@@ -144,7 +149,7 @@ class NEMODataTree(xr.DataTree):
 
         Examples
         --------
-        Create a `NEMODataTree` from a dictionary of paths to local netCDF files:
+        Create a zonally periodic `NEMODataTree` from a dictionary of paths to local netCDF files:
 
         >>> from nemo_cookbook import NEMODataTree
 
@@ -157,7 +162,11 @@ class NEMODataTree(xr.DataTree):
         ...          "icemod": "path/to/*_icemod.nc",
         ...          }}
 
-        >>> NEMODataTree.from_paths(paths, name="eORCA", iperio=True, nftype="T")
+        >>> nemo = NEMODataTree.from_paths(paths, name="My NEMO model", iperio=True, nftype="T")
+
+        Create a regional `NEMODataTree` using a linear free-surface approximation from a dictionary of paths to remote netCDF files:
+
+        >>> nemo = NEMODataTree.from_paths(paths, name="My NEMO model", iperio=False, nftype=None, key_linssh=True)
 
         See Also
         --------
@@ -165,38 +174,40 @@ class NEMODataTree(xr.DataTree):
         """
         # -- Validate input -- #
         if not isinstance(paths, dict):
-            raise TypeError("paths must be a dictionary or nested dictionary.")
+            raise TypeError("`paths` must be a dictionary or nested dictionary.")
         if not isinstance(nests, (dict, type(None))):
-            raise TypeError("nests must be a dictionary or None.")
+            raise TypeError("`nests` must be a dictionary or None.")
         if not isinstance(name, str):
-            raise TypeError("name must be a string.")
+            raise TypeError("`name` must be a string.")
         if not isinstance(iperio, bool):
-            raise TypeError("zonal periodicity of parent domain must be a boolean.")
+            raise TypeError("zonal periodicity (`iperio`) of parent domain must be a boolean.")
         if nftype is not None and nftype not in ("T", "F"):
             raise ValueError(
-                "north fold type of parent domain must be 'T' (T-pivot fold), 'F' (F-pivot fold), or None."
+                "north fold type (`nftype`) of parent domain must be 'T' (T-pivot fold), 'F' (F-pivot fold), or None."
             )
         if not isinstance(read_mask, bool):
-            raise TypeError("read_mask must be a boolean.")
+            raise TypeError("`read_mask` must be a boolean.")
+        if not isinstance(key_linssh, bool):
+            raise TypeError("linear free-surface approximation (`key_linssh`) must be a boolean.")
         if not isinstance(nbghost_child, int):
             raise TypeError(
-                "number of ghost cells along the western/southern boundaries must be an integer."
+                "number of ghost cells along the western/southern boundaries (`nbghost_child`) must be an integer."
             )
         if not isinstance(open_kwargs, dict):
-            raise TypeError("open_kwargs must be a dictionary.")
+            raise TypeError("`open_kwargs` must be a dictionary.")
 
         # Define parent, child, grandchild filepath collections:
         d_child, d_grandchild = None, None
         if "parent" in paths.keys() and isinstance(paths["parent"], dict):
             for key in paths.keys():
                 if key not in ("parent", "child", "grandchild"):
-                    raise KeyError(f"Unexpected key '{key}' in paths dictionary.")
+                    raise KeyError(f"Unexpected key '{key}' in `paths` dictionary.")
                 if key == "parent":
                     d_parent = paths["parent"]
                 elif key == "child":
                     if nests is None:
                         raise ValueError(
-                            "nests dictionary must be provided when defining NEMO child domains."
+                            "`nests` dictionary must be provided when defining NEMO child domains."
                         )
                     else:
                         d_child = paths["child"]
@@ -204,7 +215,7 @@ class NEMODataTree(xr.DataTree):
                     d_grandchild = paths["grandchild"]
         else:
             raise ValueError(
-                "Invalid paths structure. Expected a nested dictionary defining NEMO 'parent', 'child' and 'grandchild' domains."
+                "Invalid `paths` structure. Expected a nested dictionary defining NEMO 'parent', 'child' and 'grandchild' domains."
             )
 
         # Construct DataTree from parent / child / grandchild domains:
@@ -217,6 +228,7 @@ class NEMODataTree(xr.DataTree):
             nftype=nftype,
             read_mask=read_mask,
             nbghost_child=nbghost_child,
+            key_linssh=key_linssh,
             open_kwargs=dict(**open_kwargs),
         )
 
@@ -234,6 +246,7 @@ class NEMODataTree(xr.DataTree):
         iperio: bool = False,
         nftype: str | None = None,
         read_mask: bool = False,
+        key_linssh: bool = False,
         nbghost_child: int = 4,
     ) -> Self:
         """
@@ -279,13 +292,17 @@ class NEMODataTree(xr.DataTree):
         read_mask: bool = False
             If True, read NEMO model land/sea mask from domain files. Default is False, meaning masks are computed from top_level and bottom_level domain variables.
 
+        key_linssh: bool = False
+            Linear free-surface approximation. If True, vertical coordinates are time-independent and given by (e3t_0, e3u_0, e3v_0, e3w_0) in domain_cfg.
+            If False, vertical coordinates are time-dependent and must be specified in NEMO model grid datasets. Default is False.
+
         nbghost_child : int = 4
             Number of ghost cells to remove from the western/southern boundaries of the (grand)child domains. Default is 4.
 
         Returns
         -------
         NEMODataTree
-            A hierarchical data tree of NEMO model outputs.
+            Hierarchical DataTree of NEMO model outputs.
 
         Examples
         --------
@@ -301,27 +318,33 @@ class NEMODataTree(xr.DataTree):
 
         >>> nemo = NEMODataTree.from_datasets(datasets=datasets, name="My NEMO Model", iperio=True, nftype="T")
 
+        Create a regional `NEMODataTree` using a linear free-surface approximation from a dictionary of xarray.Dataset objects:
+
+        >>> nemo = NEMODataTree.from_datasets(datasets=datasets, name="My NEMO Model", iperio=False, nftype=None, key_linssh=True)
+
         See Also
         --------
         from_paths
         """
         if not isinstance(datasets, dict):
-            raise TypeError("datasets must be a dictionary or nested dictionary.")
+            raise TypeError("`datasets` must be a dictionary or nested dictionary.")
         if not isinstance(nests, (dict, type(None))):
-            raise TypeError("nests must be a dictionary or None.")
+            raise TypeError("`nests` must be a dictionary or None.")
         if not isinstance(name, str):
-            raise TypeError("name must be a string.")
+            raise TypeError("`name` must be a string.")
         if not isinstance(iperio, bool):
-            raise TypeError("zonal periodicity of parent domain must be a boolean.")
+            raise TypeError("zonal periodicity (`iperio`) of parent domain must be a boolean.")
         if nftype is not None and nftype not in ("T", "F"):
             raise ValueError(
-                "north fold type of parent domain must be 'T' (T-pivot fold), 'F' (F-pivot fold), or None."
+                "north fold type (`nftype`) of parent domain must be 'T' (T-pivot fold), 'F' (F-pivot fold), or None."
             )
         if not isinstance(read_mask, bool):
-            raise TypeError("read_mask must be a boolean.")
+            raise TypeError("`read_mask` must be a boolean.")
+        if not isinstance(key_linssh, bool):
+            raise TypeError("linear free-surface approximation (`key_linssh`) must be a boolean.")
         if not isinstance(nbghost_child, int):
             raise TypeError(
-                "number of ghost cells along the western/southern boundaries must be an integer."
+                "number of ghost cells along the western/southern boundaries (`nbghost_child`) must be an integer."
             )
 
         # Define parent, child, grandchild dataset collections:
@@ -329,13 +352,13 @@ class NEMODataTree(xr.DataTree):
         if "parent" in datasets.keys() and isinstance(datasets["parent"], dict):
             for key in datasets.keys():
                 if key not in ("parent", "child", "grandchild"):
-                    raise KeyError(f"Unexpected key '{key}' in datasets dictionary.")
+                    raise KeyError(f"Unexpected key '{key}' in `datasets` dictionary.")
                 if key == "parent":
                     d_parent = datasets["parent"]
                 elif key == "child":
                     if nests is None:
                         raise ValueError(
-                            "nests dictionary must be provided when defining NEMO child domains."
+                            "`nests` dictionary must be provided when defining NEMO child domains."
                         )
                     else:
                         d_child = datasets["child"]
@@ -343,7 +366,7 @@ class NEMODataTree(xr.DataTree):
                     d_grandchild = datasets["grandchild"]
         else:
             raise ValueError(
-                "Invalid datasets structure. Expected a nested dictionary defining NEMO 'parent', 'child' and 'grandchild' domains."
+                "Invalid `datasets` structure. Expected a nested dictionary defining NEMO 'parent', 'child' and 'grandchild' domains."
             )
 
         # Construct DataTree from parent / child / grandchild domains:
@@ -355,6 +378,7 @@ class NEMODataTree(xr.DataTree):
             iperio=iperio,
             nftype=nftype,
             read_mask=read_mask,
+            key_linssh=key_linssh,
             nbghost_child=nbghost_child,
         )
 
