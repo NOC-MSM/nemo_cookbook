@@ -8,9 +8,11 @@ Author:
 Ollie Tooth (oliver.tooth@noc.ac.uk)
 """
 import re
-import pytest
+
 import numpy as np
+import pytest
 import xarray as xr
+
 from nemo_cookbook import NEMODataTree
 
 
@@ -291,21 +293,28 @@ class TestNEMODataTreeDatasets():
             with pytest.raises(KeyError, match=re.escape(expected_str)):
                 nemo._get_weights(grid=grid, dims=dims)
 
-        @pytest.mark.parametrize("dims", [["i"], ["i", "j"], ["i", "j", "k"]])
-        def test_get_grid_weights_type(self, dims: list):
-            # -- Create NEMODataTree instance -- #
-            nemo = NEMODataTree()
+        @pytest.mark.parametrize(
+                "dom_type,dims",
+                [["global", ["i"]], ["global", ["i", "j"]], ["global", ["i", "j", "k"]],
+                 ["regional", ["i"]], ["regional", ["i", "j"]], ["regional", ["i", "j", "k"]]
+                 ])
+        def test_get_grid_weights_type_masked(self, dom_type, example_global_nemodatatree, example_regional_nemodatatree, dims):
+            # -- Create NEMODataTree instance based on domain type -- #
+            match dom_type:
+                case "regional":
+                    nemo = example_regional_nemodatatree
+                case "global":
+                    nemo = example_global_nemodatatree
+                case _:
+                    raise ValueError("dom_type must be 'global' or 'regional'")
+                
+            # Update masks to exclude all land (ocean-only):
             grid = "gridT"
-            nemo[grid] = xr.Dataset(data_vars={
-                'e1t': (("j", "i"), np.ones((10, 10))),
-                'e2t': (("j", "i"), np.ones((10, 10))),
-                'e3t': (("k", "j", "i"), np.ones((5, 10, 10))),
-                'tmask': (("k", "j", "i"), np.ones((5, 10, 10)).astype(bool)),
-                'tmaskutil': (("j", "i"), np.ones((10, 10)).astype(bool))
-            })
+            nemo[grid]["tmaskutil"][:, :] = True
+            nemo[grid]["tmask"][:, :, : ] = True
 
             # -- Verify output type -- #
-            result = nemo._get_weights(grid=grid, dims=dims)
+            result = nemo._get_weights(grid=grid, dims=dims, fillna=True)
             assert isinstance(result, xr.DataArray)
-            # -- Verify no zero weights -- #
+            # -- Verify land-sea mask conservation (no zero / land weights) -- #
             assert np.sum(result == 0) == 0

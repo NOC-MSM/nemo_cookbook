@@ -188,5 +188,5 @@ class TestDepthIntegral():
         integral = nemo.depth_integral(grid='gridT', var='thetao_con', limits=limits)
 
         # -- Verify equal dims, coords and data values -- #
-        assert integral.name == "thetao_con_integral"
+        assert integral.name == "integral_z(thetao_con)"
         assert integral.equals(data)
