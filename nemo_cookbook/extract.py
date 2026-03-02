@@ -10,6 +10,7 @@ Ollie Tooth (oliver.tooth@noc.ac.uk)
 """
 
 from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -19,7 +20,7 @@ if TYPE_CHECKING:
 import dask
 import numpy as np
 import xarray as xr
-from xarray.indexes import NDPointIndex
+
 from nemo_cookbook.utils import SklearnGeoBallTreeAdapter
 
 
@@ -102,8 +103,9 @@ def create_boundary_dataset(
         List of flux directions (+1 or -1) along the mask boundary.
     """
     # -- Get NEMO model grid properties -- #
+    dom_prefix, _ = nemo._get_properties(dom=dom)
     grid_paths = nemo._get_grid_paths(dom=dom)
-    gridT = grid_paths["gridT"]
+    gridT, gridU, gridV = grid_paths["gridT"], grid_paths["gridU"], grid_paths["gridV"]
     ijk_names = nemo._get_ijk_names(dom=dom)
     k_name = ijk_names["k"]
     time_name = [dim for dim in nemo[gridT].dims if "time" in dim][0]
@@ -122,13 +124,43 @@ def create_boundary_dataset(
         },
     )
 
+    # -- Add geographical coordinates along-section -- #
+    ubdy_mask = ds_bdy["flux_type"] == "U"
+    vbdy_mask = ds_bdy["flux_type"] == "V"
+    dim_sizes = [
+        nemo[gridU][time_name].size,
+        nemo[gridU][k_name].size,
+        ds_bdy["bdy"].size,
+    ]
+
+    ds_bdy = ds_bdy.assign_coords(
+        {
+            f"{dom_prefix}glamb": (["bdy"], np.zeros(ds_bdy["bdy"].size)),
+            f"{dom_prefix}gphib": (["bdy"], np.zeros(ds_bdy["bdy"].size)),
+            f"{dom_prefix}depthb": ((k_name, "bdy"), np.zeros(dim_sizes[1:])),
+        }
+    )
+
+    ds_bdy[f"{dom_prefix}glamb"][ubdy_mask] = nemo[gridU][f"{dom_prefix}glamu"].sel(
+        i=ds_bdy["i_bdy"][ubdy_mask], j=ds_bdy["j_bdy"][ubdy_mask]
+    )
+    ds_bdy[f"{dom_prefix}glamb"][vbdy_mask] = nemo[gridV][f"{dom_prefix}glamv"].sel(
+        i=ds_bdy["i_bdy"][vbdy_mask], j=ds_bdy["j_bdy"][vbdy_mask]
+    )
+
+    ds_bdy[f"{dom_prefix}gphib"][ubdy_mask] = nemo[gridU][f"{dom_prefix}gphiu"].sel(
+        i=ds_bdy["i_bdy"][ubdy_mask], j=ds_bdy["j_bdy"][ubdy_mask]
+    )
+    ds_bdy[f"{dom_prefix}gphib"][vbdy_mask] = nemo[gridV][f"{dom_prefix}gphiv"].sel(
+        i=ds_bdy["i_bdy"][vbdy_mask], j=ds_bdy["j_bdy"][vbdy_mask]
+    )
+    ds_bdy[f"{dom_prefix}depthb"][:, ubdy_mask] = nemo[gridU][f"{dom_prefix}depthu"]
+    ds_bdy[f"{dom_prefix}depthb"][:, vbdy_mask] = nemo[gridV][f"{dom_prefix}depthv"]
+
     return ds_bdy
 
 
 def get_section_indexes(
-    nemo: NEMODataTree,
-    dom: str,
-    mask_section: xr.DataArray,
     lon_section: np.ndarray,
     lat_section: np.ndarray,
     ds_bdy: xr.Dataset,
@@ -139,12 +171,6 @@ def get_section_indexes(
 
     Parameters
     ----------
-    nemo : NEMODataTree
-        NEMODataTree storing NEMO model outputs.
-    dom : str
-        Prefix of NEMO domain in the DataTree (e.g., '1', '2', '3', etc.).
-    mask_section : xr.DataArray
-        Boolean mask defining section polygon.
     lon_section : np.ndarray
         Longitudes defining hydrographic section.
     lat_section : np.ndarray
@@ -157,54 +183,23 @@ def get_section_indexes(
     list[int]
         List of boundary indexes corresponding to the hydrographic section.
     """
-    # -- Get NEMO model grid properties -- #
-    grid_paths = nemo._get_grid_paths(dom=dom)
-    gridV = grid_paths["gridV"]
+    # -- Find indexes of boundary start and end points -- #
+    bdy_points = np.array(list(zip(ds_bdy["gphib"].values, ds_bdy["glamb"].values, strict=True)))
+    geoballtree = SklearnGeoBallTreeAdapter(points=bdy_points, options={})
 
-    # -- Add longitude and latitude indexes to V-grid -- #
-    ds_endpoints = (
-        nemo[gridV]
-        .dataset.assign_coords(
-            {
-                "gphiv": nemo[gridV]["gphiv"].where(mask_section).fillna(0),
-                "glamv": nemo[gridV]["glamv"].where(mask_section).fillna(0),
-            }
-        )
-        .set_xindex(
-            ("gphiv", "glamv"), NDPointIndex, tree_adapter_cls=SklearnGeoBallTreeAdapter
-        )
-    )
-
-    i_start = ds_endpoints.sel(
-        glamv=lon_section[0], gphiv=lat_section[0], method="nearest"
-    )["i"]
-    j_start = ds_endpoints.sel(
-        glamv=lon_section[0], gphiv=lat_section[0], method="nearest"
-    )["j"]
-    i_end = ds_endpoints.sel(
-        glamv=lon_section[-1], gphiv=lat_section[-1], method="nearest"
-    )["i"]
-    j_end = ds_endpoints.sel(
-        glamv=lon_section[-1], gphiv=lat_section[-1], method="nearest"
-    )["j"]
+    # Collect indices of nearest boundary points to start and end points of section:
+    bdy_start = geoballtree.query(points=np.array([[lat_section[0], lon_section[0]]]))[1]
+    bdy_end = geoballtree.query(points=np.array([[lat_section[-1], lon_section[-1]]]))[1]
 
     # -- Define section in terms of boundary indexes -- #
-    sec_start = ds_bdy["bdy"].where(
-        (ds_bdy["i_bdy"] == i_start) & (ds_bdy["j_bdy"] == j_start), drop=True
-    )
-    sec_end = ds_bdy["bdy"].where(
-        (ds_bdy["i_bdy"] == i_end) & (ds_bdy["j_bdy"] == j_end), drop=True
-    )
+    if bdy_start.size > 1:
+        if (bdy_start[0] == 0) & (bdy_start[-1] == ds_bdy["bdy"][-1]):
+            bdy_start = bdy_start[0]
+    if bdy_end.size > 1:
+        if (bdy_end[0] == 0) & (bdy_end[-1] == ds_bdy["bdy"][-1]):
+            bdy_end = bdy_end[0]
 
-    # If section includes both boundary start & end points:
-    if sec_start.size > 1:
-        if (sec_start[0] == 0) & (sec_start[-1] == ds_bdy["bdy"][-1]):
-            sec_start = sec_start[0]
-    if sec_end.size > 1:
-        if (sec_end[0] == 0) & (sec_end[-1] == ds_bdy["bdy"][-1]):
-            sec_end = sec_end[0]
-
-    sec_start, sec_end = int(sec_start.item()), int(sec_end.item())
+    sec_start, sec_end = int(bdy_start.item()), int(bdy_end.item())
     if sec_end > sec_start:
         sec_indexes = np.arange(sec_start, sec_end + 1).tolist()
     elif sec_end < sec_start:
@@ -258,7 +253,6 @@ def update_boundary_dataset(
         Updated hydrographic section dataset extracted from NEMO model domain.
     """
     # -- Get NEMO model grid properties -- #
-    dom_prefix, _ = nemo._get_properties(dom=dom)
     grid_paths = nemo._get_grid_paths(dom=dom)
     gridT, gridU, gridV = grid_paths["gridT"], grid_paths["gridU"], grid_paths["gridV"]
     ijk_names = nemo._get_ijk_names(dom=dom)
@@ -272,36 +266,15 @@ def update_boundary_dataset(
 
     ubdy_mask = ds_bdy["flux_type"] == "U"
     vbdy_mask = ds_bdy["flux_type"] == "V"
-    dim_sizes = [
+    dim_2d_sizes = [
+        nemo[gridU][k_name].size,
+        ds_bdy["bdy"].size,
+    ]
+    dim_3d_sizes = [
         nemo[gridU][time_name].size,
         nemo[gridU][k_name].size,
         ds_bdy["bdy"].size,
     ]
-
-    # -- Add geographical coordinates & depths along-section -- #
-    ds_bdy = ds_bdy.assign_coords(
-        {
-            f"{dom_prefix}glamb": (["bdy"], np.zeros(ds_bdy["bdy"].size)),
-            f"{dom_prefix}gphib": (["bdy"], np.zeros(ds_bdy["bdy"].size)),
-            f"{dom_prefix}depthb": ((k_name, "bdy"), np.zeros(dim_sizes[1:])),
-        }
-    )
-
-    ds_bdy[f"{dom_prefix}glamb"][ubdy_mask] = nemo[gridU][f"{dom_prefix}glamu"].sel(
-        i=ds_bdy["i_bdy"][ubdy_mask], j=ds_bdy["j_bdy"][ubdy_mask]
-    )
-    ds_bdy[f"{dom_prefix}glamb"][vbdy_mask] = nemo[gridV][f"{dom_prefix}glamv"].sel(
-        i=ds_bdy["i_bdy"][vbdy_mask], j=ds_bdy["j_bdy"][vbdy_mask]
-    )
-
-    ds_bdy[f"{dom_prefix}gphib"][ubdy_mask] = nemo[gridU][f"{dom_prefix}gphiu"].sel(
-        i=ds_bdy["i_bdy"][ubdy_mask], j=ds_bdy["j_bdy"][ubdy_mask]
-    )
-    ds_bdy[f"{dom_prefix}gphib"][vbdy_mask] = nemo[gridV][f"{dom_prefix}gphiv"].sel(
-        i=ds_bdy["i_bdy"][vbdy_mask], j=ds_bdy["j_bdy"][vbdy_mask]
-    )
-    ds_bdy[f"{dom_prefix}depthb"][:, ubdy_mask] = nemo[gridU][f"{dom_prefix}depthu"]
-    ds_bdy[f"{dom_prefix}depthb"][:, vbdy_mask] = nemo[gridV][f"{dom_prefix}depthv"]
 
     # -- Add velocities (outward) normal to boundary -- #
     if uv_vars[0] not in nemo[gridU].data_vars:
@@ -310,7 +283,7 @@ def update_boundary_dataset(
         raise KeyError(f"variable '{uv_vars[1]}' not found in grid '{gridV}'.")
 
     ds_bdy["velocity"] = xr.DataArray(
-        data=dask.array.zeros(dim_sizes), dims=[time_name, k_name, "bdy"]
+        data=dask.array.zeros(dim_3d_sizes), dims=[time_name, k_name, "bdy"]
     )
     ds_bdy["velocity"][:, :, ubdy_mask] = (
         nemo[f"{gridU}/{uv_vars[0]}"].sel(
@@ -325,6 +298,17 @@ def update_boundary_dataset(
         * ds_bdy["flux_dir"][vbdy_mask]
     )
 
+    # -- Add NEMO land-sea mask along-section -- #
+    ds_bdy["bmask"] = xr.DataArray(
+        data=dask.array.zeros(dim_2d_sizes), dims=[k_name, "bdy"]
+    )
+    ds_bdy["bmask"][:, ubdy_mask] = nemo[f"{gridU}/umask"].sel(
+        i=ds_bdy["i_bdy"][ubdy_mask], j=ds_bdy["j_bdy"][ubdy_mask]
+    )
+    ds_bdy["bmask"][:, vbdy_mask] = nemo[f"{gridV}/vmask"].sel(
+        i=ds_bdy["i_bdy"][vbdy_mask], j=ds_bdy["j_bdy"][vbdy_mask]
+    )
+
     # -- Add NEMO grid cell scale factors along boundary -- #
     ds_bdy["e1b"] = xr.DataArray(
         data=dask.array.zeros(ds_bdy["bdy"].size), dims=["bdy"]
@@ -337,7 +321,7 @@ def update_boundary_dataset(
     )
 
     ds_bdy["e3b"] = xr.DataArray(
-        data=dask.array.zeros(dim_sizes), dims=[time_name, k_name, "bdy"]
+        data=dask.array.zeros(dim_3d_sizes), dims=[time_name, k_name, "bdy"]
     )
     ds_bdy["e3b"][:, :, ubdy_mask] = nemo[f"{gridU}/e3u"].sel(
         i=ds_bdy["i_bdy"][ubdy_mask], j=ds_bdy["j_bdy"][ubdy_mask]
@@ -351,7 +335,7 @@ def update_boundary_dataset(
         for var in vars:
             if var in nemo[gridT].data_vars:
                 ds_bdy[var] = xr.DataArray(
-                    data=dask.array.zeros(dim_sizes), dims=[time_name, k_name, "bdy"]
+                    data=dask.array.zeros(dim_3d_sizes), dims=[time_name, k_name, "bdy"]
                 )
             else:
                 raise KeyError(f"variable {var} not found in grid '{gridT}'.")

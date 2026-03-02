@@ -10,25 +10,27 @@ Author:
 Ollie Tooth (oliver.tooth@noc.ac.uk)
 """
 
+from typing import Self
+
 import dask
 import numpy as np
 import xarray as xr
 from xarray.indexes import NDPointIndex
+
 from nemo_cookbook.utils import SklearnGeoBallTreeAdapter
-from typing import Self
 
 from .core import compute_depth_integral
+from .extract import (
+    create_boundary_dataset,
+    create_section_polygon,
+    get_section_indexes,
+    update_boundary_dataset,
+)
 from .interpolate import interpolate_grid
 from .masks import create_polygon_mask, get_mask_boundary
 from .processing import create_datatree_dict
 from .stats import compute_binned_statistic
 from .transform import transform_vertical_coords
-from .extract import (
-    create_section_polygon,
-    get_section_indexes,
-    update_boundary_dataset,
-    create_boundary_dataset,
-)
 
 
 class NEMODataTree(xr.DataTree):
@@ -1851,12 +1853,9 @@ class NEMODataTree(xr.DataTree):
 
         # -- Get indexes of hydrographic section along mask boundary -- #
         sec_indexes = get_section_indexes(
-            ds_bdy=ds_bdy,
-            nemo=self,
-            dom=dom,
-            mask_section=mask,
             lon_section=lon_section,
             lat_section=lat_section,
+            ds_bdy=ds_bdy,
         )
 
         # -- Update boundary dataset with extracted section data -- #
