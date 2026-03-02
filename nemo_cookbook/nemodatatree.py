@@ -27,6 +27,7 @@ from nemo_cookbook.extract import (
 from nemo_cookbook.integrate import compute_depth_integral
 from nemo_cookbook.interpolate import interpolate_grid
 from nemo_cookbook.masks import create_polygon_mask, get_mask_boundary
+from nemo_cookbook.nemodataarray import NEMODataArray
 from nemo_cookbook.processing import create_datatree_dict
 from nemo_cookbook.stats import compute_binned_statistic
 from nemo_cookbook.transform import transform_vertical_coords
@@ -387,15 +388,15 @@ class NEMODataTree(xr.DataTree):
 
         return datatree
 
-    def __getitem__(self, key: str) -> Self | xr.DataArray:
+    def __getitem__(self, key: str) -> Self | NEMODataArray:
         """
         Access child nodes, variables, or coordinates stored in this NEMODataTree.
 
-        Returned object will be either a DataTree or DataArray object depending on
-        whether the key given points to a child or variable.
+        Returned object will be either a NEMODataTree or NEMODataArray object depending
+        on whether the key points to a child node or variable.
 
-        Overloads the __getitem__() method of xarray.DataTree to apply grid masks
-        to returned DataArrays accessed via variable paths (i.e, /grid/var).
+        Overloads the __getitem__() method of xarray.DataTree to return NEMODataArrays
+        accessed via variable paths (i.e, /grid/var).
 
         Parameters
         ----------
@@ -405,33 +406,20 @@ class NEMODataTree(xr.DataTree):
 
         Returns
         -------
-        NEMODataTree | xr.DataArray
+        NEMODataTree | NEMODataArray
         """
         # -- Access child node or variable -- #
         item = super().__getitem__(key=key)
         is_gridpath = key.startswith("/grid") or key.startswith("grid")
 
+        # -- Return NEMODataArray -- #
         if isinstance(item, xr.DataArray) & is_gridpath:
-            # -- Get NEMO model grid properties -- #
             var_name = key.split("/")[-1]
             grid = key.replace(f"/{var_name}", "")
-            _, dom_prefix, _, grid_suffix = self._get_properties(
-                grid=grid, infer_dom=True
-            )
-
-            # -- Apply NEMO model grid mask -- #
-            # Masking only non-mask variables:
-            if (var_name != f"{grid_suffix}mask") and (
-                var_name != f"{grid_suffix}maskutil"
-            ):
-                if f"{dom_prefix}depth{grid_suffix}" in item.coords:
-                    # Get 3-dimensional t/u/v/f mask:
-                    mask = self[grid][f"{grid_suffix}mask"]
-                else:
-                    # Get 2-dimensional t/u/v/f/w mask (unique points):
-                    mask = self[grid][f"{grid_suffix}maskutil"]
-
-                item = item.where(mask, drop=False)
+            item = NEMODataArray(da=item,
+                                 tree=self,
+                                 grid=grid
+                                 )
 
         return item
 
@@ -577,7 +565,7 @@ class NEMODataTree(xr.DataTree):
             "k": f"e3{grid_suffix}",
         }
         try:
-            weights_list = [self[f"{grid}/{weights_dict[dim]}"] for dim in dims]
+            weights_list = [self[f"{grid}/{weights_dict[dim]}"].masked.data for dim in dims]
         except KeyError as e:
             raise KeyError(
                 f"weights missing for dimensions {dims} of NEMO model grid {grid}"
@@ -686,15 +674,15 @@ class NEMODataTree(xr.DataTree):
         match dim:
             case "i":
                 cell_area = (
-                    self[f"{grid}/e3{grid_suffix}"] * self[f"{grid}/e2{grid_suffix}"]
+                    self[f"{grid}/e3{grid_suffix}"].masked.data * self[f"{grid}/e2{grid_suffix}"].masked.data
                 )
             case "j":
                 cell_area = (
-                    self[f"{grid}/e3{grid_suffix}"] * self[f"{grid}/e1{grid_suffix}"]
+                    self[f"{grid}/e3{grid_suffix}"].masked.data * self[f"{grid}/e1{grid_suffix}"].masked.data
                 )
             case "k":
                 cell_area = (
-                    self[f"{grid}/e1{grid_suffix}"] * self[f"{grid}/e2{grid_suffix}"]
+                    self[f"{grid}/e1{grid_suffix}"].masked.data * self[f"{grid}/e2{grid_suffix}"].masked.data
                 )
         cell_area.name = "areacello"
 
@@ -729,9 +717,9 @@ class NEMODataTree(xr.DataTree):
         grid_suffix = self._get_properties(grid=grid)
 
         cell_volume = (
-            self[f"{grid}/e3{grid_suffix}"]
-            * self[f"{grid}/e1{grid_suffix}"]
-            * self[f"{grid}/e2{grid_suffix}"]
+            self[f"{grid}/e3{grid_suffix}"].masked.data
+            * self[f"{grid}/e1{grid_suffix}"].masked.data
+            * self[f"{grid}/e2{grid_suffix}"].masked.data
         )
         cell_volume.name = "volcello"
 
@@ -804,7 +792,7 @@ class NEMODataTree(xr.DataTree):
         if var not in self[gridT].data_vars:
             raise KeyError(f"variable '{var}' not found in grid '{gridT}'.")
 
-        da = self[f"{gridT}/{var}"]
+        da = self[f"{gridT}/{var}"].masked.data
         dim_name = f"{dim}{dom_suffix}"
         if dim_name not in da.dims:
             raise KeyError(
@@ -831,7 +819,7 @@ class NEMODataTree(xr.DataTree):
                     dvar = da.diff(dim=dim_name, label="lower").pad({dim_name: (0, 1)})
                 # Apply u-mask & transform coords -> calculate gradient:
                 dvar.coords[dim_name] = dvar.coords[dim_name] + 0.5
-                gradient = dvar.where(umask) / self[f"{gridU}/e1u"]
+                gradient = dvar.where(umask) / self[f"{gridU}/e1u"].masked.data
 
                 # Remove redundant depth coordinates:
                 if f"{dom_prefix}deptht" in gradient.coords:
@@ -854,7 +842,7 @@ class NEMODataTree(xr.DataTree):
                 )
                 # Apply vmask & transform coords -> calculate gradient:
                 dvar.coords[dim_name] = dvar.coords[dim_name] + 0.5
-                gradient = dvar.where(vmask) / self[f"{gridV}/e2v"]
+                gradient = dvar.where(vmask) / self[f"{gridV}/e2v"].masked.data
 
                 if f"{dom_prefix}deptht" in gradient.coords:
                     gradient = gradient.drop_vars(
@@ -869,7 +857,7 @@ class NEMODataTree(xr.DataTree):
                 dvar.coords[dim_name] = dvar.coords[dim_name] + 0.5
                 dvar = dvar.where(self[gridW]["wmask"].isel({dim_name: slice(1, None)}))
                 try:
-                    gradient = -dvar / self[f"{gridW}/e3w"].isel(
+                    gradient = -dvar / self[f"{gridW}/e3w"].masked.data.isel(
                         {dim_name: slice(1, None)}
                     )
                     gradient = gradient.drop_vars([f"{dom_prefix}deptht"])
@@ -879,7 +867,7 @@ class NEMODataTree(xr.DataTree):
                     ) from e
 
         # Update DataArray properties:
-        gradient.name = f"grad_{var}_{dim_name}"
+        gradient.name = f"grad_{dim_name}({var})"
         gradient = gradient.drop_vars([f"{dom_prefix}glamt", f"{dom_prefix}gphit"])
 
         return gradient
@@ -949,8 +937,8 @@ class NEMODataTree(xr.DataTree):
         if var_j not in self[gridV].data_vars:
             raise KeyError(f"variable '{var_j}' not found in grid '{gridV}'.")
 
-        da_i = self[f"{gridU}/{var_i}"]
-        da_j = self[f"{gridV}/{var_j}"]
+        da_i = self[f"{gridU}/{var_i}"].masked.data
+        da_j = self[f"{gridV}/{var_j}"].masked.data
 
         # -- Collect mask -- #
         if (f"{dom_prefix}depthu" in da_i.coords) & (
@@ -963,12 +951,12 @@ class NEMODataTree(xr.DataTree):
             tmask = self[gridT]["tmaskutil"]
 
         # -- Neglecting the first T-grid points along i, j dimensions -- #
-        e1t = self[f"{gridT}/e1t"].isel({i_name: slice(1, None), j_name: slice(1, None)})
-        e2t = self[f"{gridT}/e2t"].isel({i_name: slice(1, None), j_name: slice(1, None)})
-        e3t = self[f"{gridT}/e3t"].isel({i_name: slice(1, None), j_name: slice(1, None)})
+        e1t = self[f"{gridT}/e1t"].masked.data.isel({i_name: slice(1, None), j_name: slice(1, None)})
+        e2t = self[f"{gridT}/e2t"].masked.data.isel({i_name: slice(1, None), j_name: slice(1, None)})
+        e3t = self[f"{gridT}/e3t"].masked.data.isel({i_name: slice(1, None), j_name: slice(1, None)})
 
-        e2u, e3u = self[f"{gridU}/e2u"], self[f"{gridU}/e3u"]
-        e1v, e3v = self[f"{gridV}/e1v"], self[f"{gridV}/e3v"]
+        e2u, e3u = self[f"{gridU}/e2u"].masked.data, self[f"{gridU}/e3u"].masked.data
+        e1v, e3v = self[f"{gridV}/e1v"].masked.data, self[f"{gridV}/e3v"].masked.data  
 
         # -- Calculate divergence on T-points -- #
         dvar_i = (e2u * e3u * da_i).diff(dim=i_name, label="lower")
@@ -980,7 +968,7 @@ class NEMODataTree(xr.DataTree):
         divergence = (1 / (e1t * e2t * e3t)) * (dvar_i + dvar_j).where(tmask)
 
         # -- Update DataArray properties -- #
-        divergence.name = f"div_{var_i}_{var_j}"
+        divergence.name = f"div({var_i}, {var_j})"
         divergence = divergence.drop_vars(
             [
                 f"{dom_prefix}glamu",
@@ -1058,8 +1046,8 @@ class NEMODataTree(xr.DataTree):
         if var_j not in self[gridV].data_vars:
             raise KeyError(f"variable '{var_j}' not found in grid '{gridV}'.")
 
-        da_i = self[f"{gridU}/{var_i}"]
-        da_j = self[f"{gridV}/{var_j}"]
+        da_i = self[f"{gridU}/{var_i}"].masked.data
+        da_j = self[f"{gridV}/{var_j}"].masked.data
 
         # -- Collect mask -- #
         if (f"{dom_prefix}depthu" in da_i.coords) & (
@@ -1072,15 +1060,15 @@ class NEMODataTree(xr.DataTree):
             fmask = self[gridF]["fmaskutil"]
 
         # -- Neglecting the final F-grid points along i, j dimensions -- #
-        e1f = self[f"{gridF}/e1f"].isel(
+        e1f = self[f"{gridF}/e1f"].masked.data.isel(
             {i_name: slice(None, -1), j_name: slice(None, -1)}
         )
-        e2f = self[f"{gridF}/e2f"].isel(
+        e2f = self[f"{gridF}/e2f"].masked.data.isel(
             {i_name: slice(None, -1), j_name: slice(None, -1)}
         )
 
-        e1u = self[f"{gridU}/e1u"]
-        e2v = self[f"{gridV}/e2v"]
+        e1u = self[f"{gridU}/e1u"].masked.data
+        e2v = self[f"{gridV}/e2v"].masked.data
         # -- Calculate vertical curl component on F-points -- #
         dvar_i = (e2v * da_j).diff(dim=i_name, label="lower")
         dvar_i.coords[i_name] = dvar_i.coords[i_name] + 0.5
@@ -1091,7 +1079,7 @@ class NEMODataTree(xr.DataTree):
         curl = (1 / (e1f * e2f)) * (dvar_i - dvar_j).where(fmask)
 
         # -- Update DataArray properties -- #
-        curl.name = f"curl_{var_i}_{var_j}"
+        curl.name = f"curl({var_i}, {var_j})"
         curl = curl.drop_vars(
             [
                 f"{dom_prefix}glamu",
@@ -1193,9 +1181,9 @@ class NEMODataTree(xr.DataTree):
 
         # -- Collect variable, weights & mask -- #
         da = (
-            self[f"{grid}/{var}"].where(mask)
+            self[f"{grid}/{var}"].masked.data.where(mask)
             if mask is not None
-            else self[f"{grid}/{var}"]
+            else self[f"{grid}/{var}"].masked.data
         )
         weights = self._get_weights(grid=grid, dims=dims)
 
@@ -1220,6 +1208,9 @@ class NEMODataTree(xr.DataTree):
         else:
             # Integration only:
             result = da.weighted(weights).sum(dim=dims, skipna=True)
+
+        # -- Update DataArray properties -- #
+        result.name = f"integral_{', '.join(dims)}({var})"
 
         return result
 
@@ -1284,8 +1275,8 @@ class NEMODataTree(xr.DataTree):
         i_name, j_name, k_name = ijk_names["i"], ijk_names["j"], ijk_names["k"]
 
         # -- Define input variables -- #
-        var_in = self[f"{grid}/{var}"]
-        e3_in = self[f"{grid}/e3{grid_suffix}"]
+        var_in = self[f"{grid}/{var}"].masked.data
+        e3_in = self[f"{grid}/e3{grid_suffix}"].masked.data
 
         # -- Vertically integrate w.r.t depth -- #
         result = xr.apply_ufunc(
@@ -1302,7 +1293,7 @@ class NEMODataTree(xr.DataTree):
         # -- Create variable integral DataArray -- #
         t_name = var_in.dims[0]
         result = result.transpose(t_name, "k_new", j_name, i_name).squeeze()
-        result.name = f"{var}_integral"
+        result.name = f"integral_z({var})"
 
         return result
 
@@ -1604,7 +1595,7 @@ class NEMODataTree(xr.DataTree):
         _, _, dom_suffix, _ = self._get_properties(grid=grid, infer_dom=True)
 
         # -- Apply masks & calculate statistic -- #
-        da = self[f"{grid}/{var}"].where(mask_poly)
+        da = self[f"{grid}/{var}"].masked.data.where(mask_poly)
 
         match statistic:
             case "mean":
@@ -1688,7 +1679,7 @@ class NEMODataTree(xr.DataTree):
         else:
             if not isinstance(uv_vars, list) or len(uv_vars) != 2:
                 raise ValueError(
-                    "uv_vars must be a list of velocity variables to extract (e.g., ['u', 'v'])."
+                    "uv_vars must be a list of velocity variables to extract (e.g., ['uo', 'vo'])."
                 )
 
         # -- Get NEMO model grid properties -- #
@@ -1745,13 +1736,13 @@ class NEMODataTree(xr.DataTree):
             data=dask.array.zeros(dim_sizes), dims=[time_name, k_name, "bdy"]
         )
         ds["velocity"][:, :, ubdy_mask] = (
-            self[f"{gridU}/{uv_vars[0]}"].sel(
+            self[f"{gridU}/{uv_vars[0]}"].masked.data.sel(
                 i=ds["i_bdy"][ubdy_mask], j=ds["j_bdy"][ubdy_mask]
             )
             * ds["flux_dir"][ubdy_mask]
         )
         ds["velocity"][:, :, vbdy_mask] = (
-            self[f"{gridV}/{uv_vars[1]}"].sel(
+            self[f"{gridV}/{uv_vars[1]}"].masked.data.sel(
                 i=ds["i_bdy"][vbdy_mask], j=ds["j_bdy"][vbdy_mask]
             )
             * ds["flux_dir"][vbdy_mask]
@@ -1794,18 +1785,18 @@ class NEMODataTree(xr.DataTree):
 
                 # Linearly interpolate scalar variables onto NEMO model U/V grid points:
                 ds[var][:, :, ubdy_mask] = 0.5 * (
-                    self[f"{gridT}/{var}"].sel(
+                    self[f"{gridT}/{var}"].masked.data.sel(
                         i=ds["i_bdy"][ubdy_mask] - 0.5, j=ds["j_bdy"][ubdy_mask]
                     )
-                    + self[f"{gridT}/{var}"].sel(
+                    + self[f"{gridT}/{var}"].masked.data.sel(
                         i=ds["i_bdy"][ubdy_mask] + 0.5, j=ds["j_bdy"][ubdy_mask]
                     )
                 )
                 ds[var][:, :, vbdy_mask] = 0.5 * (
-                    self[f"{gridT}/{var}"].sel(
+                    self[f"{gridT}/{var}"].masked.data.sel(
                         i=ds["i_bdy"][vbdy_mask], j=ds["j_bdy"][vbdy_mask] - 0.5
                     )
-                    + self[f"{gridT}/{var}"].sel(
+                    + self[f"{gridT}/{var}"].masked.data.sel(
                         i=ds["i_bdy"][vbdy_mask], j=ds["j_bdy"][vbdy_mask] + 0.5
                     )
                 )
@@ -1874,7 +1865,7 @@ class NEMODataTree(xr.DataTree):
         else:
             if not isinstance(uv_vars, list) or len(uv_vars) != 2:
                 raise ValueError(
-                    "uv_vars must be a list of velocity variables to extract (e.g., ['u', 'v'])."
+                    "uv_vars must be a list of velocity variables to extract (e.g., ['uo', 'vo'])."
                 )
 
         # -- Get NEMO model grid properties -- #
@@ -2035,8 +2026,8 @@ class NEMODataTree(xr.DataTree):
                 )
 
         # -- Calculate binned statistics -- #
-        values_data = self[f"{grid}/{values}"]
-        var_data = [self[f"{grid}/{var}"] for var in vars]
+        values_data = self[f"{grid}/{values}"].masked.data
+        var_data = [self[f"{grid}/{var}"].masked.data for var in vars]
 
         result = compute_binned_statistic(
             vars=var_data,
@@ -2110,8 +2101,8 @@ class NEMODataTree(xr.DataTree):
         i_name, j_name, k_name = ijk_names["i"], ijk_names["j"], ijk_names["k"]
 
         # -- Define input variables -- #
-        var_in = self[f"{grid}/{var}"]
-        e3_in = self[f"{grid}/e3{grid_suffix}"]
+        var_in = self[f"{grid}/{var}"].masked.data
+        e3_in = self[f"{grid}/e3{grid_suffix}"].masked.data
         if e3_new.sum(dim="k_new") < self[grid][f"depth{grid_suffix}"].max(dim=k_name):
             raise ValueError(
                 f"e3_new must sum to at least the maximum depth ({self[grid][f'depth{grid_suffix}'].max(dim=k_name).item()} m) of the original vertical grid."
@@ -2220,10 +2211,10 @@ class NEMODataTree(xr.DataTree):
                 target_weights = self._get_weights(
                     grid=target_grid, dims=weight_dims[1], fillna=False
                 )
-            da = self[f"{grid}/{var}"] * weights
+            da = self[f"{grid}/{var}"].masked.data * weights
         else:
             # Scalar variables:
-            da = self[f"{grid}/{var}"]
+            da = self[f"{grid}/{var}"].masked.data
 
         # -- Linearly interpolate variable -- #
         # Define source grid mask:
