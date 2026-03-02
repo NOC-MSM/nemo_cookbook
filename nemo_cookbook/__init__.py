@@ -8,9 +8,18 @@ __credits__ = "National Oceanography Centre (NOC), Southampton, UK"
 
 from importlib.metadata import version as _version
 
-from nemo_cookbook import examples, extract, masks, stats, transform
-
-from .nemodatatree import NEMODataTree
+from nemo_cookbook import (
+    examples,
+    extract,
+    index,
+    integrate,
+    interpolate,
+    masks,
+    stats,
+    transform,
+)
+from nemo_cookbook.nemodataarray import NEMODataArray
+from nemo_cookbook.nemodatatree import NEMODataTree
 
 try:
     __version__ = _version("nemo_cookbook")
@@ -19,4 +28,4 @@ except Exception:
     # Disable minimum version checks on downstream libraries.
     __version__ = "9999.0.0"
 
-__all__ = ("NEMODataTree", "examples", "extract", "masks", "transform", "stats")
+__all__ = ("NEMODataArray", "NEMODataTree", "examples", "extract", "masks", "transform", "stats", "index", "integrate", "interpolate")

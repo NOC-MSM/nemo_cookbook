@@ -10,12 +10,16 @@ derivatives, and integrals, and supporting transformation between NEMO grids.
 Author:
 Ollie Tooth (oliver.tooth@noc.ac.uk)
 """
-from typing import Self
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Self
 
 import numpy as np
 import xarray as xr
 
-from nemo_cookbook import NEMODataTree
+if TYPE_CHECKING:
+    # Avoid circular import at runtime:
+    from nemo_cookbook.nemodatatree import NEMODataTree
 from nemo_cookbook.integrate import compute_depth_integral
 from nemo_cookbook.interpolate import interpolate_grid
 
@@ -52,7 +56,7 @@ class NEMODataArray:
         else:
             self._da = da
 
-        if not isinstance(tree, NEMODataTree):
+        if not isinstance(tree, xr.DataTree):
             raise TypeError("tree must be specified as a NEMODataTree.")
         else:
             self._tree = tree
