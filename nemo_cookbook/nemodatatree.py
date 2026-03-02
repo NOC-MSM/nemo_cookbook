@@ -30,7 +30,7 @@ from nemo_cookbook.masks import create_polygon_mask, get_mask_boundary
 from nemo_cookbook.processing import create_datatree_dict
 from nemo_cookbook.stats import compute_binned_statistic
 from nemo_cookbook.transform import transform_vertical_coords
-from nemo_cookbook.utils import SklearnGeoBallTreeAdapter
+from nemo_cookbook.index import SklearnGeoBallTreeAdapter
 
 
 class NEMODataTree(xr.DataTree):
