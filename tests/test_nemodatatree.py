@@ -18,54 +18,61 @@ class TestNEMODataTreePaths():
     @pytest.mark.parametrize("paths", [[], None, "invalid"])
     def test_paths_errors(self, paths):
         # -- Verify TypeError -- #
-        expected_str = "paths must be a dictionary or nested dictionary."
-        with pytest.raises(TypeError, match=expected_str):
+        expected_str = "`paths` must be a dictionary or nested dictionary."
+        with pytest.raises(TypeError, match=re.escape(expected_str)):
             NEMODataTree.from_paths(paths=paths)
 
     @pytest.mark.parametrize("nests", [[], "invalid"])
     def test_nests_errors(self, nests):
         # -- Verify TypeError -- #
-        expected_str = "nests must be a dictionary or None."
-        with pytest.raises(TypeError, match=expected_str):
+        expected_str = "`nests` must be a dictionary or None."
+        with pytest.raises(TypeError, match=re.escape(expected_str)):
             NEMODataTree.from_paths(paths={}, nests=nests)
 
     @pytest.mark.parametrize("name", [[], None, 123])
     def test_name_errors(self, name):
         # -- Verify TypeError -- #
-        expected_str = "name must be a string."
-        with pytest.raises(TypeError, match=expected_str):
+        expected_str = "`name` must be a string."
+        with pytest.raises(TypeError, match=re.escape(expected_str)):
             NEMODataTree.from_paths(paths={}, name=name)
     
     @pytest.mark.parametrize("iperio", ["False", 0])
     def test_iperio_errors(self, iperio):
         # -- Verify TypeError -- #
-        expected_str = "zonal periodicity of parent domain must be a boolean."
-        with pytest.raises(TypeError, match=expected_str):
+        expected_str = "zonal periodicity (`iperio`) of parent domain must be a boolean."
+        with pytest.raises(TypeError, match=re.escape(expected_str)):
             NEMODataTree.from_paths(paths={}, iperio=iperio)
     
     def test_nftype_errors(self):
         # -- Verify ValueError -- #
-        expected_str = "north fold type of parent domain must be 'T' (T-pivot fold), 'F' (F-pivot fold), or None."
+        expected_str = "north fold type (`nftype`) of parent domain must be 'T' (T-pivot fold), 'F' (F-pivot fold), or None."
         with pytest.raises(ValueError, match=re.escape(expected_str)):
             NEMODataTree.from_paths(paths={}, nftype='invalid')
 
     @pytest.mark.parametrize("read_mask", ["False", 0])
     def test_read_mask_errors(self, read_mask):
         # -- Verify TypeError -- #
-        with pytest.raises(TypeError, match="read_mask must be a boolean."):
+        with pytest.raises(TypeError, match=re.escape("`read_mask` must be a boolean.")):
             NEMODataTree.from_paths(paths={}, read_mask=read_mask)
+
+    @pytest.mark.parametrize("key_linssh", ["False", 0])
+    def test_key_linssh_errors(self, key_linssh):
+        # -- Verify TypeError -- #
+        expected_str = "linear free-surface approximation (`key_linssh`) must be a boolean."
+        with pytest.raises(TypeError, match=re.escape(expected_str)):
+            NEMODataTree.from_paths(paths={}, key_linssh=key_linssh)
 
     @pytest.mark.parametrize("nbghost_child", ["1", 1.5, None])
     def test_nbghost_child_errors(self, nbghost_child):
         # -- Verify TypeError -- #
-        expected_str = "number of ghost cells along the western/southern boundaries must be an integer."
-        with pytest.raises(TypeError, match=expected_str):
+        expected_str = "number of ghost cells along the western/southern boundaries (`nbghost_child`) must be an integer."
+        with pytest.raises(TypeError, match=re.escape(expected_str)):
             NEMODataTree.from_paths(paths={}, nbghost_child=nbghost_child)
 
     @pytest.mark.parametrize("paths", [{'child': {}}, {'parent': []}])
     def test_paths_value_errors(self, paths):
         # -- Verify ValueError -- #
-        expected_str = "Invalid paths structure. Expected a nested dictionary defining NEMO 'parent', 'child' and 'grandchild' domains."
+        expected_str = "Invalid `paths` structure. Expected a nested dictionary defining NEMO 'parent', 'child' and 'grandchild' domains."
         with pytest.raises(ValueError, match=re.escape(expected_str)):
             NEMODataTree.from_paths(paths=paths)
 
@@ -73,7 +80,7 @@ class TestNEMODataTreePaths():
         # -- Create example paths dict -- #
         paths = {'parent': {}, 'child': {}}
         # -- Verify ValueError -- #
-        expected_str = "nests dictionary must be provided when defining NEMO child domains."
+        expected_str = "`nests` dictionary must be provided when defining NEMO child domains."
         with pytest.raises(ValueError, match=re.escape(expected_str)):
             NEMODataTree.from_paths(paths=paths)
 
@@ -82,7 +89,7 @@ class TestNEMODataTreePaths():
         key = 'unexpected_key'
         paths = {'parent': {}, key: {}}
         # -- Verify KeyError -- #
-        expected_str = f"Unexpected key '{key}' in paths dictionary."
+        expected_str = f"Unexpected key '{key}' in `paths` dictionary."
         with pytest.raises(KeyError, match=re.escape(expected_str)):
             NEMODataTree.from_paths(paths=paths)
 
@@ -99,54 +106,61 @@ class TestNEMODataTreeDatasets():
     @pytest.mark.parametrize("datasets", [[], None, "invalid"])
     def test_datasets_errors(self, datasets):
         # -- Verify TypeError -- #
-        expected_str = "datasets must be a dictionary or nested dictionary."
-        with pytest.raises(TypeError, match=expected_str):
+        expected_str = "`datasets` must be a dictionary or nested dictionary."
+        with pytest.raises(TypeError, match=re.escape(expected_str)):
             NEMODataTree.from_datasets(datasets=datasets)
 
     @pytest.mark.parametrize("nests", [[], "invalid"])
     def test_nests_errors(self, nests):
         # -- Verify TypeError -- #
-        expected_str = "nests must be a dictionary or None."
-        with pytest.raises(TypeError, match=expected_str):
+        expected_str = "`nests` must be a dictionary or None."
+        with pytest.raises(TypeError, match=re.escape(expected_str)):
             NEMODataTree.from_datasets(datasets={}, nests=nests)
     
     @pytest.mark.parametrize("name", [[], None, 123])
     def test_name_errors(self, name):
         # -- Verify TypeError -- #
-        expected_str = "name must be a string."
-        with pytest.raises(TypeError, match=expected_str):
+        expected_str = "`name` must be a string."
+        with pytest.raises(TypeError, match=re.escape(expected_str)):
             NEMODataTree.from_datasets(datasets={}, name=name)
     
     @pytest.mark.parametrize("iperio", ["False", 0])
     def test_iperio_errors(self, iperio):
         # -- Verify TypeError -- #
-        expected_str = "zonal periodicity of parent domain must be a boolean."
-        with pytest.raises(TypeError, match=expected_str):
+        expected_str = "zonal periodicity (`iperio`) of parent domain must be a boolean."
+        with pytest.raises(TypeError, match=re.escape(expected_str)):
             NEMODataTree.from_datasets(datasets={}, iperio=iperio)
     
     def test_nftype_errors(self):
         # -- Verify ValueError -- #
-        expected_str = "north fold type of parent domain must be 'T' (T-pivot fold), 'F' (F-pivot fold), or None."
+        expected_str = "north fold type (`nftype`) of parent domain must be 'T' (T-pivot fold), 'F' (F-pivot fold), or None."
         with pytest.raises(ValueError, match=re.escape(expected_str)):
             NEMODataTree.from_datasets(datasets={}, nftype='invalid')
 
     @pytest.mark.parametrize("read_mask", ["False", 0])
     def test_read_mask_errors(self, read_mask):
         # -- Verify TypeError -- #
-        with pytest.raises(TypeError, match="read_mask must be a boolean."):
+        with pytest.raises(TypeError, match=re.escape("`read_mask` must be a boolean.")):
             NEMODataTree.from_datasets(datasets={}, read_mask=read_mask)
+
+    @pytest.mark.parametrize("key_linssh", ["False", 0])
+    def test_key_linssh_errors(self, key_linssh):
+        # -- Verify TypeError -- #
+        expected_str = "linear free-surface approximation (`key_linssh`) must be a boolean."
+        with pytest.raises(TypeError, match=re.escape(expected_str)):
+            NEMODataTree.from_paths(paths={}, key_linssh=key_linssh)
 
     @pytest.mark.parametrize("nbghost_child", ["1", 1.5, None])
     def test_nbghost_child_errors(self, nbghost_child):
         # -- Verify TypeError -- #
-        expected_str = "number of ghost cells along the western/southern boundaries must be an integer."
-        with pytest.raises(TypeError, match=expected_str):
+        expected_str = "number of ghost cells along the western/southern boundaries (`nbghost_child`) must be an integer."
+        with pytest.raises(TypeError, match=re.escape(expected_str)):
             NEMODataTree.from_datasets(datasets={}, nbghost_child=nbghost_child)
 
     @pytest.mark.parametrize("datasets", [{'child': {}}, {'parent': []}])
     def test_datasets_value_errors(self, datasets):
         # -- Verify ValueError -- #
-        expected_str = "Invalid datasets structure. Expected a nested dictionary defining NEMO 'parent', 'child' and 'grandchild' domains."
+        expected_str = "Invalid `datasets` structure. Expected a nested dictionary defining NEMO 'parent', 'child' and 'grandchild' domains."
         with pytest.raises(ValueError, match=re.escape(expected_str)):
             NEMODataTree.from_datasets(datasets=datasets)
 
@@ -154,7 +168,7 @@ class TestNEMODataTreeDatasets():
         # -- Create example datasets dict -- #
         datasets = {'parent': {}, 'child': {}}
         # -- Verify ValueError -- #
-        expected_str = "nests dictionary must be provided when defining NEMO child domains."
+        expected_str = "`nests` dictionary must be provided when defining NEMO child domains."
         with pytest.raises(ValueError, match=re.escape(expected_str)):
             NEMODataTree.from_datasets(datasets=datasets)
 
@@ -163,7 +177,7 @@ class TestNEMODataTreeDatasets():
         key = 'unexpected_key'
         datasets = {'parent': {}, key: {}}
         # -- Verify KeyError -- #
-        expected_str = f"Unexpected key '{key}' in datasets dictionary."
+        expected_str = f"Unexpected key '{key}' in `datasets` dictionary."
         with pytest.raises(KeyError, match=re.escape(expected_str)):
             NEMODataTree.from_datasets(datasets=datasets)
 
