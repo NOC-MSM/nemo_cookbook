@@ -7,10 +7,12 @@ Defines NEMO Cookbook configuration and fixtures.
 Author:
 Ollie Tooth (oliver.tooth@noc.ac.uk)
 """
-import pytest
 import numpy as np
+import pytest
 import xarray as xr
+
 from nemo_cookbook import NEMODataTree
+from nemo_cookbook.examples import get_filepaths
 
 
 @pytest.fixture
@@ -482,5 +484,87 @@ def example_regional_nemodatatree() -> NEMODataTree:
 
     # Add name attribute to the NEMODataTree:
     nemo.name = "Example Regional NEMO Model"
+
+    return nemo
+
+@pytest.fixture
+def example_ORCA2_nemodatatree() -> NEMODataTree:
+    """
+    Fixture to create an example ORCA2 global NEMODataTree using AGRIF_DEMO
+    configuration. The global model domain is zonally periodic (i.e., iperio = True).
+
+    Returns
+    -------
+    NEMODataTree
+        Example ORCA2 global NEMODataTree.
+    """
+    # -- Create example NEMODataTree for AGRIF_DEMO configuration -- #
+    # Get dict of example filepaths:
+    filepaths = get_filepaths("AGRIF_DEMO")
+    # Define paths dict for NEMODataTree:
+    paths = {"parent": {
+                "domain": filepaths["domain_cfg.nc"],
+                "gridT": filepaths["ORCA2_5d_00010101_00010110_grid_T.nc"],
+                "gridU": filepaths["ORCA2_5d_00010101_00010110_grid_U.nc"],
+                "gridV": filepaths["ORCA2_5d_00010101_00010110_grid_V.nc"],
+                "gridW": filepaths["ORCA2_5d_00010101_00010110_grid_W.nc"],
+                "icemod": filepaths["ORCA2_5d_00010101_00010110_icemod.nc"]
+            }}
+    # Create NEMODataTree from paths dict:
+    nemo = NEMODataTree.from_paths(paths, name="Example ORCA2", iperio=True, nftype="T")
+
+    return nemo
+
+@pytest.fixture
+def example_ORCA2_linssh_nemodatatree() -> NEMODataTree:
+    """
+    Fixture to create an example linear free-surface ORCA2 global NEMODataTree using AGRIF_DEMO
+    configuration. The global model domain is zonally periodic (i.e., iperio = True).
+
+    Returns
+    -------
+    NEMODataTree
+        Example linear free-surface ORCA2 global NEMODataTree.
+    """
+    # -- Create example linear free-surface NEMODataTree from AGRIF_DEMO configuration -- #
+    # Get dict of example filepaths:
+    filepaths = get_filepaths("AGRIF_DEMO")
+    # Define paths dict for NEMODataTree:
+    paths = {"parent": {
+                "domain": filepaths["domain_cfg.nc"],
+                "gridT": filepaths["ORCA2_5d_00010101_00010110_grid_T.nc"],
+                "gridU": filepaths["ORCA2_5d_00010101_00010110_grid_U.nc"],
+                "gridV": filepaths["ORCA2_5d_00010101_00010110_grid_V.nc"],
+                "gridW": filepaths["ORCA2_5d_00010101_00010110_grid_W.nc"],
+                "icemod": filepaths["ORCA2_5d_00010101_00010110_icemod.nc"]
+            }}
+    # Create NEMODataTree from paths dict:
+    nemo = NEMODataTree.from_paths(paths, name="Example ORCA2", iperio=True, nftype="T", key_linssh=True)
+
+    return nemo
+
+@pytest.fixture
+def example_AMM12_nemodatatree() -> NEMODataTree:
+    """
+    Fixture to create an example AMM12 regional NEMODataTree using AMM12 configuration.
+    The regional model domain is not zonally periodic (i.e., iperio = False).
+
+    Returns
+    -------
+    NEMODataTree
+        Example AMM12 regional NEMODataTree.
+    """
+    # -- Create example NEMODataTree for AMM12 configuration -- #
+    # Get dict of example filepaths:
+    filepaths = get_filepaths("AMM12")
+    # Define paths dict for NEMODataTree:
+    paths = {"parent": {
+                "domain": filepaths["domain_cfg.nc"],
+                "gridT": filepaths["AMM12_1d_20120102_20120110_grid_T.nc"],
+                "gridU": filepaths["AMM12_1d_20120102_20120110_grid_U.nc"],
+                "gridV": filepaths["AMM12_1d_20120102_20120110_grid_V.nc"],
+            }}
+    # Create NEMODataTree from paths dict:
+    nemo = NEMODataTree.from_paths(paths, name="Example AMM12", iperio=False)
 
     return nemo
