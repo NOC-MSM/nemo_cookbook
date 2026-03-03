@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from nemo_cookbook.nemodatatree import NEMODataTree
 from nemo_cookbook.integrate import compute_depth_integral
 from nemo_cookbook.interpolate import interpolate_grid
+from nemo_cookbook.transform import transform_vertical_coords
 
 
 class NEMODataArray:
@@ -502,7 +503,7 @@ class NEMODataArray:
 
         # -- Define input variables -- #
         var_in = self.masked.data
-        e3_in = self.metrics["e3"]
+        e3_in = self.metrics["e3"].masked.data
 
         # -- Vertically integrate w.r.t depth -- #
         result = xr.apply_ufunc(
@@ -629,6 +630,82 @@ class NEMODataArray:
         # -- Apply land-sea mask & return NEMODataArray -- #
         result = NEMODataArray(da=result, tree=self._tree, grid=target_grid)
         result = result.masked
+
+        return result
+
+    def transform_vertical_grid(
+        self, e3_new: xr.DataArray
+    ) -> xr.Dataset:
+        """
+        Transform variable defined on a NEMO model grid to a new vertical grid using conservative interpolation.
+
+        Parameters
+        ----------
+        e3_new : xarray.DataArray
+            Grid cell thicknesses of the new vertical grid.
+            Must be a 1-dimensional xarray.DataArray with
+            dimension 'k_new'.
+
+        Returns
+        -------
+        xr.Dataset
+            Variable defined at the centre of each vertical
+            grid cell on the new grid, and vertical grid cell
+            thicknesses adjusted for model bathymetry.
+
+        Examples
+        --------
+        Transform the conservative temperature variable `thetao_con` defined in a
+        NEMO model parent domain from it's native 75 unevenly-spaced z-levels to
+        regularly spaced z-levels at 200 m intervals:
+
+        >>> e3t_target = xr.DataArray(np.repeat(200.0, 30), dims=['k_new'])
+
+        >>> nemo['gridT/thetao_con'].transform_vertical_grid(e3_new=e3t_target)
+
+        See Also
+        --------
+        transform_to
+        """
+        # -- Validate input -- #
+        if e3_new.dims != ("k_new",) or (e3_new.ndim != 1):
+            raise ValueError(
+                "e3_new must be a 1-dimensional xarray.DataArray with dimension 'k_new'."
+            )
+
+        # -- Get NEMO model grid properties -- #
+        ijk_names = self._tree._get_ijk_names(dom=self._dom)
+        i_name, j_name, k_name = ijk_names["i"], ijk_names["j"], ijk_names["k"]
+
+        # -- Define input variables -- #
+        var_in = self.masked.data
+        e3_in = self.metrics["e3"].masked.data
+        if e3_new.sum(dim="k_new") < var_in[f"depth{self._grid_suffix}"].max(dim=k_name):
+            raise ValueError(
+                f"e3_new must sum to at least the maximum depth ({var_in[f'depth{self._grid_suffix}'].max(dim=k_name).item()} m) of the original vertical grid."
+            )
+
+        # -- Transform variable to target vertical grid -- #
+        var_out, e3_out = xr.apply_ufunc(
+            transform_vertical_coords,
+            e3_in,
+            var_in,
+            e3_new.astype(e3_in.dtype),
+            input_core_dims=[[k_name], [k_name], ["k_new"]],
+            output_core_dims=[["k_new"], ["k_new"]],
+            dask="allowed",
+        )
+
+        # -- Construct transformed variable Dataset -- #
+        t_name = var_in.dims[0]
+        var_out = var_out.transpose(t_name, "k_new", j_name, i_name)
+
+        result = xr.Dataset(
+            data_vars={self.name: var_out, f"e3{self._grid_suffix}_new": e3_out},
+            coords={
+                f"depth{self._grid_suffix}_new": ("k_new", e3_new.cumsum(dim="k_new").data)
+            },
+        )
 
         return result
     
