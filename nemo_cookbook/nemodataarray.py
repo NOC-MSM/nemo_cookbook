@@ -69,25 +69,36 @@ class NEMODataArray:
 
         # -- Validate DataArray compatibility -- #
         grid_keys = list(dict(self._tree.subtree_with_keys).keys())
-        if grid not in grid_keys:
+        if self._grid not in grid_keys:
             raise KeyError(
-                f"grid '{grid}' not found in available NEMODataTree grids {grid_keys}."
+                f"grid '{self._grid}' not found in available NEMODataTree grids {grid_keys}."
             )
-        if not all(da[dim].identical(self._tree[grid][dim]) for dim in da.dims):
+        if not all(self._da[dim].equals(self._tree[self._grid][dim]) for dim in self._da.dims):
             raise ValueError(
-                f"DataArray dimensions {da.dims} not identical to NEMO model '{grid}' dimensions."
+                f"DataArray dimensions {self._da.dims} not equal to NEMO model '{self._grid}' dimensions."
             )
-        if not all(da.coords[coord].identical(self._tree[grid].coords[coord]) for coord in da.coords):
+        if not all(self._da.coords[coord].equals(self._tree[self._grid].coords[coord]) for coord in self._da.coords):
             raise ValueError(
-                f"DataArray coordinates {da.coords} not identical to NEMO model '{grid}' coordinates."
+                f"DataArray coordinates {self._da.coords} not equal to NEMO model '{self._grid}' coordinates."
             )
         
         # -- Assign NEMO domain number, grid path and grid type -- #
-        dom, dom_prefix, dom_suffix, grid_suffix = self._tree._get_properties(grid=grid, infer_dom=True)
+        dom, dom_prefix, dom_suffix, grid_suffix = self._tree._get_properties(grid=self._grid, infer_dom=True)
         self._dom = dom
         self._dom_prefix = dom_prefix
         self._dom_suffix = dom_suffix
         self._grid_suffix = grid_suffix
+
+        # -- Assign NEMO dimension names -- #
+        # Spatial dimensions:
+        ijk_names = self._tree._get_ijk_names(grid=self._grid)
+        self.i_name = ijk_names["i"]
+        self.j_name = ijk_names["j"]
+        self.k_name = ijk_names["k"]
+        # Temporal dimension except for time-independent variables:
+        t_list = [dim for dim in self._da.dims if "time" in dim]
+        self.t_name = t_list[0] if len(t_list) != 0 else None
+
 
     # -----------
     # Properties 
@@ -134,12 +145,15 @@ class NEMODataArray:
         """
         Access variable land-sea mask for the parent NEMO model grid.
         """
-        if f"{self._dom_prefix}depth{self._grid_suffix}" in self.coords:
-            # 3-dimensional land-sea mask:
-            mask_name = f"{self._grid_suffix}mask"
+        if (self._da.dims[0] == self.t_name) & (self._da.ndim == 1):
+            raise ValueError("land-sea mask does not exist for variables without spatial dimensions.")
         else:
-            # 2-dimensional land-sea mask:
-            mask_name = f"{self._grid_suffix}maskutil"
+            if f"{self._dom_prefix}depth{self._grid_suffix}" in self.coords:
+                # 3-dimensional land-sea mask:
+                mask_name = f"{self._grid_suffix}mask"
+            else:
+                # 2-dimensional land-sea mask:
+                mask_name = f"{self._grid_suffix}maskutil"
         
         return self._tree[self._grid][mask_name]
     
@@ -262,70 +276,68 @@ class NEMODataArray:
 
         # -- Get NEMO model grid properties -- #
         grid_paths = self._tree._get_grid_paths(dom=self._dom)
-        ijk_names = self._tree._get_ijk_names(grid=self._grid)
-        i_name, j_name, k_name = ijk_names["i"], ijk_names["j"], ijk_names["k"]
         iperio = self._tree[self._grid].attrs.get("iperio", False)
 
         # -- Calculate 1st-order discrete difference -- #
         da = self.masked.data
 
-        if dim == k_name:
+        if dim == self.k_name:
             match self._grid_suffix:
                 case "w":
                     # W-grid located at k = 0.5, 1.5 ... Nk-0.5
-                    result = da.diff(dim=k_name, n=1, label="lower")
-                    result = result.pad({k_name: (0, 1)}, constant_values=np.nan)
-                    result.coords[k_name] = (result.coords[k_name] + 0.5).astype(int)
+                    result = da.diff(dim=self.k_name, n=1, label="lower")
+                    result = result.pad({self.k_name: (0, 1)}, constant_values=np.nan)
+                    result.coords[self.k_name] = (result.coords[self.k_name] + 0.5).astype(int)
                 case _:
                     # T/U/V/F-grids located at k = 1, 2 ... Nk
-                    result = da.diff(dim=k_name, n=1, label="lower")
-                    result = result.pad({k_name: (1, 0)}, constant_values=np.nan)
-                    result.coords[k_name] = (result.coords[k_name].fillna(0) + 0.5)
+                    result = da.diff(dim=self.k_name, n=1, label="lower")
+                    result = result.pad({self.k_name: (1, 0)}, constant_values=np.nan)
+                    result.coords[self.k_name] = (result.coords[self.k_name].fillna(0) + 0.5)
 
-        elif dim == i_name:
+        elif dim == self.i_name:
             match self._grid_suffix:
                 case "t" | "v" | "w":
                     # T/V/W-grids located at i = 1, 2 ... Ni
                     if iperio:
-                        result = da.roll({i_name: -1}) - da
+                        result = da.roll({self.i_name: -1}) - da
                     else:
-                        result = da.shift({i_name: -1}) - da
-                    result.coords[i_name] = result.coords[i_name] + 0.5
+                        result = da.shift({self.i_name: -1}) - da
+                    result.coords[self.i_name] = result.coords[self.i_name] + 0.5
                 case "u" | "f":
                     # U/F-grids located at i = 1.5, 2.5 ... Ni+0.5
                     if iperio:
-                        result = da - da.roll({i_name: 1})
-                        result.coords[i_name] = result.coords[i_name] - 0.5
+                        result = da - da.roll({self.i_name: 1})
+                        result.coords[self.i_name] = result.coords[self.i_name] - 0.5
                     else: 
-                        result = da.pad({i_name: (1, 0)}, constant_values=np.nan)
-                        result = result.diff(dim=i_name, n=1, label="lower")
-                        result.coords[i_name] = (result.coords[i_name].fillna(0.5) + 0.5).astype(int)
+                        result = da.pad({self.i_name: (1, 0)}, constant_values=np.nan)
+                        result = result.diff(dim=self.i_name, n=1, label="lower")
+                        result.coords[self.i_name] = (result.coords[self.i_name].fillna(0.5) + 0.5).astype(int)
 
-        elif dim == j_name:
+        elif dim == self.j_name:
             match self._grid_suffix:
                 case "t" | "u" | "w":
                     # T/U/W-grids located at j = 1, 2 ... Nj
-                    result = da.shift({j_name: -1}) - da
-                    result.coords[j_name] = result.coords[j_name] + 0.5
+                    result = da.shift({self.j_name: -1}) - da
+                    result.coords[self.j_name] = result.coords[self.j_name] + 0.5
                 case "v" | "f":
                     # V/F-grids located at j = 1.5, 2.5 ... Nj+0.5
-                    result = da.pad({j_name: (1, 0)}, constant_values=np.nan)
-                    result = result.diff(dim=j_name, n=1, label="lower")
-                    result.coords[j_name] = (result.coords[j_name].fillna(0.5) + 0.5).astype(int)
+                    result = da.pad({self.j_name: (1, 0)}, constant_values=np.nan)
+                    result = result.diff(dim=self.j_name, n=1, label="lower")
+                    result.coords[self.j_name] = (result.coords[self.j_name].fillna(0.5) + 0.5).astype(int)
         else:
             raise ValueError(f"Invalid dimension {dim}. Dimension must be one of (i{self._dom}, j{self._dom}, k{self._dom}).")
 
         # -- Updating NEMO model grid coordinates -- #
-        geo_coords = [coord for coord in da.coords if coord not in ('time_counter', k_name, i_name, j_name)]
+        geo_coords = [coord for coord in da.coords if coord not in (self.t_name, self.k_name, self.i_name, self.j_name)]
 
         # Determine new grid type based using integer vs. fractional i/j/k dimensions:
         new_geo_dims = [dim for dim in result.dims if dim != 'time_counter']
         new_dim_frac = [dim for dim in new_geo_dims if all((result[dim] % 1) != 0)]
-        if (i_name in new_dim_frac) and (j_name in new_dim_frac):
+        if (self.i_name in new_dim_frac) and (self.j_name in new_dim_frac):
             new_grid_suffix = "f"
-        elif (i_name in new_dim_frac):
+        elif (self.i_name in new_dim_frac):
             new_grid_suffix = "u"
-        elif (j_name in new_dim_frac):
+        elif (self.j_name in new_dim_frac):
             new_grid_suffix = "v"
         else:
             new_grid_suffix = "t"
@@ -335,8 +347,8 @@ class NEMODataArray:
             f"{self._dom_prefix}glam{new_grid_suffix}": self._tree[grid_paths[f"grid{new_grid_suffix.upper()}"]][f"{self._dom_prefix}glam{new_grid_suffix}"],
             f"{self._dom_prefix}gphi{new_grid_suffix}": self._tree[grid_paths[f"grid{new_grid_suffix.upper()}"]][f"{self._dom_prefix}gphi{new_grid_suffix}"],
         }
-        if k_name in new_geo_dims:
-            depth_suffix = "w" if k_name in new_dim_frac else new_grid_suffix
+        if self.k_name in new_geo_dims:
+            depth_suffix = "w" if self.k_name in new_dim_frac else new_grid_suffix
             depth_grid = grid_paths["gridW"] if depth_suffix == "w" else grid_paths[f"grid{new_grid_suffix.upper()}"]
             new_coords[f"{self._dom_prefix}depth{depth_suffix}"] = self._tree[depth_grid][f"{self._dom_prefix}depth{depth_suffix}"]
 
@@ -346,7 +358,7 @@ class NEMODataArray:
         result.name = f"diff_{dim}({self.name})"
 
         # -- Apply land-sea mask & return NEMODataArray -- #
-        new_grid = f"{self._grid.replace(self._grid[-1], 'W' if k_name in new_dim_frac else new_grid_suffix.upper())}"
+        new_grid = f"{self._grid.replace(self._grid[-1], 'W' if self.k_name in new_dim_frac else new_grid_suffix.upper())}"
         result = NEMODataArray(da=result, tree=self._tree, grid=new_grid)
         result = result.masked
 
@@ -497,10 +509,6 @@ class NEMODataArray:
                 "lower depth limit must be less than upper depth limit."
             )
 
-        # -- Get NEMO model grid properties -- #
-        ijk_names = self._tree._get_ijk_names(dom=self._dom)
-        i_name, j_name, k_name = ijk_names["i"], ijk_names["j"], ijk_names["k"]
-
         # -- Define input variables -- #
         var_in = self.masked.data
         e3_in = self.metrics["e3"].masked.data
@@ -512,14 +520,13 @@ class NEMODataArray:
             var_in,
             np.array([limits[1]]),
             np.array([limits[0]]),
-            input_core_dims=[[k_name], [k_name], [None], [None]],
+            input_core_dims=[[self.k_name], [self.k_name], [None], [None]],
             output_core_dims=[["k_new"]],
             dask="allowed",
         )
 
         # -- Define integral variable DataArray -- #
-        t_name = var_in.dims[0]
-        result = result.transpose(t_name, "k_new", j_name, i_name).squeeze()
+        result = result.transpose(self.t_name, "k_new", self.j_name, self.i_name).squeeze()
         result.name = f"integral_z({self.name})"
 
         # -- Apply land-sea mask & return NEMODataArray -- #
@@ -569,14 +576,13 @@ class NEMODataArray:
 
         # -- Get NEMO model grid properties -- #
         ijk_names = self._tree._get_ijk_names(grid=self._grid)
-        i_name, j_name, k_name = ijk_names["i"], ijk_names["j"], ijk_names["k"]
         iperio = self._tree[self._grid].attrs.get("iperio", False)
         target_grid = f"{self._grid.replace(self._grid[-1], to)}"
 
         # -- Collect variable grid scale factors -- #
         if self._grid_suffix.upper() in ["U", "V"]:
             weight_dims = (
-                [k_name, j_name] if self._grid_suffix.upper() == "U" else [k_name, i_name]
+                [self.k_name, self.j_name] if self._grid_suffix.upper() == "U" else [self.k_name, self.i_name]
             )
             if f"{self._dom_prefix}depth{self._grid_suffix}" in self.coords:
                 # 3-D variables - weight by grid cell face area:
@@ -612,10 +618,10 @@ class NEMODataArray:
         result = result.transpose(*new_dims)
 
         # Update NEMO grid coords:
-        result[i_name] = self._tree[target_grid][i_name]
-        result[j_name] = self._tree[target_grid][j_name]
-        if k_name in result.dims:
-            result[k_name] = self._tree[target_grid][k_name]
+        result[self.i_name] = self._tree[target_grid][self.i_name]
+        result[self.j_name] = self._tree[target_grid][self.j_name]
+        if self.k_name in result.dims:
+            result[self.k_name] = self._tree[target_grid][self.k_name]
 
         # Drop NEMO source grid coords:
         drop_vars = [f"{self._dom_prefix}glam{self._grid_suffix}", f"{self._dom_prefix}gphi{self._grid_suffix}"]
@@ -673,16 +679,12 @@ class NEMODataArray:
                 "e3_new must be a 1-dimensional xarray.DataArray with dimension 'k_new'."
             )
 
-        # -- Get NEMO model grid properties -- #
-        ijk_names = self._tree._get_ijk_names(dom=self._dom)
-        i_name, j_name, k_name = ijk_names["i"], ijk_names["j"], ijk_names["k"]
-
         # -- Define input variables -- #
         var_in = self.masked.data
         e3_in = self.metrics["e3"].masked.data
-        if e3_new.sum(dim="k_new") < var_in[f"depth{self._grid_suffix}"].max(dim=k_name):
+        if e3_new.sum(dim="k_new") < var_in[f"depth{self._grid_suffix}"].max(dim=self.k_name):
             raise ValueError(
-                f"e3_new must sum to at least the maximum depth ({var_in[f'depth{self._grid_suffix}'].max(dim=k_name).item()} m) of the original vertical grid."
+                f"e3_new must sum to at least the maximum depth ({var_in[f'depth{self._grid_suffix}'].max(dim=self.k_name).item()} m) of the original vertical grid."
             )
 
         # -- Transform variable to target vertical grid -- #
@@ -691,14 +693,13 @@ class NEMODataArray:
             e3_in,
             var_in,
             e3_new.astype(e3_in.dtype),
-            input_core_dims=[[k_name], [k_name], ["k_new"]],
+            input_core_dims=[[self.k_name], [self.k_name], ["k_new"]],
             output_core_dims=[["k_new"], ["k_new"]],
             dask="allowed",
         )
 
         # -- Construct transformed variable Dataset -- #
-        t_name = var_in.dims[0]
-        var_out = var_out.transpose(t_name, "k_new", j_name, i_name)
+        var_out = var_out.transpose(self.t_name, "k_new", self.j_name, self.i_name)
 
         result = xr.Dataset(
             data_vars={self.name: var_out, f"e3{self._grid_suffix}_new": e3_out},
