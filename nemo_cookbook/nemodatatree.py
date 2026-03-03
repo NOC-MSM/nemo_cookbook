@@ -31,6 +31,7 @@ from nemo_cookbook.nemodataarray import NEMODataArray
 from nemo_cookbook.processing import create_datatree_dict
 from nemo_cookbook.stats import compute_binned_statistic
 from nemo_cookbook.transform import transform_vertical_coords
+from nemo_cookbook.utils import deprecated
 
 
 class NEMODataTree(xr.DataTree):
@@ -725,6 +726,10 @@ class NEMODataTree(xr.DataTree):
 
         return cell_volume
 
+    @deprecated(version_since="2026.03.b1",
+                version_removed="2026.05",
+                alternative="NEMODataArray.gradient"
+                )
     def gradient(
         self,
         var: str,
@@ -810,7 +815,7 @@ class NEMODataTree(xr.DataTree):
 
                 # Zonally Periodic Domain:
                 if self[gridT].attrs.get("iperio", False):
-                    da_end = da.isel(dim_name=0)
+                    da_end = da.isel({dim_name: 0})
                     da_end[dim_name] = da[dim_name].max() + 1
                     da = xr.concat([da, da_end], dim=dim_name)
                     dvar = da.diff(dim=dim_name, label="lower")
@@ -872,6 +877,10 @@ class NEMODataTree(xr.DataTree):
 
         return gradient
 
+    @deprecated(version_since="2026.03.b1",
+                version_removed="2026.05",
+                alternative="NEMOVectorField.divergence"
+                )
     def divergence(
         self,
         vars: list[str],
@@ -982,6 +991,10 @@ class NEMODataTree(xr.DataTree):
 
         return divergence
 
+    @deprecated(version_since="2026.03.b1",
+                version_removed="2026.05",
+                alternative="NEMOVectorField.curl"
+                )
     def curl(
         self,
         vars: list[str],
@@ -1091,6 +1104,10 @@ class NEMODataTree(xr.DataTree):
 
         return curl
 
+    @deprecated(version_since="2026.03.b1",
+                version_removed="2026.05",
+                alternative="NEMODataArray.integral"
+                )
     def integral(
         self,
         grid: str,
@@ -1214,6 +1231,10 @@ class NEMODataTree(xr.DataTree):
 
         return result
 
+    @deprecated(version_since="2026.03.b1",
+                version_removed="2026.05",
+                alternative="NEMODataArray.depth_integral"
+                )
     def depth_integral(
         self, grid: str, var: str, limits: tuple[int | float]
     ) -> xr.Dataset:
@@ -1527,6 +1548,10 @@ class NEMODataTree(xr.DataTree):
 
         return mask
 
+    @deprecated(version_since="2026.03.b1",
+                version_removed="2026.05",
+                alternative="NEMODataArray.masked_statistic"
+                )
     def masked_statistic(
         self,
         grid: str,
@@ -2040,6 +2065,10 @@ class NEMODataTree(xr.DataTree):
 
         return result
 
+    @deprecated(version_since="2026.03.b1",
+                version_removed="2026.05",
+                alternative="NEMODataArray.transform_vertical_grid"
+                )
     def transform_vertical_grid(
         self, grid: str, var: str, e3_new: xr.DataArray
     ) -> xr.Dataset:
@@ -2060,8 +2089,8 @@ class NEMODataTree(xr.DataTree):
 
         Returns
         -------
-        tuple[xr.DataArray, xr.DataArray]
-            Values of variable defined at the centre of each vertical
+        xr.Dataset
+            Variable defined at the centre of each vertical
             grid cell on the new grid, and vertical grid cell
             thicknesses adjusted for model bathymetry.
 
@@ -2132,6 +2161,10 @@ class NEMODataTree(xr.DataTree):
 
         return ds_out
 
+    @deprecated(version_since="2026.03.b1",
+                version_removed="2026.05",
+                alternative="NEMODataArray.transform_to"
+                )
     def transform_to(
         self,
         grid: str,
