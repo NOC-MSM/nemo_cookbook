@@ -534,6 +534,97 @@ class NEMODataArray:
 
         return result
 
+    def masked_statistic(
+        self,
+        lon_poly: list | np.ndarray,
+        lat_poly: list | np.ndarray,
+        statistic: str,
+        dims: list,
+        skipna: bool | None = None,
+    ) -> NEMODataArray:
+        """
+        Compute masked statistic of a variable defined on a NEMO model grid.
+
+        Parameters
+        ----------
+        lon_poly : list | np.ndarray
+            Longitudes of closed polygon.
+        lat_poly : list | np.ndarray
+            Latitudes of closed polygon.
+        statistic : str
+            Name of the statistic to calculate (e.g., 'mean', 'weighted_mean' 'sum').
+        dims : list
+            Dimensions over which to apply statistic (e.g., ['i', 'j']).
+        skipna : bool | None
+            If True, skip missing values (as marked by NaN). By default, only skips missing values for float dtypes.
+
+        Returns
+        -------
+        NEMODataArray
+            Masked statistic of variable defined on a NEMO model grid.
+
+        Examples
+        --------
+        Compute the grid cell area-weighted mean sea surface temperature `tos_con` for a
+        region enclosed in a polygon defined by `lon_poly` and `lat_poly` in a NEMO nested
+        child domain:
+
+        >>> nemo["gridT/1_gridT/tos_con"].masked_statistic(lon_poly=lon_poly,
+        ...                                                lat_poly=lat_poly,
+        ...                                                statistic="weighted_mean",
+        ...                                                dims=["i", "j"]
+        ...                                                )
+
+        See Also
+        --------
+        NEMODataTree.binned_statistic
+        """
+        # -- Validate input -- #
+        if not isinstance(statistic, str):
+            raise TypeError("statistic must be specified as a string.")
+        if not isinstance(dims, list):
+            raise TypeError("dims must be specified as a list.")
+        if skipna is not None:
+            if not isinstance(skipna, bool):
+                raise TypeError("skipna must be specified as a boolean or None.")
+
+        # -- Create polygon mask using coordinates -- #
+        mask_poly = self._tree.mask_with_polygon(
+            lon_poly=lon_poly, lat_poly=lat_poly, grid=self._grid
+        )
+
+        # -- Apply masks & calculate statistic -- #
+        da = self.masked.data.where(mask_poly)
+
+        match statistic:
+            case "mean":
+                result = da.mean(dim=dims, skipna=skipna)
+
+            case "weighted_mean":
+                weight_dims = [dim.replace(self._dom_suffix, "") for dim in dims]
+                weights = self._tree._get_weights(grid=self._grid, dims=weight_dims)
+                result = da.weighted(weights).mean(dim=dims, skipna=skipna)
+
+            case "min":
+                result = da.min(dim=dims, skipna=skipna)
+
+            case "max":
+                result = da.max(dim=dims, skipna=skipna)
+
+            case "sum":
+                result = da.sum(dim=dims, skipna=skipna)
+
+            case _:
+                raise ValueError(
+                    f"Unsupported statistic '{statistic}'. Supported statistics are: 'mean', 'weighted_mean', 'min', 'max', 'sum'."
+                )
+            
+        # -- Update DataArray properties -- #
+        result.name = f"masked_{statistic}({self.name})"
+        result = self._wrap(result)
+
+        return result
+
     def transform_to(
         self,
         to: str,
