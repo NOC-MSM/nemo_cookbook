@@ -1726,7 +1726,7 @@ class NEMODataTree(xr.DataTree):
         i_bdy, j_bdy, flux_type, flux_dir = get_mask_boundary(mask)
 
         # -- Construct boundary dataset -- #
-        time_name = [dim for dim in self[gridU].dims if "time" in dim][0]
+        t_name = [dim for dim in self[gridU].dims if "time" in dim][0]
 
         ds = xr.Dataset(
             data_vars={
@@ -1736,7 +1736,7 @@ class NEMODataTree(xr.DataTree):
                 "flux_dir": (["bdy"], flux_dir[::-1]),
             },
             coords={
-                time_name: self[gridU][time_name].values,
+                t_name: self[gridU][t_name].values,
                 k_name: self[gridU][k_name].values,
                 "bdy": np.arange(len(i_bdy)),
             },
@@ -1752,13 +1752,13 @@ class NEMODataTree(xr.DataTree):
         vbdy_mask = ds["flux_type"] == "V"
 
         dim_sizes = [
-            self[gridU][time_name].size,
+            self[gridU][t_name].size,
             self[gridU][k_name].size,
             ds["bdy"].size,
         ]
 
         ds["velocity"] = xr.DataArray(
-            data=dask.array.zeros(dim_sizes), dims=[time_name, k_name, "bdy"]
+            data=dask.array.zeros(dim_sizes), dims=[t_name, k_name, "bdy"]
         )
         ds["velocity"][:, :, ubdy_mask] = (
             self[f"{gridU}/{uv_vars[0]}"].masked.data.sel(
@@ -1803,7 +1803,7 @@ class NEMODataTree(xr.DataTree):
                 if var in self[gridT].data_vars:
                     ds[var] = xr.DataArray(
                         data=dask.array.zeros(dim_sizes),
-                        dims=[time_name, k_name, "bdy"],
+                        dims=[t_name, k_name, "bdy"],
                     )
                 else:
                     raise KeyError(f"variable {var} not found in grid '{gridT}'.")
@@ -2128,6 +2128,7 @@ class NEMODataTree(xr.DataTree):
         dom, _, _, grid_suffix = self._get_properties(grid=grid, infer_dom=True)
         ijk_names = self._get_ijk_names(dom=dom)
         i_name, j_name, k_name = ijk_names["i"], ijk_names["j"], ijk_names["k"]
+        t_name = [dim for dim in self[grid].dims if "time" in dim][0]
 
         # -- Define input variables -- #
         var_in = self[f"{grid}/{var}"].masked.data
@@ -2148,8 +2149,7 @@ class NEMODataTree(xr.DataTree):
             dask="allowed",
         )
 
-        # -- Create transformed variable Dataset -- #
-        t_name = var_in.dims[0]
+        # -- Construct transformed variable Dataset -- #
         var_out = var_out.transpose(t_name, "k_new", j_name, i_name)
 
         ds_out = xr.Dataset(
