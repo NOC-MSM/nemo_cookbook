@@ -192,129 +192,129 @@ class TestNEMODataTreeDatasets():
         assert isinstance(result, NEMODataTree) & isinstance(result, xr.DataTree)
 
 
-    class TestNEMODataTreeUtils():
-        @pytest.mark.parametrize("dom", [".", "1"])
-        def test_get_dom_properties(self, dom):
-            # -- Create NEMODataTree instance -- #
-            nemo = NEMODataTree()
-            # -- Verify domain properties -- #
-            result = nemo._get_properties(dom=dom)
+class TestNEMODataTreeUtils():
+    @pytest.mark.parametrize("dom", [".", "1"])
+    def test_get_dom_properties(self, dom):
+        # -- Create NEMODataTree instance -- #
+        nemo = NEMODataTree()
+        # -- Verify domain properties -- #
+        result = nemo._get_properties(dom=dom)
+        assert isinstance(result, tuple)
+        assert all(isinstance(item, str) for item in result)
+        if dom == ".":
+            assert result == ("", "")
+        else:
+            assert result == (f"{dom}_", f"{dom}")
+    
+    def test_get_dom_grid_error(self):
+        # -- Create NEMODataTree instance -- #
+        nemo = NEMODataTree()
+        # -- Verify KeyError -- #
+        grid = "gridT"
+        expected_str = f"grid '{grid}' not found in available NEMODataTree grids"
+        with pytest.raises(KeyError, match=expected_str):
+            nemo._get_properties(grid=grid)
+
+    @pytest.mark.parametrize("infer_dom", [True, False])
+    def test_get_grid_properties(self, infer_dom: bool):
+        # -- Create NEMODataTree instance -- #
+        nemo = NEMODataTree()
+        nemo["gridT"] = xr.Dataset()
+        # -- Verify grid properties -- #
+        result = nemo._get_properties(grid="gridT", infer_dom=infer_dom)
+        if infer_dom:
             assert isinstance(result, tuple)
             assert all(isinstance(item, str) for item in result)
-            if dom == ".":
-                assert result == ("", "")
-            else:
-                assert result == (f"{dom}_", f"{dom}")
-        
-        def test_get_dom_grid_error(self):
-            # -- Create NEMODataTree instance -- #
-            nemo = NEMODataTree()
-            # -- Verify KeyError -- #
-            grid = "gridT"
-            expected_str = f"grid '{grid}' not found in available NEMODataTree grids"
-            with pytest.raises(KeyError, match=expected_str):
-                nemo._get_properties(grid=grid)
+            assert result == (".", "", "", "t")
+        else:
+            assert isinstance(result, str)
+            assert result == "t"
 
-        @pytest.mark.parametrize("infer_dom", [True, False])
-        def test_get_grid_properties(self, infer_dom: bool):
-            # -- Create NEMODataTree instance -- #
-            nemo = NEMODataTree()
-            nemo["gridT"] = xr.Dataset()
-            # -- Verify grid properties -- #
-            result = nemo._get_properties(grid="gridT", infer_dom=infer_dom)
-            if infer_dom:
-                assert isinstance(result, tuple)
-                assert all(isinstance(item, str) for item in result)
-                assert result == (".", "", "", "t")
-            else:
-                assert isinstance(result, str)
-                assert result == "t"
-
-        @pytest.mark.parametrize("dom", [".", "1"])
-        def test_get_grid_node_paths(self, dom: str):
-            # -- Create NEMODataTree instance -- #
-            nemo = NEMODataTree()
-            nemo["gridT"] = xr.Dataset()
-            nemo["gridT/1_gridT"] = xr.Dataset()
-            # -- Verify grid node paths -- #
-            result = nemo._get_grid_paths(dom=dom)
-            assert isinstance(result, dict)
-            if dom == ".":
-                assert result == {"gridT": "gridT"}
-            else:
-                assert result == {"gridT": f"gridT/{dom}_gridT"}
+    @pytest.mark.parametrize("dom", [".", "1"])
+    def test_get_grid_node_paths(self, dom: str):
+        # -- Create NEMODataTree instance -- #
+        nemo = NEMODataTree()
+        nemo["gridT"] = xr.Dataset()
+        nemo["gridT/1_gridT"] = xr.Dataset()
+        # -- Verify grid node paths -- #
+        result = nemo._get_grid_paths(dom=dom)
+        assert isinstance(result, dict)
+        if dom == ".":
+            assert result == {"gridT": "gridT"}
+        else:
+            assert result == {"gridT": f"gridT/{dom}_gridT"}
 
 
-        @pytest.mark.parametrize("dom", [".", "1"])
-        def test_get_dom_ijk_names(self, dom: str):
-            # -- Create NEMODataTree instance -- #
-            nemo = NEMODataTree()
-            # -- Verify ijk names -- #
-            result = nemo._get_ijk_names(dom=dom)
-            assert isinstance(result, dict)
-            if dom == ".":
-                expected_keys = {'i': 'i', 'j': 'j', 'k': 'k'}
-            else:
-                expected_keys = {'i': f'i{dom}', 'j': f'j{dom}', 'k': f'k{dom}'}
-            assert result == expected_keys
+    @pytest.mark.parametrize("dom", [".", "1"])
+    def test_get_dom_ijk_names(self, dom: str):
+        # -- Create NEMODataTree instance -- #
+        nemo = NEMODataTree()
+        # -- Verify ijk names -- #
+        result = nemo._get_ijk_names(dom=dom)
+        assert isinstance(result, dict)
+        if dom == ".":
+            expected_keys = {'i': 'i', 'j': 'j', 'k': 'k'}
+        else:
+            expected_keys = {'i': f'i{dom}', 'j': f'j{dom}', 'k': f'k{dom}'}
+        assert result == expected_keys
 
-        @pytest.mark.parametrize("grid", ["gridT", "gridT/1_gridT"])
-        def test_get_grid_ijk_names(self, grid: str):
-            # -- Create NEMODataTree instance -- #
-            nemo = NEMODataTree()
-            nemo[grid] = xr.Dataset()
-            # -- Verify ijk names -- #
-            result = nemo._get_ijk_names(grid=grid)
-            assert isinstance(result, dict)
-            if grid == "gridT":
-                expected_keys = {'i': 'i', 'j': 'j', 'k': 'k'}
-            elif grid == "gridT/1_gridT":
-                expected_keys = {'i': 'i1', 'j': 'j1', 'k': 'k1'}
-            assert result == expected_keys
+    @pytest.mark.parametrize("grid", ["gridT", "gridT/1_gridT"])
+    def test_get_grid_ijk_names(self, grid: str):
+        # -- Create NEMODataTree instance -- #
+        nemo = NEMODataTree()
+        nemo[grid] = xr.Dataset()
+        # -- Verify ijk names -- #
+        result = nemo._get_ijk_names(grid=grid)
+        assert isinstance(result, dict)
+        if grid == "gridT":
+            expected_keys = {'i': 'i', 'j': 'j', 'k': 'k'}
+        elif grid == "gridT/1_gridT":
+            expected_keys = {'i': 'i1', 'j': 'j1', 'k': 'k1'}
+        assert result == expected_keys
 
-        @pytest.mark.parametrize("dims", [['x'], ['x', 'y'], ['x', 'y', 'z']])
-        def test_get_grid_weights_value_error(self, dims: list):
-            # -- Create NEMODataTree instance -- #
-            nemo = NEMODataTree()
-            nemo["gridT"] = xr.Dataset()
-            # -- Verify ValueError -- #
-            expected_str = "dims must be a list containing one or more of the following dimensions: ['i', 'j', 'k']."
-            with pytest.raises(ValueError, match=re.escape(expected_str)):
-                nemo._get_weights(grid="gridT", dims=dims)
+    @pytest.mark.parametrize("dims", [['x'], ['x', 'y'], ['x', 'y', 'z']])
+    def test_get_grid_weights_value_error(self, dims: list):
+        # -- Create NEMODataTree instance -- #
+        nemo = NEMODataTree()
+        nemo["gridT"] = xr.Dataset()
+        # -- Verify ValueError -- #
+        expected_str = "dims must be a list containing one or more of the following dimensions: ['i', 'j', 'k']."
+        with pytest.raises(ValueError, match=re.escape(expected_str)):
+            nemo._get_weights(grid="gridT", dims=dims)
 
-        def test_get_missing_grid_weights(self):
-            # -- Create NEMODataTree instance -- #
-            nemo = NEMODataTree()
-            grid = "gridT"
-            nemo[grid] = xr.Dataset()
-            # -- Verify KeyError -- #
-            dims = ["i"]
-            expected_str = f"weights missing for dimensions {dims} of NEMO model grid {grid}"
-            with pytest.raises(KeyError, match=re.escape(expected_str)):
-                nemo._get_weights(grid=grid, dims=dims)
+    def test_get_missing_grid_weights(self):
+        # -- Create NEMODataTree instance -- #
+        nemo = NEMODataTree()
+        grid = "gridT"
+        nemo[grid] = xr.Dataset()
+        # -- Verify KeyError -- #
+        dims = ["i"]
+        expected_str = f"weights missing for dimensions {dims} of NEMO model grid {grid}"
+        with pytest.raises(KeyError, match=re.escape(expected_str)):
+            nemo._get_weights(grid=grid, dims=dims)
 
-        @pytest.mark.parametrize(
-                "dom_type,dims",
-                [["global", ["i"]], ["global", ["i", "j"]], ["global", ["i", "j", "k"]],
-                 ["regional", ["i"]], ["regional", ["i", "j"]], ["regional", ["i", "j", "k"]]
-                 ])
-        def test_get_grid_weights_type_masked(self, dom_type, example_global_nemodatatree, example_regional_nemodatatree, dims):
-            # -- Create NEMODataTree instance based on domain type -- #
-            match dom_type:
-                case "regional":
-                    nemo = example_regional_nemodatatree
-                case "global":
-                    nemo = example_global_nemodatatree
-                case _:
-                    raise ValueError("dom_type must be 'global' or 'regional'")
-                
-            # Update masks to exclude all land (ocean-only):
-            grid = "gridT"
-            nemo[grid]["tmaskutil"][:, :] = True
-            nemo[grid]["tmask"][:, :, : ] = True
+    @pytest.mark.parametrize(
+            "dom_type,dims",
+            [["global", ["i"]], ["global", ["i", "j"]], ["global", ["i", "j", "k"]],
+                ["regional", ["i"]], ["regional", ["i", "j"]], ["regional", ["i", "j", "k"]]
+                ])
+    def test_get_grid_weights_type_masked(self, dom_type, example_global_nemodatatree, example_regional_nemodatatree, dims):
+        # -- Create NEMODataTree instance based on domain type -- #
+        match dom_type:
+            case "regional":
+                nemo = example_regional_nemodatatree
+            case "global":
+                nemo = example_global_nemodatatree
+            case _:
+                raise ValueError("dom_type must be 'global' or 'regional'")
+            
+        # Update masks to exclude all land (ocean-only):
+        grid = "gridT"
+        nemo[grid]["tmaskutil"][:, :] = True
+        nemo[grid]["tmask"][:, :, : ] = True
 
-            # -- Verify output type -- #
-            result = nemo._get_weights(grid=grid, dims=dims, fillna=True)
-            assert isinstance(result, xr.DataArray)
-            # -- Verify land-sea mask conservation (no zero / land weights) -- #
-            assert np.sum(result == 0) == 0
+        # -- Verify output type -- #
+        result = nemo._get_weights(grid=grid, dims=dims, fillna=True)
+        assert isinstance(result, xr.DataArray)
+        # -- Verify land-sea mask conservation (no zero / land weights) -- #
+        assert np.sum(result == 0) == 0
