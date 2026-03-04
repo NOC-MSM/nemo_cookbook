@@ -69,6 +69,8 @@ def create_section_polygon(
         )
     elif all(lat == lat_sec[0] for lat in lat_sec):
         raise ValueError("extracting zonal hydrographic sections is not supported.")
+    else:
+        raise ValueError("hydrographic section endpoints must not have same latitude.")
 
     return lon_poly, lat_poly
 
