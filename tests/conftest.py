@@ -29,6 +29,10 @@ def example_global_nemodatatree() -> NEMODataTree:
     # -- Define grid dimensions -- #
     nt, nk, nj, ni = 3, 5, 10, 10
 
+    # -- Define geographical coordinates -- #
+    glam = np.tile(np.linspace(-180, 180, 2*ni), (nj, 1))
+    gphi = np.tile(np.linspace(-90, 90, 2*nj), (ni, 1)).T
+
     # -- Vertical grid scale factors -- #
     # Time-dependent for QCO case:
     e3_data = 50 * np.ones((nt, nk, nj, ni))
@@ -54,8 +58,8 @@ def example_global_nemodatatree() -> NEMODataTree:
                      .assign_coords(i=np.arange(1, ni + 1),
                                     j=np.arange(1, nj + 1),
                                     k=np.arange(1, nk + 1),
-                                    gphit=(("j"), np.linspace(-90, 90, 2*nj)[::2]),
-                                    glamt=(("i"), np.linspace(-180, 180, 2*ni)[::2]),
+                                    gphit=(("j", "i"), gphi[::2, :]),
+                                    glamt=(("j", "i"), glam[:, ::2]),
                                     deptht=(("k"), np.arange(25, 250, 50))
                                     )
                     )
@@ -79,8 +83,8 @@ def example_global_nemodatatree() -> NEMODataTree:
                      .assign_coords(i=np.arange(1, ni + 1) + 0.5,
                                     j=np.arange(1, nj + 1),
                                     k=np.arange(1, nk + 1),
-                                    gphiu=(("j"), np.linspace(-90, 90, 2*nj)[::2]),
-                                    glamu=(("i"), np.linspace(-180, 180, 2*ni)[1::2]),
+                                    gphiu=(("j", "i"), gphi[::2, :]),
+                                    glamu=(("j", "i"), glam[:, 1::2]),
                                     depthu=(("k"), np.arange(25, 250, 50))
                                     )
                     )
@@ -104,8 +108,8 @@ def example_global_nemodatatree() -> NEMODataTree:
                      .assign_coords(i=np.arange(1, ni + 1),
                                     j=np.arange(1, nj + 1) + 0.5,
                                     k=np.arange(1, nk + 1),
-                                    gphiv=(("j"), np.linspace(-90, 90, 2*nj)[1::2]),
-                                    glamv=(("i"), np.linspace(-180, 180, 2*ni)[::2]),
+                                    gphiv=(("j", "i"), gphi[1::2, :]),
+                                    glamv=(("j", "i"), glam[:, ::2]),
                                     depthv=(("k"), np.arange(25, 250, 50))
                                     )
                     )
@@ -130,8 +134,8 @@ def example_global_nemodatatree() -> NEMODataTree:
                      .assign_coords(i=np.arange(1, ni + 1),
                                     j=np.arange(1, nj + 1),
                                     k=np.arange(1, nk + 1) - 0.5,
-                                    gphit=(("j"), np.linspace(-90, 90, 2*nj)[::2]),
-                                    glamt=(("i"), np.linspace(-180, 180, 2*ni)[::2]),
+                                    gphit=(("j", "i"), gphi[::2, :]),
+                                    glamt=(("j", "i"), glam[:, ::2]),
                                     depthw=(("k"), np.arange(0, 250, 50))
                                     )
                     )
@@ -155,8 +159,8 @@ def example_global_nemodatatree() -> NEMODataTree:
                      .assign_coords(i=np.arange(1, ni + 1) + 0.5,
                                     j=np.arange(1, nj + 1) + 0.5,
                                     k=np.arange(1, nk + 1),
-                                    gphif=(("j"), np.linspace(-90, 90, 2*nj)[1::2]),
-                                    glamf=(("i"), np.linspace(-180, 180, 2*ni)[1::2]),
+                                    gphif=(("j", "i"), gphi[1::2, :]),
+                                    glamf=(("j", "i"), glam[:, 1::2]),
                                     depthf=(("k"), np.arange(25, 250, 50))
                                     )
                     )
@@ -262,6 +266,10 @@ def example_regional_nemodatatree() -> NEMODataTree:
     # -- Define grid dimensions -- #
     nt, nk, nj, ni = 3, 5, 10, 10
 
+    # -- Define geographical coordinates -- #
+    glam = np.tile(np.linspace(25, 80, 2*ni), (nj, 1))
+    gphi = np.tile(np.linspace(-60, 0, 2*nj), (ni, 1)).T
+
     # -- Vertical grid scale factors -- #
     # Time-dependent for QCO case:
     e3_data = 50 * np.ones((nt, nk, nj, ni))
@@ -287,8 +295,8 @@ def example_regional_nemodatatree() -> NEMODataTree:
                      .assign_coords(i=np.arange(1, ni + 1),
                                     j=np.arange(1, nj + 1),
                                     k=np.arange(1, nk + 1),
-                                    gphit=(("j"), np.linspace(-60, 0, 2*nj)[::2]),
-                                    glamt=(("i"), np.linspace(25, 80, 2*ni)[::2]),
+                                    gphit=(("j", "i"), gphi[::2, :]),
+                                    glamt=(("j", "i"), glam[:, ::2]),
                                     deptht=(("k"), np.arange(25, 250, 50))
                                     )
                     )
@@ -313,8 +321,8 @@ def example_regional_nemodatatree() -> NEMODataTree:
                      .assign_coords(i=np.arange(1, ni + 1) + 0.5,
                                     j=np.arange(1, nj + 1),
                                     k=np.arange(1, nk + 1),
-                                    gphiu=(("j"), np.linspace(-60, 0, 2*nj)[::2]),
-                                    glamu=(("i"), np.linspace(25, 80, 2*ni)[1::2]),
+                                    gphiu=(("j", "i"), gphi[::2, :]),
+                                    glamu=(("j", "i"), glam[:, 1::2]),
                                     depthu=(("k"), np.arange(25, 250, 50))
                                     )
                     )
@@ -339,8 +347,8 @@ def example_regional_nemodatatree() -> NEMODataTree:
                      .assign_coords(i=np.arange(1, ni + 1),
                                     j=np.arange(1, nj + 1) + 0.5,
                                     k=np.arange(1, nk + 1),
-                                    gphiv=(("j"), np.linspace(-60, 0, 2*nj)[1::2]),
-                                    glamv=(("i"), np.linspace(25, 80, 2*ni)[::2]),
+                                    gphiv=(("j", "i"), gphi[1::2, :]),
+                                    glamv=(("j", "i"), glam[:, ::2]),
                                     depthv=(("k"), np.arange(25, 250, 50))
                                     )
                     )
@@ -366,8 +374,8 @@ def example_regional_nemodatatree() -> NEMODataTree:
                      .assign_coords(i=np.arange(1, ni + 1),
                                     j=np.arange(1, nj + 1),
                                     k=np.arange(1, nk + 1) - 0.5,
-                                    gphit=(("j"), np.linspace(-60, 0, 2*nj)[1::2]),
-                                    glamt=(("i"), np.linspace(25, 80, 2*ni)[::2]),
+                                    gphit=(("j", "i"), gphi[1::2, :]),
+                                    glamt=(("j", "i"), glam[:, ::2]),
                                     depthw=(("k"), np.arange(0, 250, 50))
                                     )
                     )
@@ -393,8 +401,8 @@ def example_regional_nemodatatree() -> NEMODataTree:
                      .assign_coords(i=np.arange(1, ni + 1) + 0.5,
                                     j=np.arange(1, nj + 1) + 0.5,
                                     k=np.arange(1, nk + 1),
-                                    gphif=(("j"), np.linspace(-60, 0, 2*nj)[1::2]),
-                                    glamf=(("i"), np.linspace(25, 80, 2*ni)[1::2]),
+                                    gphif=(("j", "i"), gphi[1::2, :]),
+                                    glamf=(("j", "i"), glam[:, 1::2]),
                                     depthf=(("k"), np.arange(0, 250, 50))
                                     )
                     )
