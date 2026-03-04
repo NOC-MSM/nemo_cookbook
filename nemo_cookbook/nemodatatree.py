@@ -174,7 +174,7 @@ class NEMODataTree(xr.DataTree):
         --------
         from_datasets
         """
-        # -- Validate input -- #
+        # -- Validate Inputs -- #
         if not isinstance(paths, dict):
             raise TypeError("`paths` must be a dictionary or nested dictionary.")
         if not isinstance(nests, (dict, type(None))):
@@ -328,6 +328,7 @@ class NEMODataTree(xr.DataTree):
         --------
         from_paths
         """
+        # -- Validate Inputs -- #
         if not isinstance(datasets, dict):
             raise TypeError("`datasets` must be a dictionary or nested dictionary.")
         if not isinstance(nests, (dict, type(None))):
@@ -1308,12 +1309,17 @@ class NEMODataTree(xr.DataTree):
             np.array([limits[0]]),
             input_core_dims=[[k_name], [k_name], [None], [None]],
             output_core_dims=[["k_new"]],
-            dask="allowed",
+            dask="parallelized",
+            output_dtypes=[var_in.dtype],
+            dask_gufunc_kwargs={"output_sizes": {"k_new": 1}},
         )
 
         # -- Create variable integral DataArray -- #
-        t_name = var_in.dims[0]
-        result = result.transpose(t_name, "k_new", j_name, i_name).squeeze()
+        t_name = self[f"{grid}/{var}"].t_name
+        if t_name is not None:
+            result = result.transpose(t_name, "k_new", j_name, i_name).squeeze()
+        else:
+            result = result.transpose("k_new", j_name, i_name).squeeze()
         result.name = f"integral_z({var})"
 
         return result

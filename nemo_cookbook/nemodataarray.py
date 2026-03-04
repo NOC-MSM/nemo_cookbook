@@ -522,11 +522,16 @@ class NEMODataArray:
             np.array([limits[0]]),
             input_core_dims=[[self.k_name], [self.k_name], [None], [None]],
             output_core_dims=[["k_new"]],
-            dask="allowed",
+            dask="parallelized",
+            output_dtypes=[e3_in.dtype],
+            dask_gufunc_kwargs={"output_sizes": {"k_new": 1}},
         )
 
         # -- Define integral variable DataArray -- #
-        result = result.transpose(self.t_name, "k_new", self.j_name, self.i_name).squeeze()
+        if self.t_name is not None:
+            result = result.transpose(self.t_name, "k_new", self.j_name, self.i_name).squeeze()
+        else:
+            result = result.transpose("k_new", self.j_name, self.i_name).squeeze()
         result.name = f"integral_z({self.name})"
 
         # -- Apply land-sea mask & return NEMODataArray -- #
