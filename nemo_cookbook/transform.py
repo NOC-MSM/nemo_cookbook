@@ -12,7 +12,7 @@ Ollie Tooth (oliver.tooth@noc.ac.uk)
 
 import numpy as np
 import numpy.typing as npt
-from numba import guvectorize, prange
+from numba import guvectorize
 
 
 # -- Internal Functions -- #
@@ -85,7 +85,7 @@ def transform_vertical_coords(
     var_out = np.zeros(n_target)
 
     # Remap variable to target vertical grid:
-    for p in prange(n_target):
+    for p in range(n_target):
         z_top = z_target[p]
         z_bot = z_target[p + 1]
 
