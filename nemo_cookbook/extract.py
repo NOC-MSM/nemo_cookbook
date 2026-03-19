@@ -20,8 +20,7 @@ if TYPE_CHECKING:
 import dask
 import numpy as np
 import xarray as xr
-
-from nemo_cookbook.utils import SklearnGeoBallTreeAdapter
+from xoak import SklearnGeoBallTreeAdapter
 
 
 def create_section_polygon(

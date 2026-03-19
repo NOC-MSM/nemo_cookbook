@@ -33,6 +33,7 @@ dependencies = [
   "scikit-learn>=1.7.1",
   "scikit-image>=0.25.2",
   "xarray>=2025.07.1",
+  "xoak>=0.2.0",
   "zarr>=3.0.7",
   ]
 

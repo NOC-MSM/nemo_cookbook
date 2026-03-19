@@ -16,8 +16,7 @@ import dask
 import numpy as np
 import xarray as xr
 from xarray.indexes import NDPointIndex
-
-from nemo_cookbook.utils import SklearnGeoBallTreeAdapter
+from xoak import SklearnGeoBallTreeAdapter
 
 from .core import compute_depth_integral
 from .extract import (
@@ -587,7 +586,7 @@ class NEMODataTree(xr.DataTree):
             .set_xindex(
                 (lat_name, lon_name),
                 NDPointIndex,
-                tree_adapter_self=SklearnGeoBallTreeAdapter,
+                tree_adapter_cls=SklearnGeoBallTreeAdapter,
             )
         )
 
