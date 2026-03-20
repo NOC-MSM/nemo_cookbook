@@ -38,7 +38,7 @@ def _create_pooch_manager() -> pooch.Pooch:
     return pooch_manager
 
 
-def get_filepaths(example: str) -> str:
+def get_filepaths(example: str) -> dict[str, str]:
     """
     Retrieve filepaths for example outputs for a given
     NEMO model reference configuration.
@@ -69,7 +69,7 @@ def get_filepaths(example: str) -> str:
     return {fname.split("/")[-1]: pooch_data.fetch(fname) for fname in filenames}
 
 
-def _create_pooch_registry():
+def _create_pooch_registry() -> None:
     """
     Create a pooch registry file for the example NEMO model output data.
 
