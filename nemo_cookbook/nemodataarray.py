@@ -508,14 +508,14 @@ class NEMODataArray:
                 result = (
                     da.weighted(weights)
                     .sum(dim=sum_dims, skipna=True)
-                    .reindex({dim: self[dim][::-1] for dim in cum_dims})
+                    .reindex({dim: self.data[dim][::-1] for dim in cum_dims})
                     .cumsum(dim=cum_dims, skipna=True)
                 )
         else:
             result = da.weighted(weights).sum(dim=dims, skipna=True)
 
         # -- Apply land-sea mask & return NEMODataArray -- #
-        result.name = f"integral_{', '.join(dims)}({self.name})"
+        result.name = f"integral_{''.join(dims)}({self.name})"
         result = self._wrap(result).masked
 
         return result
@@ -576,7 +576,7 @@ class NEMODataArray:
             input_core_dims=[[self.k_name], [self.k_name], [], []],
             output_core_dims=[["k_new"]],
             dask="parallelized",
-            output_dtypes=[e3_in.dtype],
+            output_dtypes=[var_in.dtype],
             dask_gufunc_kwargs={"output_sizes": {"k_new": 1}},
         )
 
@@ -844,11 +844,14 @@ class NEMODataArray:
             e3_new.astype(e3_in.dtype),
             input_core_dims=[[self.k_name], [self.k_name], ["k_new"]],
             output_core_dims=[["k_new"], ["k_new"]],
-            dask="allowed",
+            dask="parallelized",
+            output_dtypes=[var_in.dtype, e3_in.dtype],
+            dask_gufunc_kwargs={"output_sizes": {"k_new": e3_new.sizes["k_new"]}},
         )
 
         # -- Construct transformed variable Dataset -- #
         var_out = var_out.transpose(self.t_name, "k_new", self.j_name, self.i_name)
+        e3_out = e3_out.transpose(self.t_name, "k_new", self.j_name, self.i_name)
 
         result = xr.Dataset(
             data_vars={self.name: var_out, f"e3{self._grid_suffix}_new": e3_out},

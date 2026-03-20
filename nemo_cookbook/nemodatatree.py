@@ -2152,7 +2152,9 @@ class NEMODataTree(xr.DataTree):
             e3_new.astype(e3_in.dtype),
             input_core_dims=[[k_name], [k_name], ["k_new"]],
             output_core_dims=[["k_new"], ["k_new"]],
-            dask="allowed",
+            dask="parallelized",
+            output_dtypes=[var_in.dtype, e3_in.dtype],
+            dask_gufunc_kwargs={"output_sizes": {"k_new": e3_new.sizes["k_new"]}},
         )
 
         # -- Construct transformed variable Dataset -- #
