@@ -93,19 +93,19 @@ def _lbc_nfd(
                     ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
 
                 # -- Line number ipj - ihls : right half --- #
-                for jj in range(1, 2):  # only once
-                    ij1 = ipj - ihls
-                    ij2 = ij1  # same line
+                # Equivalent to [DO jj = 1, 1]:
+                ij1 = ipj - ihls
+                ij2 = ij1  # same line
 
-                    # Points from ipi/2+2 to ipi - ihls:
-                    ii1 = ipi // 2 + np.arange(1, Ni0glo // 2) + 1
-                    ii2 = ipi // 2 - np.arange(1, Ni0glo // 2) + 1
-                    ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
+                # Points from ipi/2+2 to ipi - ihls:
+                ii1 = ipi // 2 + np.arange(1, Ni0glo // 2) + 1
+                ii2 = ipi // 2 - np.arange(1, Ni0glo // 2) + 1
+                ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
 
-                    # First ihls points: redo just in case:
-                    ii1 = np.arange(1, ihls + 1)
-                    ii2 = 2 * ihls + 2 - ii1
-                    ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
+                # First ihls points: redo just in case:
+                ii1 = np.arange(1, ihls + 1)
+                ii2 = 2 * ihls + 2 - ii1
+                ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
 
             case "U":
                 # -- Last ihls lines (from ipj to ipj - ihls + 1) : full -- #
@@ -129,19 +129,19 @@ def _lbc_nfd(
                     ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
 
                 # --- Line number ipj - ihls : right half --- #
-                for jj in range(1, 2):  # DO jj = 1, 1
-                    ij1 = ipj - ihls
-                    ij2 = ij1  # same line
+                # Equivalent to [DO jj = 1, 1]:
+                ij1 = ipj - ihls
+                ij2 = ij1  # same line
 
-                    # Points from ipi/2+1 to ipi - ihls  (DO ji = 1, Ni0glo/2):
-                    ii1 = ipi // 2 + np.arange(1, Ni0glo // 2 + 1)
-                    ii2 = ipi // 2 - np.arange(1, Ni0glo // 2 + 1) + 1
-                    ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
+                # Points from ipi/2+1 to ipi - ihls  (DO ji = 1, Ni0glo/2):
+                ii1 = ipi // 2 + np.arange(1, Ni0glo // 2 + 1)
+                ii2 = ipi // 2 - np.arange(1, Ni0glo // 2 + 1) + 1
+                ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
 
-                    # First ihls points: redo them just in case:
-                    ii1 = np.arange(1, ihls + 1)
-                    ii2 = 2 * ihls + 1 - ii1
-                    ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
+                # First ihls points: redo them just in case:
+                ii1 = np.arange(1, ihls + 1)
+                ii2 = 2 * ihls + 1 - ii1
+                ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
 
             case "V":
                 # -- Last ihls+1 lines (from ipj to ipj-ihls) : full -- #
@@ -273,19 +273,19 @@ def _lbc_nfd(
                     ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
 
                 # -- Line number ipj - ihls : right half -- #
-                for jj in range(1, 2):  # DO jj = 1, 1
-                    ij1 = ipj - ihls
-                    ij2 = ij1  # same line
+                # Equivalent to [DO jj = 1, 1]:
+                ij1 = ipj - ihls
+                ij2 = ij1  # same line
 
-                    # Points from ipi/2+1 to ipi - ihls:
-                    ii1 = ipi // 2 + np.arange(1, Ni0glo // 2 + 1)
-                    ii2 = ipi // 2 - np.arange(1, Ni0glo // 2 + 1) + 1
-                    ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
+                # Points from ipi/2+1 to ipi - ihls:
+                ii1 = ipi // 2 + np.arange(1, Ni0glo // 2 + 1)
+                ii2 = ipi // 2 - np.arange(1, Ni0glo // 2 + 1) + 1
+                ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
 
-                    # First ihls points: redo them just in case:
-                    ii1 = np.arange(1, ihls + 1)
-                    ii2 = 2 * ihls + 1 - ii1
-                    ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
+                # First ihls points: redo them just in case:
+                ii1 = np.arange(1, ihls + 1)
+                ii2 = 2 * ihls + 1 - ii1
+                ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
 
             case "F":
                 # -- Last ihls lines (from ipj to ipj - ihls + 1) : full -- #
@@ -319,19 +319,19 @@ def _lbc_nfd(
                     ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
 
                 # -- Line number ipj - ihls : right half -- #
-                for jj in range(1, 2):  # DO jj = 1, 1
-                    ij1 = ipj - ihls
-                    ij2 = ij1  # same line
+                # Equivalent to [DO jj = 1, 1]:
+                ij1 = ipj - ihls
+                ij2 = ij1  # same line
 
-                    # Points from ipi/2+1 to ipi - ihls - 1:
-                    ii1 = ipi // 2 + np.arange(1, Ni0glo // 2)
-                    ii2 = ipi // 2 - np.arange(1, Ni0glo // 2)
-                    ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
+                # Points from ipi/2+1 to ipi - ihls - 1:
+                ii1 = ipi // 2 + np.arange(1, Ni0glo // 2)
+                ii2 = ipi // 2 - np.arange(1, Ni0glo // 2)
+                ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
 
-                    # First ihls - 1 points: redo them just in case:
-                    ii1 = np.arange(1, ihls)
-                    ii2 = 2 * ihls - ii1
-                    ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
+                # First ihls - 1 points: redo them just in case:
+                ii1 = np.arange(1, ihls)
+                ii2 = 2 * ihls - ii1
+                ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
 
     return ptab
 

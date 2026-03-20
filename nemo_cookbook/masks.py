@@ -169,7 +169,7 @@ def create_dom_mask(
     mask_3 = ~(bottom_level < ka)
 
     # Define tmask for interior domain only:
-    t_mask = (mask_1 & mask_2 & mask_3).transpose("nav_lev", "y", "x").load()
+    t_mask = (mask_1 & mask_2 & mask_3).transpose("nav_lev", "y", "x")
 
     if c_NFtype is not None:
         # Add 2 halos to tmask (x-direction & y-direction):
@@ -178,8 +178,8 @@ def create_dom_mask(
         t_mask_hls = t_mask_hls.pad(y=(0, 2), constant_values=0)
         t_mask_hls["y"] = np.arange(1, t_mask_hls["y"].size + 1)
 
-        # Apply NFold boundary condition to tmask:
-        tmask = lbc_nfd(c_NFtype=c_NFtype, cd_nat="T", ihls=2, ptab=t_mask_hls, psgn=1)
+        # Apply NFold boundary condition to loaded tmask with halos:
+        tmask = lbc_nfd(c_NFtype=c_NFtype, cd_nat="T", ihls=2, ptab=t_mask_hls.load(), psgn=1)
     else:
         tmask = t_mask
 
