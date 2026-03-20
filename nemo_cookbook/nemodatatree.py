@@ -656,7 +656,7 @@ class NEMODataTree(xr.DataTree):
 
         Examples
         --------
-        Compute the volume of each grid cell centered on a V-grid point
+        Compute the horizontal area of each grid cell centered on a V-grid point
         in the NEMO parent domain:
 
         >>> nemo.cell_area(grid="gridT", dim="k")
