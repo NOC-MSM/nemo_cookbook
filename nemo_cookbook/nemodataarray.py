@@ -73,14 +73,17 @@ class NEMODataArray:
             raise KeyError(
                 f"grid '{self._grid}' not found in available NEMODataTree grids {grid_keys}."
             )
-        if not all(self._da[dim].equals(self._tree[self._grid][dim]) for dim in self._da.dims):
-            raise ValueError(
-                f"DataArray dimensions {self._da.dims} not equal to NEMO model '{self._grid}' dimensions."
-            )
-        if not all(self._da.coords[coord].equals(self._tree[self._grid].coords[coord]) for coord in self._da.coords):
-            raise ValueError(
-                f"DataArray coordinates {self._da.coords} not equal to NEMO model '{self._grid}' coordinates."
-            )
+
+        # Dimension & coordinates exist & values are within NEMODataTree dimensions & coordinates:
+        if not all(dim in list(self._tree[self._grid].dims) for dim in self._da.dims):
+            raise ValueError(f"DataArray dimensions {self._da.dims} not all in NEMO model '{self._grid}' dimensions {self._tree[self._grid].dims}.")
+        if not all(dim in list(self._tree[self._grid].coords) for dim in self._da.coords):
+            raise ValueError(f"DataArray coordinates {self._da.coords} not all in NEMO model '{self._grid}' coordinates {self._tree[self._grid].coords}.")
+
+        if not all((self._da[dim].min() >= self._tree[self._grid][dim].min()) and (self._da[dim].max() <= self._tree[self._grid][dim].max()) for dim in self._da.dims):
+            raise ValueError(f"DataArray dimension values {self._da.dims} not all within NEMO model '{self._grid}' dimension values {self._tree[self._grid].dims}.")
+        if not all((self._da[coord].min() >= self._tree[self._grid].coords[coord].min()) and (self._da[coord].max() <= self._tree[self._grid].coords[coord].max()) for coord in self._da.coords):
+            raise ValueError(f"DataArray coordinate values {self._da.coords} not all within NEMO model '{self._grid}' coordinate values {self._tree[self._grid].coords}.")
         
         # -- Assign NEMO domain number, grid path and grid type -- #
         dom, dom_prefix, dom_suffix, grid_suffix = self._tree._get_properties(grid=self._grid, infer_dom=True)
@@ -170,7 +173,7 @@ class NEMODataArray:
     def apply_mask(
         self,
         mask: xr.DataArray | None = None,
-        ) -> Self:
+    ) -> Self:
         """
         Apply NEMO parent grid land-sea mask or combined land-sea & custom mask
         to variable defined on a NEMO model grid.
@@ -203,7 +206,7 @@ class NEMODataArray:
         self,
         dims : list,
         skipna : bool | None = None
-        ) -> Self:
+    ) -> Self:
         """
         Calculate grid-aware weighted mean of a variable defined on a NEMO model grid.
 
@@ -233,7 +236,8 @@ class NEMODataArray:
     def diff(
         self,
         dim: str,
-    ) -> xr.DataArray:
+        fillna: bool = True,
+    ) -> Self:
         """
         Calculate the 1st-order discrete difference of a variable along a given dimension
         (e.g., 'i', 'j', 'k') of a NEMO model grid.
@@ -242,10 +246,12 @@ class NEMODataArray:
         ----------
         dim : str
             Dimension over which to calculate the finite difference (e.g., 'i', 'j', 'k').
+        fillna : bool, optional
+            Fill NaN values in NEMODataArray with zeros prior to finite differencing. Default is True.
 
         Returns
         -------
-        xr.DataArray
+        NEMODataArray
             1st-order discrete difference of variable defined on a NEMO model grid.
 
         Examples
@@ -264,7 +270,7 @@ class NEMODataArray:
         --------
         derivative
         """
-        # -- Validate input -- #
+        # -- Validate Inputs -- #
         if not isinstance(dim, str):
             raise ValueError(
                 "dim must be a string specifying dimension along which to calculate the gradient (e.g., 'i', 'i1', 'j', 'j1', 'k', 'k1')."
@@ -273,24 +279,33 @@ class NEMODataArray:
             raise KeyError(
                 f"dimension '{dim}' not found in {self.name or 'unnamed'} dimensions {self.dims}."
             )
+        if not isinstance(fillna, bool):
+            raise TypeError(
+                "`fillna` must be specified as a boolean. Default is True."
+            )
 
         # -- Get NEMO model grid properties -- #
         grid_paths = self._tree._get_grid_paths(dom=self._dom)
         iperio = self._tree[self._grid].attrs.get("iperio", False)
 
         # -- Calculate 1st-order discrete difference -- #
-        da = self.masked.data
+        if fillna:
+            da = self.masked.data.fillna(value=0)
+        else:
+            da = self.masked.data
 
         if dim == self.k_name:
             match self._grid_suffix:
                 case "w":
                     # W-grid located at k = 0.5, 1.5 ... Nk-0.5
                     result = da.diff(dim=self.k_name, n=1, label="lower")
+                    # Fill final T-point [k=Nk] -> NaN:
                     result = result.pad({self.k_name: (0, 1)}, constant_values=np.nan)
                     result.coords[self.k_name] = (result.coords[self.k_name] + 0.5).astype(int)
                 case _:
                     # T/U/V/F-grids located at k = 1, 2 ... Nk
                     result = da.diff(dim=self.k_name, n=1, label="lower")
+                    # Fill initial W-point [k=0.5] -> NaN:
                     result = result.pad({self.k_name: (1, 0)}, constant_values=np.nan)
                     result.coords[self.k_name] = (result.coords[self.k_name].fillna(0) + 0.5)
 
@@ -308,8 +323,9 @@ class NEMODataArray:
                     if iperio:
                         result = da - da.roll({self.i_name: 1})
                         result.coords[self.i_name] = result.coords[self.i_name] - 0.5
-                    else: 
-                        result = da.pad({self.i_name: (1, 0)}, constant_values=np.nan)
+                    else:
+                        # Fill initial U/F-point [i=0.5] -> NaN or 0:
+                        result = da.pad({self.i_name: (1, 0)}, constant_values=0)
                         result = result.diff(dim=self.i_name, n=1, label="lower")
                         result.coords[self.i_name] = (result.coords[self.i_name].fillna(0.5) + 0.5).astype(int)
 
@@ -321,7 +337,8 @@ class NEMODataArray:
                     result.coords[self.j_name] = result.coords[self.j_name] + 0.5
                 case "v" | "f":
                     # V/F-grids located at j = 1.5, 2.5 ... Nj+0.5
-                    result = da.pad({self.j_name: (1, 0)}, constant_values=np.nan)
+                    # Fill initial V/F-point [j=0.5] -> NaN or 0:
+                    result = da.pad({self.j_name: (1, 0)}, constant_values=0)
                     result = result.diff(dim=self.j_name, n=1, label="lower")
                     result.coords[self.j_name] = (result.coords[self.j_name].fillna(0.5) + 0.5).astype(int)
         else:
@@ -469,8 +486,9 @@ class NEMODataArray:
         return result
     
     def depth_integral(
-        self, limits: tuple[int | float]
-    ) -> xr.Dataset:
+        self,
+        limits: tuple[int | float]
+    ) -> Self:
         """
         Integrate a variable in depth coordinates between two limits.
 
@@ -520,7 +538,7 @@ class NEMODataArray:
             var_in,
             np.array([limits[1]]),
             np.array([limits[0]]),
-            input_core_dims=[[self.k_name], [self.k_name], [None], [None]],
+            input_core_dims=[[self.k_name], [self.k_name], [], []],
             output_core_dims=[["k_new"]],
             dask="parallelized",
             output_dtypes=[e3_in.dtype],
@@ -546,7 +564,7 @@ class NEMODataArray:
         statistic: str,
         dims: list,
         skipna: bool | None = None,
-    ) -> NEMODataArray:
+    ) -> Self:
         """
         Compute masked statistic of a variable defined on a NEMO model grid.
 
@@ -633,7 +651,7 @@ class NEMODataArray:
     def transform_to(
         self,
         to: str,
-    ) -> xr.DataArray:
+    ) -> Self:
         """
         Transform variable to a neighbouring horizontal grid using linear interpolation.
 
