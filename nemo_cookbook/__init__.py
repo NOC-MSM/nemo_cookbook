@@ -11,7 +11,6 @@ from importlib.metadata import version as _version
 from nemo_cookbook import (
     examples,
     extract,
-    index,
     integrate,
     interpolate,
     masks,
@@ -28,4 +27,4 @@ except Exception:
     # Disable minimum version checks on downstream libraries.
     __version__ = "9999.0.0"
 
-__all__ = ("NEMODataArray", "NEMODataTree", "examples", "extract", "masks", "transform", "stats", "index", "integrate", "interpolate")
+__all__ = ("NEMODataArray", "NEMODataTree", "examples", "extract", "masks", "transform", "stats", "integrate", "interpolate")
