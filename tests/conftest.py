@@ -33,6 +33,9 @@ def example_global_nemodatatree() -> NEMODataTree:
     glam = np.tile(np.linspace(-180, 180, 2*ni), (nj, 1))
     gphi = np.tile(np.linspace(-90, 90, 2*nj), (ni, 1)).T
 
+    # -- Define time coordinates -- #
+    time_data = np.arange(np.datetime64('2000-01'), np.datetime64('2000-04'))
+
     # -- Vertical grid scale factors -- #
     # Time-dependent for QCO case:
     e3_data = 50 * np.ones((nt, nk, nj, ni))
@@ -58,6 +61,7 @@ def example_global_nemodatatree() -> NEMODataTree:
                      .assign_coords(i=np.arange(1, ni + 1),
                                     j=np.arange(1, nj + 1),
                                     k=np.arange(1, nk + 1),
+                                    time_counter=time_data,
                                     gphit=(("j", "i"), gphi[::2, :]),
                                     glamt=(("j", "i"), glam[:, ::2]),
                                     deptht=(("k"), np.arange(25, 250, 50))
@@ -83,6 +87,7 @@ def example_global_nemodatatree() -> NEMODataTree:
                      .assign_coords(i=np.arange(1, ni + 1) + 0.5,
                                     j=np.arange(1, nj + 1),
                                     k=np.arange(1, nk + 1),
+                                    time_counter=time_data,
                                     gphiu=(("j", "i"), gphi[::2, :]),
                                     glamu=(("j", "i"), glam[:, 1::2]),
                                     depthu=(("k"), np.arange(25, 250, 50))
@@ -108,6 +113,7 @@ def example_global_nemodatatree() -> NEMODataTree:
                      .assign_coords(i=np.arange(1, ni + 1),
                                     j=np.arange(1, nj + 1) + 0.5,
                                     k=np.arange(1, nk + 1),
+                                    time_counter=time_data,
                                     gphiv=(("j", "i"), gphi[1::2, :]),
                                     glamv=(("j", "i"), glam[:, ::2]),
                                     depthv=(("k"), np.arange(25, 250, 50))
@@ -134,6 +140,7 @@ def example_global_nemodatatree() -> NEMODataTree:
                      .assign_coords(i=np.arange(1, ni + 1),
                                     j=np.arange(1, nj + 1),
                                     k=np.arange(1, nk + 1) - 0.5,
+                                    time_counter=time_data,
                                     gphit=(("j", "i"), gphi[::2, :]),
                                     glamt=(("j", "i"), glam[:, ::2]),
                                     depthw=(("k"), np.arange(0, 250, 50))
@@ -159,6 +166,7 @@ def example_global_nemodatatree() -> NEMODataTree:
                      .assign_coords(i=np.arange(1, ni + 1) + 0.5,
                                     j=np.arange(1, nj + 1) + 0.5,
                                     k=np.arange(1, nk + 1),
+                                    time_counter=time_data,
                                     gphif=(("j", "i"), gphi[1::2, :]),
                                     glamf=(("j", "i"), glam[:, 1::2]),
                                     depthf=(("k"), np.arange(25, 250, 50))
@@ -174,7 +182,6 @@ def example_global_nemodatatree() -> NEMODataTree:
     nemo["gridF"].dataset = nemo["gridF"].dataset.assign_attrs(nftype=nftype, iperio=iperio)
 
     # -- Add Example Scalar Variable -- #
-    time_data = np.arange(np.datetime64('2000-01'), np.datetime64('2000-04'))
     # Add conservative temperature (10 degC) field to T-grid:
     nemo['gridT']['thetao_con'] = xr.DataArray(data=10 * np.ones((nt, nk, nj, ni)),
                                                dims=('time_counter', 'k', 'j', 'i'),
@@ -270,6 +277,9 @@ def example_regional_nemodatatree() -> NEMODataTree:
     glam = np.tile(np.linspace(25, 80, 2*ni), (nj, 1))
     gphi = np.tile(np.linspace(-60, 0, 2*nj), (ni, 1)).T
 
+    # -- Define time coordinates -- #
+    time_data = np.arange(np.datetime64('2000-01'), np.datetime64('2000-04'))
+
     # -- Vertical grid scale factors -- #
     # Time-dependent for QCO case:
     e3_data = 50 * np.ones((nt, nk, nj, ni))
@@ -295,6 +305,7 @@ def example_regional_nemodatatree() -> NEMODataTree:
                      .assign_coords(i=np.arange(1, ni + 1),
                                     j=np.arange(1, nj + 1),
                                     k=np.arange(1, nk + 1),
+                                    time_counter=time_data,
                                     gphit=(("j", "i"), gphi[::2, :]),
                                     glamt=(("j", "i"), glam[:, ::2]),
                                     deptht=(("k"), np.arange(25, 250, 50))
@@ -321,6 +332,7 @@ def example_regional_nemodatatree() -> NEMODataTree:
                      .assign_coords(i=np.arange(1, ni + 1) + 0.5,
                                     j=np.arange(1, nj + 1),
                                     k=np.arange(1, nk + 1),
+                                    time_counter=time_data,
                                     gphiu=(("j", "i"), gphi[::2, :]),
                                     glamu=(("j", "i"), glam[:, 1::2]),
                                     depthu=(("k"), np.arange(25, 250, 50))
@@ -347,6 +359,7 @@ def example_regional_nemodatatree() -> NEMODataTree:
                      .assign_coords(i=np.arange(1, ni + 1),
                                     j=np.arange(1, nj + 1) + 0.5,
                                     k=np.arange(1, nk + 1),
+                                    time_counter=time_data,
                                     gphiv=(("j", "i"), gphi[1::2, :]),
                                     glamv=(("j", "i"), glam[:, ::2]),
                                     depthv=(("k"), np.arange(25, 250, 50))
@@ -374,6 +387,7 @@ def example_regional_nemodatatree() -> NEMODataTree:
                      .assign_coords(i=np.arange(1, ni + 1),
                                     j=np.arange(1, nj + 1),
                                     k=np.arange(1, nk + 1) - 0.5,
+                                    time_counter=time_data,
                                     gphit=(("j", "i"), gphi[1::2, :]),
                                     glamt=(("j", "i"), glam[:, ::2]),
                                     depthw=(("k"), np.arange(0, 250, 50))
@@ -401,6 +415,7 @@ def example_regional_nemodatatree() -> NEMODataTree:
                      .assign_coords(i=np.arange(1, ni + 1) + 0.5,
                                     j=np.arange(1, nj + 1) + 0.5,
                                     k=np.arange(1, nk + 1),
+                                    time_counter=time_data,
                                     gphif=(("j", "i"), gphi[1::2, :]),
                                     glamf=(("j", "i"), glam[:, 1::2]),
                                     depthf=(("k"), np.arange(0, 250, 50))
@@ -417,7 +432,6 @@ def example_regional_nemodatatree() -> NEMODataTree:
     nemo["gridF"].dataset = nemo["gridF"].dataset.assign_attrs(nftype=nftype, iperio=iperio)
 
     # -- Add Example Scalar Variable -- #
-    time_data = np.arange(np.datetime64('2000-01'), np.datetime64('2000-04'))
     # Add conservative temperature (10 degC) field to T-grid:
     nemo['gridT']['thetao_con'] = xr.DataArray(data=10 * np.ones((nt, nk, nj, ni)),
                                                dims=('time_counter', 'k', 'j', 'i'),
