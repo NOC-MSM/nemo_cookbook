@@ -22,8 +22,8 @@ from numba import guvectorize
 def compute_depth_integral(
     e3_in: npt.NDArray[np.float64],
     var_in: npt.NDArray[np.float64],
-    z_upper: npt.NDArray[np.float64],
-    z_lower: npt.NDArray[np.float64],
+    z_max: npt.NDArray[np.float64],
+    z_min: npt.NDArray[np.float64],
     result: npt.NDArray[np.float64],
 ):
     """
@@ -36,15 +36,15 @@ def compute_depth_integral(
     var_in : ndarray[np.float64]
         Values of variable defined at the centre of each vertical
         grid cell on the input grid.
-    z_upper : ndarray[np.float64]
+    z_max : ndarray[np.float64]
         Upper limit of depth integral (m).
-    z_lower : ndarray[np.float64]
+    z_min : ndarray[np.float64]
         Lower limit of depth integral (m).
 
     Returns
     -------
     result : float
-        Integral of chosen variable between depth surfaces (z_lower, z_upper).
+        Integral of chosen variable between depth surfaces (z_min, z_max).
     """
 
     # Mask NaNs from input:
@@ -65,7 +65,7 @@ def compute_depth_integral(
         # Vertically integrate variable:
         dz = np.maximum(
             0.0,
-            np.minimum(z_ini[1:], z_upper) - np.maximum(z_ini[:-1], z_lower),
+            np.minimum(z_ini[1:], z_max) - np.maximum(z_ini[:-1], z_min),
         )
 
         result[:] = np.sum(dz * var_masked)
