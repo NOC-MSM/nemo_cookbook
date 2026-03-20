@@ -2,7 +2,9 @@
 test_nemodatatree.py
 
 Description:
-This module includes unit tests for the NEMODataTree class.
+This module includes unit tests for the NEMODataTree class, verifying input
+validation and public properties using the idealised global and regional
+NEMODataTree fixtures from conftest.py.
 
 Author:
 Ollie Tooth (oliver.tooth@noc.ac.uk)
