@@ -150,7 +150,7 @@ class TestNEMODataTreeDatasets():
         # -- Verify TypeError -- #
         expected_str = "linear free-surface approximation (`key_linssh`) must be a boolean."
         with pytest.raises(TypeError, match=re.escape(expected_str)):
-            NEMODataTree.from_paths(paths={}, key_linssh=key_linssh)
+            NEMODataTree.from_datasets(datasets={}, key_linssh=key_linssh)
 
     @pytest.mark.parametrize("nbghost_child", ["1", 1.5, None])
     def test_nbghost_child_errors(self, nbghost_child):
