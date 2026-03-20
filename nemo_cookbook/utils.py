@@ -9,16 +9,16 @@ used in the NEMO Cookbook library.
 Author:
 Ollie Tooth (oliver.tooth@noc.ac.uk)
 """
-
 import functools
 import warnings
+from typing import Callable
 
 
 def deprecated(
     version_since: str,
     version_removed : str,
     alternative : str = None
-    ) -> callable:
+    ) -> Callable:
     """
     Utility function to issue a deprecation warning.
 
