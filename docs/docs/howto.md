@@ -94,7 +94,7 @@ For example, to enable geographical indexing of the parent **T** grid points & s
 ```python
 nemo_geo = nemo.add_geoindex(grid="gridT")
 
-nemo_geo.dataset.sel(gphit=60, glamt=-30, method='nearest')
+nemo_geo["gridT"].dataset.sel(gphit=60, glamt=-30, method="nearest")
 ```
 
 ### Clip a NEMO Model Grid
