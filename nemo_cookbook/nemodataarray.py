@@ -24,6 +24,26 @@ from nemo_cookbook.integrate import compute_depth_integral
 from nemo_cookbook.interpolate import interpolate_grid
 from nemo_cookbook.transform import transform_vertical_coords
 
+_NEMO_DIFF_MAP = {
+    # -- NEMO Arakawa C-grid Finite Difference Mapping -- #
+    # (input_grid_suffix, diff_dim): (output_grid_suffix, output_hgrid_suffix, output_scale_factor)
+    ("T", "i"): ("u", "u", "e1u"),
+    ("T", "j"): ("v", "v", "e2v"),
+    ("T", "k"): ("w", "t", "e3w"),
+    ("U", "i"): ("t", "t", "e1t"),
+    ("U", "j"): ("f", "f", "e2f"),
+    ("U", "k"): ("uw", "u", "e3uw"),
+    ("V", "i"): ("f", "f", "e1f"),
+    ("V", "j"): ("t", "t", "e2t"),
+    ("V", "k"): ("vw", "v", "e3vw"),
+    ("W", "i"): ("u", "u", "e1u"),
+    ("W", "j"): ("v", "v", "e2v"),
+    ("W", "k"): ("t", "t", "e3t"),
+    ("F", "i"): ("v", "v", "e1v"),
+    ("F", "j"): ("u", "u", "e2u"),
+    ("F", "k"): ("fw", "f", "e3fw"),
+}
+
 
 class NEMODataArray:
     """
@@ -71,7 +91,7 @@ class NEMODataArray:
         grid_keys = list(dict(self._tree.subtree_with_keys).keys())
         if self._grid not in grid_keys:
             raise KeyError(
-                f"grid '{self._grid}' not found in available NEMODataTree grids {grid_keys}."
+                f"{self._grid} not found in available NEMODataTree grids {grid_keys}."
             )
 
         # Dimension & coordinates exist & values are within NEMODataTree dimensions & coordinates:
@@ -80,9 +100,9 @@ class NEMODataArray:
         if not all(dim in list(self._tree[self._grid].coords) for dim in self._da.coords):
             raise ValueError(f"DataArray coordinates {self._da.coords} not all in NEMO model '{self._grid}' coordinates {self._tree[self._grid].coords}.")
 
-        if not all((self._da[dim].min() >= self._tree[self._grid][dim].min()) and (self._da[dim].max() <= self._tree[self._grid][dim].max()) for dim in self._da.dims):
+        if not all((self._da[dim].min() >= self._tree[self._grid][dim].min()) & (self._da[dim].max() <= self._tree[self._grid][dim].max()) for dim in self._da.dims):
             raise ValueError(f"DataArray dimension values {self._da.dims} not all within NEMO model '{self._grid}' dimension values {self._tree[self._grid].dims}.")
-        if not all((self._da[coord].min() >= self._tree[self._grid].coords[coord].min()) and (self._da[coord].max() <= self._tree[self._grid].coords[coord].max()) for coord in self._da.coords):
+        if not all((self._da[coord].min() >= self._tree[self._grid].coords[coord].min()) & (self._da[coord].max() <= self._tree[self._grid].coords[coord].max()) for coord in self._da.coords):
             raise ValueError(f"DataArray coordinate values {self._da.coords} not all within NEMO model '{self._grid}' coordinate values {self._tree[self._grid].coords}.")
         
         # -- Assign NEMO domain number, grid path and grid type -- #
@@ -151,7 +171,7 @@ class NEMODataArray:
         if (self._da.dims[0] == self.t_name) & (self._da.ndim == 1):
             raise ValueError("land-sea mask does not exist for variables without spatial dimensions.")
         else:
-            if f"{self._dom_prefix}depth{self._grid_suffix}" in self.coords:
+            if (f"{self._dom_prefix}depth{self._grid_suffix}" in self._da.coords) & (self.k_name in self._da.dims):
                 # 3-dimensional land-sea mask:
                 mask_name = f"{self._grid_suffix}mask"
             else:
@@ -230,6 +250,7 @@ class NEMODataArray:
         weight_dims = [dim.replace(self._dom_suffix, "") for dim in dims]
         weights = self._tree._get_weights(grid=self._grid, dims=weight_dims)
         result = self.weighted(weights).mean(dim=dims, skipna=skipna)
+        result.name = f"wmean_{'_'.join(dims)}({self.name})"
 
         return self._wrap(result)
     
@@ -237,6 +258,7 @@ class NEMODataArray:
         self,
         dim: str,
         fillna: bool = True,
+        iperio: bool | None = None,
     ) -> Self:
         """
         Calculate the 1st-order discrete difference of a variable along a given dimension
@@ -248,6 +270,8 @@ class NEMODataArray:
             Dimension over which to calculate the finite difference (e.g., 'i', 'j', 'k').
         fillna : bool, optional
             Fill NaN values in NEMODataArray with zeros prior to finite differencing. Default is True.
+        iperio : bool | None, optional
+            Override the zonal periodicity inherited from the NEMO model grid. Default is None.
 
         Returns
         -------
@@ -256,10 +280,18 @@ class NEMODataArray:
 
         Examples
         --------
-        Compute the 1st discrete difference of sea surface temperature `tos_con` values
+        Compute the difference of sea surface temperature `tos_con` values
         along the NEMO parent domain `j` dimension:
 
         >>> nemo['gridT/tos_con'].diff(dim="j")
+
+        Compute the difference of sea surface temperature `tos_con` values along a regional subset of a global,
+        zonally periodic domain NEMO parent domain `i` dimension:
+
+        >>> nemo['gridT/tos_con'].sel(i=slice(10, 80)).diff(dim="i", iperio=False)
+
+        Note, we override the zonal periodicity inherited from the NEMO model grid since the selected subset
+        of the global domain is no longer zonally periodic.
 
         Compute the 1st discrete difference of absolute salinity `so_abs` values along the first NEMO
         nested child domain `k` dimension:
@@ -286,7 +318,11 @@ class NEMODataArray:
 
         # -- Get NEMO model grid properties -- #
         grid_paths = self._tree._get_grid_paths(dom=self._dom)
-        iperio = self._tree[self._grid].attrs.get("iperio", False)
+        if iperio is None:
+            iperio = self._tree[self._grid].attrs.get("iperio", False)
+        else:
+            if not isinstance(iperio, bool):
+                raise TypeError("iperio must be specified as a boolean or None.")
 
         # -- Calculate 1st-order discrete difference -- #
         if fillna:
@@ -310,6 +346,9 @@ class NEMODataArray:
                     result.coords[self.k_name] = (result.coords[self.k_name].fillna(0) + 0.5)
 
         elif dim == self.i_name:
+            if iperio:
+                if da.coords[self.i_name].size != self._tree[self._grid].coords[self.i_name].size:
+                    raise ValueError(f"Zonal periodic (iperio = {iperio}) NEMO model grid specified, but size of NEMODataArray i-dimension ({da.coords[self.i_name].size}) does not match i-dimension ({self._tree[self._grid].coords[self.i_name].size}) of NEMO model grid.")
             match self._grid_suffix:
                 case "t" | "v" | "w":
                     # T/V/W-grids located at i = 1, 2 ... Ni
@@ -347,27 +386,23 @@ class NEMODataArray:
         # -- Updating NEMO model grid coordinates -- #
         geo_coords = [coord for coord in da.coords if coord not in (self.t_name, self.k_name, self.i_name, self.j_name)]
 
-        # Determine new grid type based using integer vs. fractional i/j/k dimensions:
-        new_geo_dims = [dim for dim in result.dims if dim != 'time_counter']
-        new_dim_frac = [dim for dim in new_geo_dims if all((result[dim] % 1) != 0)]
-        if (self.i_name in new_dim_frac) and (self.j_name in new_dim_frac):
-            new_grid_suffix = "f"
-        elif (self.i_name in new_dim_frac):
-            new_grid_suffix = "u"
-        elif (self.j_name in new_dim_frac):
-            new_grid_suffix = "v"
+        # Determine new NEMO model grid type & dims:
+        new_ijk_dims = [dim for dim in result.dims if dim != 'time_counter']
+        new_grid_suffix, new_hgrid_suffix, _ = _NEMO_DIFF_MAP[(self._grid_suffix.upper(), dim.replace(self._dom_suffix, ""))]
+        if len(new_grid_suffix) > 1:
+            new_vgrid_suffix = new_grid_suffix[1]
         else:
-            new_grid_suffix = "t"
+            new_vgrid_suffix = new_grid_suffix
 
         # Define new geographical coordinates (glam, gphi, depth) based on new grid type:
+        # NOTE: Subsets of NEMODataTree geographical coordinates are supported implicitly since the
+        # (i, j, k) coordinates of the grid dimensions (i, j, k) can be used to align incoming (i.e., _tree) coordinates.
         new_coords = {
-            f"{self._dom_prefix}glam{new_grid_suffix}": self._tree[grid_paths[f"grid{new_grid_suffix.upper()}"]][f"{self._dom_prefix}glam{new_grid_suffix}"],
-            f"{self._dom_prefix}gphi{new_grid_suffix}": self._tree[grid_paths[f"grid{new_grid_suffix.upper()}"]][f"{self._dom_prefix}gphi{new_grid_suffix}"],
+            f"{self._dom_prefix}glam{new_hgrid_suffix}": self._tree[grid_paths[f"grid{new_hgrid_suffix.upper()}"]][f"{self._dom_prefix}glam{new_hgrid_suffix}"],
+            f"{self._dom_prefix}gphi{new_hgrid_suffix}": self._tree[grid_paths[f"grid{new_hgrid_suffix.upper()}"]][f"{self._dom_prefix}gphi{new_hgrid_suffix}"],
         }
-        if self.k_name in new_geo_dims:
-            depth_suffix = "w" if self.k_name in new_dim_frac else new_grid_suffix
-            depth_grid = grid_paths["gridW"] if depth_suffix == "w" else grid_paths[f"grid{new_grid_suffix.upper()}"]
-            new_coords[f"{self._dom_prefix}depth{depth_suffix}"] = self._tree[depth_grid][f"{self._dom_prefix}depth{depth_suffix}"]
+        if self.k_name in new_ijk_dims:
+            new_coords[f"{self._dom_prefix}depth{new_vgrid_suffix}"] = self._tree[grid_paths[f"grid{new_vgrid_suffix.upper()}"]][f"{self._dom_prefix}depth{new_vgrid_suffix}"]
 
         # -- Update DataArray properties -- #
         result = result.drop_vars(geo_coords)
@@ -375,7 +410,7 @@ class NEMODataArray:
         result.name = f"diff_{dim}({self.name})"
 
         # -- Apply land-sea mask & return NEMODataArray -- #
-        new_grid = f"{self._grid.replace(self._grid[-1], 'W' if self.k_name in new_dim_frac else new_grid_suffix.upper())}"
+        new_grid = f"{self._grid.replace(self._grid[-1], new_grid_suffix.upper())}"
         result = NEMODataArray(da=result, tree=self._tree, grid=new_grid)
         result = result.masked
 
@@ -857,6 +892,17 @@ class NEMODataArray:
 
     def prod(self, *args, **kwargs):
         result = self._da.prod(*args, **kwargs)
+        return self._wrap(result)
+    
+    # -----------------------------
+    # Wrapped Selection Operations
+    # -----------------------------
+    def isel(self, *args, **kwargs):
+        result = self._da.isel(*args, **kwargs)
+        return self._wrap(result)
+    
+    def sel(self, *args, **kwargs):
+        result = self._da.sel(*args, **kwargs)
         return self._wrap(result)
     
     # ----------------
