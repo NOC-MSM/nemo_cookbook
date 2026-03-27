@@ -222,6 +222,21 @@ class NEMODataArray:
         Returns
         -------
         NEMODataArray
+
+        Examples
+        --------
+        Apply a custom boolean mask `my_mask` to sea surface temperature `tos_con` defined on
+        scalar T-points in a NEMO model parent domain:
+
+        >>> nemo['gridT/tos_con'].apply_mask(mask=my_mask)
+
+        Apply custom mask `my_mask` to sea surface salinity `sos_abs` and drop masked data values:
+
+        >>> nemo['gridT/sos_abs'].apply_mask(mask=my_mask, drop=True)
+
+        See Also
+        --------
+        masked
         """
         # -- Validate Inputs -- #
         if mask is not None:
@@ -262,6 +277,19 @@ class NEMODataArray:
         NEMODataArray
              A new NEMODataArray with data selected according to dimension index labels
              of input object.
+
+        Examples
+        --------
+        Indexing conservative temperature `thetao_con` defined on scalar T-points in a NEMO
+        model parent domain to match a subset of the absolute salinity `so_abs`:
+
+        >>> nda = nemo['gridT/so_abs'].sel(time_counter=slice("2020-01", "2024-01"), k=1)
+
+        >>> nemo['gridT/thetao_con'].sel_like(nda)
+
+        See Also
+        --------
+        sel
         """
         # -- Validate Inputs -- #
         if not (isinstance(other, NEMODataArray) or isinstance(other, xr.DataArray)):
@@ -300,6 +328,21 @@ class NEMODataArray:
             If True, skip missing values (as marked by NaN).
             By default, only skips missing values for float dtypes.
 
+        Returns
+        -------
+        NEMODataArray
+            Grid-aware weighted mean of variable defined on a NEMO model grid.
+
+        Examples
+        --------
+        Area-weighted mean of the sea surface temperature `tos_con` defined on scalar T-points
+        in a NEMO model nested child domain:
+
+        >>> nemo["gridT/1_gridT/tos_con"].weighted_mean(dims=["i", "j"], skipna=True)
+
+        See Also
+        --------
+        masked_statistic
         """
         # -- Validate Input -- #
         if not isinstance(dims, list):
