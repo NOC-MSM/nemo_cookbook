@@ -8,14 +8,13 @@ and mask boundaries from NEMO ocean general circulation model domains.
 Author:
 Ollie Tooth (oliver.tooth@noc.ac.uk)
 """
-
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     # Avoid circular import at runtime:
-    from .nemodatatree import NEMODataTree
+    from nemo_cookbook.nemodatatree import NEMODataTree
 
 import dask
 import numpy as np
@@ -70,6 +69,8 @@ def create_section_polygon(
         )
     elif all(lat == lat_sec[0] for lat in lat_sec):
         raise ValueError("extracting zonal hydrographic sections is not supported.")
+    else:
+        raise ValueError("hydrographic section endpoints must not have same latitude.")
 
     return lon_poly, lat_poly
 
@@ -285,13 +286,13 @@ def update_boundary_dataset(
         data=dask.array.zeros(dim_3d_sizes), dims=[time_name, k_name, "bdy"]
     )
     ds_bdy["velocity"][:, :, ubdy_mask] = (
-        nemo[f"{gridU}/{uv_vars[0]}"].sel(
+        nemo[f"{gridU}/{uv_vars[0]}"].masked.data.sel(
             i=ds_bdy["i_bdy"][ubdy_mask], j=ds_bdy["j_bdy"][ubdy_mask]
         )
         * ds_bdy["flux_dir"][ubdy_mask]
     )
     ds_bdy["velocity"][:, :, vbdy_mask] = (
-        nemo[f"{gridV}/{uv_vars[1]}"].sel(
+        nemo[f"{gridV}/{uv_vars[1]}"].masked.data.sel(
             i=ds_bdy["i_bdy"][vbdy_mask], j=ds_bdy["j_bdy"][vbdy_mask]
         )
         * ds_bdy["flux_dir"][vbdy_mask]
@@ -301,10 +302,10 @@ def update_boundary_dataset(
     ds_bdy["bmask"] = xr.DataArray(
         data=dask.array.zeros(dim_2d_sizes), dims=[k_name, "bdy"]
     )
-    ds_bdy["bmask"][:, ubdy_mask] = nemo[f"{gridU}/umask"].sel(
+    ds_bdy["bmask"][:, ubdy_mask] = nemo[f"{gridU}/umask"].data.sel(
         i=ds_bdy["i_bdy"][ubdy_mask], j=ds_bdy["j_bdy"][ubdy_mask]
     )
-    ds_bdy["bmask"][:, vbdy_mask] = nemo[f"{gridV}/vmask"].sel(
+    ds_bdy["bmask"][:, vbdy_mask] = nemo[f"{gridV}/vmask"].data.sel(
         i=ds_bdy["i_bdy"][vbdy_mask], j=ds_bdy["j_bdy"][vbdy_mask]
     )
 
@@ -312,20 +313,20 @@ def update_boundary_dataset(
     ds_bdy["e1b"] = xr.DataArray(
         data=dask.array.zeros(ds_bdy["bdy"].size), dims=["bdy"]
     )
-    ds_bdy["e1b"][ubdy_mask] = nemo[f"{gridU}/e2u"].sel(
+    ds_bdy["e1b"][ubdy_mask] = nemo[f"{gridU}/e2u"].masked.data.sel(
         i=ds_bdy["i_bdy"][ubdy_mask], j=ds_bdy["j_bdy"][ubdy_mask]
     )
-    ds_bdy["e1b"][vbdy_mask] = nemo[f"{gridV}/e1v"].sel(
+    ds_bdy["e1b"][vbdy_mask] = nemo[f"{gridV}/e1v"].masked.data.sel(
         i=ds_bdy["i_bdy"][vbdy_mask], j=ds_bdy["j_bdy"][vbdy_mask]
     )
 
     ds_bdy["e3b"] = xr.DataArray(
         data=dask.array.zeros(dim_3d_sizes), dims=[time_name, k_name, "bdy"]
     )
-    ds_bdy["e3b"][:, :, ubdy_mask] = nemo[f"{gridU}/e3u"].sel(
+    ds_bdy["e3b"][:, :, ubdy_mask] = nemo[f"{gridU}/e3u"].masked.data.sel(
         i=ds_bdy["i_bdy"][ubdy_mask], j=ds_bdy["j_bdy"][ubdy_mask]
     )
-    ds_bdy["e3b"][:, :, vbdy_mask] = nemo[f"{gridV}/e3v"].sel(
+    ds_bdy["e3b"][:, :, vbdy_mask] = nemo[f"{gridV}/e3v"].masked.data.sel(
         i=ds_bdy["i_bdy"][vbdy_mask], j=ds_bdy["j_bdy"][vbdy_mask]
     )
 
@@ -341,18 +342,18 @@ def update_boundary_dataset(
 
             # Linearly interpolate scalar variables onto NEMO model U/V grid points:
             ds_bdy[var][:, :, ubdy_mask] = 0.5 * (
-                nemo[f"{gridT}/{var}"].sel(
+                nemo[f"{gridT}/{var}"].masked.data.sel(
                     i=ds_bdy["i_bdy"][ubdy_mask] - 0.5, j=ds_bdy["j_bdy"][ubdy_mask]
                 )
-                + nemo[f"{gridT}/{var}"].sel(
+                + nemo[f"{gridT}/{var}"].masked.data.sel(
                     i=ds_bdy["i_bdy"][ubdy_mask] + 0.5, j=ds_bdy["j_bdy"][ubdy_mask]
                 )
             )
             ds_bdy[var][:, :, vbdy_mask] = 0.5 * (
-                nemo[f"{gridT}/{var}"].sel(
+                nemo[f"{gridT}/{var}"].masked.data.sel(
                     i=ds_bdy["i_bdy"][vbdy_mask], j=ds_bdy["j_bdy"][vbdy_mask] - 0.5
                 )
-                + nemo[f"{gridT}/{var}"].sel(
+                + nemo[f"{gridT}/{var}"].masked.data.sel(
                     i=ds_bdy["i_bdy"][vbdy_mask], j=ds_bdy["j_bdy"][vbdy_mask] + 0.5
                 )
             )

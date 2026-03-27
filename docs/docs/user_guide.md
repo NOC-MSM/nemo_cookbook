@@ -1,10 +1,12 @@
-# NEMODataTree
+# NEMO Data Structures
 
-Each recipe in the NEMO Cookbook leverages the `NEMODataTree` object to store NEMO ocean model outputs and to help perform diagnostic calculations.
+Each recipe in the NEMO Cookbook leverages the `NEMODataTree` and `NEMODataArray` objects to store NEMO ocean model outputs and to calculate grid-aware diagnostics.
 
-In this User Guide, we provide an introduction to the `NEMODataTree`, including examples using outputs from the NEMO version 5 `AGRIF_DEMO` and `AMM12` reference configurations.
+In this User Guide, we provide an introduction to the `NEMODataTree` and `NEMODataArray`, including examples using outputs from the NEMO version 5 `AGRIF_DEMO` and `AMM12` reference configurations.
 
-For further details on `NEMODataTree` constructors, properties and computation patterns, users are referred to the API documentation.
+For further details on `NEMODataTree` constructors, properties and `NEMODataArray` computation patterns, users are referred to the [API Reference] documentation.
+
+[API Reference]: reference.md
 
 ## What is a DataTree? :fontawesome-solid-folder-tree:
 ---
@@ -44,7 +46,7 @@ ds['global/regional_nest']['var_name']
 In summary, an `xarray.DataTree` can help ocean modellers organise complex outputs (nested domains, groups of variables) in a natural, hierarchical way by acting as a container for a collection of related  `xarray.Datasets`.
 
 
-## What is a NEMODataTree? :ocean:  |  :fontawesome-solid-folder-tree:
+## What is a NEMODataTree? :ocean: :fontawesome-solid-folder-tree:
 ---
 
 `NEMODataTree` is an extension of the `xarray.DataTree` structure designed to store NEMO model output datasets as nodes in a hierarchical tree.
@@ -132,6 +134,16 @@ Importantly, a `NEMODataTree` does not need a `domain` node to store the grid sc
 
 This is because domain variables are assigned to their respective grid nodes during pre-processing (e.g., horizontal grid scale factors `e1t` and `e2t` are stored in `gridT` etc.).
 
+??? tip "Note on Quasi-eulerian vertical coordinates..."
+
+    **The vertical grid scale factors (e.g., `e3t`, `e3u` etc.) assigned to a `NEMODataTree` are dependent upon the type of vertical coordinate used in the given NEMO model simulation.**
+
+    Typically, NEMO model simulations use a quasi-eulerian vertical coordinate which absorbs the divergence of horizontal barotropic velocities (e.g., $z^{*}$ or $s^{*}$), meaning that vertical grid scale factors evolve through time (i.e., a time-varying free surface translates into variations in grid cell thickness).
+
+    `NEMODataTree` considers the case of time-evolving vertical grid scale factors to be the default as the `key_linssh` argument to the `.from_paths()` and `.from_datasets()` constructors is set to be `False` by default. This means that vertical grid scale factors must be provided in the netCDF files or `xarray.Datasets` used to define each NEMO model grid node in the `NEMODataTree`.
+
+    For NEMO model simulations using a linear free surface approximation (i.e., variations in the free surface are neglected compared to the depth of the ocean), we should use `key_linssh=True` to indicate that vertical grid scale factors remain fixed through time and should be read directly from the reference variables contained within the domain_cfg netCDF file or `xarray.Dataset` (e.g., `e3t_0`, `e3u_0` etc.).
+
 #### **Dimensions & Coordinates**
 
 Typically, the netCDF files output by NEMO model simulations have dimensions (`depth{k}`, `y`, `x`), where *k* is the grid point type.
@@ -217,6 +229,84 @@ In summary, defining a `NEMODataTree` for a nested configuration includes two im
     6. **Assemble dictionaries of processed NEMO model grid datasets for each of the parent, child and grandchild domains.**
 
     7. Assemble the `xarray.DataTree` using a nested dictionary of NEMO model domains.
+
+## What is a NEMODataArray? :ocean: :simple-databricks:
+
+`NEMODataArray` is an extension of the familiar `xarray.DataArray` object designed to be a grid-aware container for a variable defined on a NEMO model grid.
+
+There are two ways to create a `NEMODataArray` from a NEMO model grid variable:
+
+1. Create a `NEMODataArray` directly from the path to the variable in the `NEMODataTree`:
+
+    ```
+    nemo["gridT/tos_con"]
+    ```
+
+2. Manually create a `NEMODataArray` from an existing `xarray.DataArray` variable and `NEMODataTree`:
+
+    ```
+    NEMODataArray(da=my_da, tree=nemo, grid="gridT")
+    ```
+
+In the example above, we create a `NEMODataArray` by assigning `my_da` (`xarray.DataArray`) to the **T**-grid node of the `NEMODataTree` called `nemo`.
+
+Each `NEMODataArray` interfaces with its parent `NEMODataTree` to provide useful properties and grid-aware operators (e.g., derivatives and integrals) and statistics (e.g., masked statistics and weighted means), alongside utility methods to transform variables between adjacent NEMO model grids.
+
+#### **NEMODataArray Properties**
+
+- `.data` :material-arrow-right: Underlying variable `xarray.DataArray`.
+
+- `.grid` :material-arrow-right: Path to NEMO model grid node where variable is stored.
+
+- `.grid_type` :material-arrow-right: Type of NEMO model grid where variable is defined.
+
+- `.metrics` :material-arrow-right: Dictionary of NEMO model grid scale factors (e.g., `e1t`, `e2t` etc.) associated with the variable.
+
+- `.mask` :material-arrow-right: Variable land-sea mask (`xarray.DataArray`).
+
+- `.masked` :material-arrow-right: Variable with land-sea mask applied (`NEMODataArray`). 
+
+#### **NEMODataArray Methods**
+
+- *Masking* :material-arrow-right: `.apply_mask()`.
+
+- *Selections* :material-arrow-right: `.sel_like()`.
+
+- *Grid Operators* :material-arrow-right: `.diff()`, `.derivative()`, `.integral()`, `.depth_integral()`.
+
+- *Statistics:* :material-arrow-right: `.weighted_mean()`, `.masked_statistic()`.
+
+- *Transformations:* :material-arrow-right: `.transform_to()`, `.transform_vertical_grid()`.
+
+**All other standard `xarray` operations can also be used with `NEMODataArray`.**
+
+This is possible because `NEMODataArray` will delegate to `xarray.DataArray` and then returns a corresponding `NEMODataArray` whenever possible, otherwise the default return type is returned.
+
+```python
+nemo["gridT/tos_con"].chunk({"i": 50})
+
+<NEMODataTree 'Example Global NEMO Model'>
+  <NEMODataArray 'tos_con' (Domain: '.', Grid: 'gridT', Grid Type: 'T')>
+
+<xarray.DataArray 'tos_con' (time_counter: 3, j: 10, i: 10)> Size: 2kB
+dask.array<xarray-<this-array>, shape=(3, 10, 10), dtype=float64, chunksize=(3, 10, 10), chunktype=numpy.ndarray>
+Coordinates:
+  * i             (i) int64 80B 1 2 3 4 5 6 7 8 9 10
+  * j             (j) int64 80B 1 2 3 4 5 6 7 8 9 10
+  * time_counter  (time_counter) datetime64[s] 24B 2000-01-01 ... 2000-03-01
+    gphit         (j, i) float64 800B dask.array<chunksize=(10, 10), meta=np.ndarray>
+    glamt         (j, i) float64 800B dask.array<chunksize=(10, 10), meta=np.ndarray>
+```
+
+In this example, the chunking operation is performed on the `.data` property (`xarray.DataArray`) before being returned as a `NEMODataArray`.
+
+**Crucially, `NEMODataArrays` support method-chaining, allowing us to build complex diagnostics in a single line of code...**
+
+```python
+nemo["gridT/thetao_con"].apply_mask(mask=my_mask).weighted_mean(dims=["i", "j"], skipna=True).plot()
+```
+
+*Here, we apply my_mask to the global sea surface temperature field, before calculating the horizontal grid cell area-weighted mean, and finally plotting the resulting time-series.*
 
 ## Example NEMODataTrees
 

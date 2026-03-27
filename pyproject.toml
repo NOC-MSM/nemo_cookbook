@@ -1,11 +1,7 @@
 [project]
 name = "nemo_cookbook"
 description = "Recipes for reproducible analysis of NEMO ocean general circulation model outputs using xarray."
-requires-python = ">=3.11"
 keywords = ["NEMO", "oceanography", "modelling", "analysis", "data", "noc"]
-dynamic = ["version"]
-authors = [{email = "oliver.tooth@noc.ac.uk"},{name = "Ollie Tooth"}]
-maintainers = [{name = "Ollie Tooth", email = "oliver.tooth@noc.ac.uk"}]
 classifiers = [
   "Operating System :: OS Independent",
   "Intended Audience :: Science/Research",
@@ -16,6 +12,12 @@ classifiers = [
   "Programming Language :: Python :: 3.13",
   "Topic :: Scientific/Engineering",
 ]
+dynamic = ["version"]
+authors = [{email = "oliver.tooth@noc.ac.uk"},{name = "Ollie Tooth"}]
+maintainers = [{name = "Ollie Tooth", email = "oliver.tooth@noc.ac.uk"}]
+license = "Apache-2.0"
+readme = "README.md"
+requires-python = ">=3.11"
 
 dependencies = [
   "aiohttp>=3.11.18",
@@ -43,15 +45,8 @@ complete = ["nemo_cookbook[parallel,viz,interactive]"]
 parallel = ["dask[complete]"]
 viz = ["cartopy>=0.23", "matplotlib", "nc-time-axis"]
 interactive = ["jupyter>=1.1.1", "notebook>=7.4.1", "ipykernel>=6.29.5", "pyarrow>=21.0.0"]
-test = ["pytest >=8.3.3", "pytest-mock >= 3.15.1"]
-
-[project.readme]
-file = "README.md"
-content-type = "text/markdown"
-
-[project.license]
-file = "LICENSE.md"
-content-type = "text/markdown"
+tests = ["pytest", "pytest-mock"]
+docs = ["mkdocs-material", "mkdocs-glightbox", "mkdocs-jupyter", "mkdocstrings", "mkdocstrings-python"]
 
 [project.urls]
 Repository = "https://github.com/NOC-MSM/nemo_cookbook"

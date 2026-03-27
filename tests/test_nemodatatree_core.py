@@ -2,8 +2,9 @@
 test_nemodatatree_core.py
 
 Description:
-This module includes unit tests for the NEMODataTree core
-operation class methods.
+This module includes unit tests for the NEMODataTree class core
+operation methods using the idealised global and regional NEMODataTree
+fixtures from conftest.py.
 
 Author:
 Ollie Tooth (oliver.tooth@noc.ac.uk)
@@ -24,7 +25,7 @@ class TestVariableMasking():
                 raise ValueError("dom_type must be 'global' or 'regional'")
 
         # -- Verify KeyError is raised for non-existent grid -- #
-        with pytest.raises(KeyError, match="grid '/gridT' not found in available NEMODataTree grids"):
+        with pytest.raises(KeyError, match="/gridT not found in available NEMODataTree grids"):
             nemo['/gridT/tos_con']
 
     @pytest.mark.parametrize("dom_type", ["global", "regional"])
@@ -188,5 +189,5 @@ class TestDepthIntegral():
         integral = nemo.depth_integral(grid='gridT', var='thetao_con', limits=limits)
 
         # -- Verify equal dims, coords and data values -- #
-        assert integral.name == "thetao_con_integral"
+        assert integral.name == "integral_z(thetao_con)"
         assert integral.equals(data)

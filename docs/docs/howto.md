@@ -1,10 +1,10 @@
 # A Quickstart Guide to Common Operations with NEMODataTree
 
-In this section, we describe some of the most common `NEMODataTree` operations in a concise how-to guide (inspired by the excellent documentation of [**Icechunk**](https://icechunk.io/en/latest/howto/)).
+In this section, we describe some of the most common `NEMODataTree` and `NEMODataArray` operations in a concise how-to guide (inspired by the excellent documentation of [**Icechunk**](https://icechunk.io/en/latest/howto/)).
 
-For more detailed documentation on each of the `NEMODataTree` methods, user should visit the [API].
+For more detailed documentation on `NEMODataTree` and `NEMODataArray` structures, users should visit the [API Reference].
 
-[API]: reference.md
+[API Reference]: reference.md
 
 ### Create a NEMODataTree from Local Files
 
@@ -36,26 +36,110 @@ ds_gridT = xr.open_zarr("https://some_remote_data/MY_MODEL_gridT.zarr")
 
 datasets = {"parent": {"domain": ds_domain, "gridT": ds_gridT}}
 
-nemo = NEMODataTree.from_datasets(datasets=datasets)
+nemo = NEMODataTree.from_datasets(datasets=datasets, read_masks=True)
 ```
 
 This example would be applicable to the outputs of a regional NEMO model configuration which is neither zonally periodic nor north-folding (by default, `iperio=False` & `nftype=None`).
 
-### Access Masked Grid Variables
+If all land-sea masks expected by `NEMODataTree` are included in `ds_domain`, we can also specify `read_mask=True` to read rather than calculate land-sea masks when constructing our `NEMODataTree`. This is recommended for larger NEMO model domains (e.g., eORCA12, ORCA36 etc.)
 
-To access an unmasked (i.e., unchanged from the original model output files) variable stored within a given grid node of a `NEMODataTree`, we can use the follow syntax:
+### Access NEMO Variables
+
+To access a variable stored within a given grid node of a `NEMODataTree` as an `xarray.DataArray`, we can use the follow syntax:
 
 ```python
 nemo[{grid_name}][{variable_name}]
 ```
 
-However, if we want to automatically mask the chosen variable with the appropriate domain mask, we can instead provide the direct path to the variable as follows:
+However, if we want to access the chosen variable as a grid-aware `NEMODataArray` (**recommended**), we can instead provide the direct path to the variable as follows:
 
 ```python
 nemo["gridT/thetao_con"]
 ```
 
-In the example above, the 4-dimensional conservative temperature variable `thetao_con` is masked using the 3-dimensional `tmask` before being returned.
+### Adding a NEMO Variable to a NEMODataTree
+
+To add a new variable stored as a `NEMODataArray` to a given grid node of an existing `NEMODataTree`, we can use the following syntax:
+
+```python
+nemo["gridT/my_var"] = nemo["gridT/thetao_con"].depth_integral(limits=(0, 100))
+```
+
+Note, this simply adds the underlying `xarray.DataArray` to the NEMO model T-grid node `xarray.Dataset` in our `NEMODataTree` with the name `my_var`.
+
+### Adding a New Grid Node to a NEMODataTree
+
+To create a new grid node from an `xarray.Dataset` containing NEMO model grid variables in an existing `NEMODataTree`, we can use the following syntax:
+
+```python
+nemo["gridP"] = ds_gridP
+```
+
+Note, before adding a new grid node to an existing `NEMODataTree`, the `xarray.Dataset` will be validated to ensure it contains:
+
+- NEMO grid dimension coordinates (`i`, `j`).
+
+- Longitude and Latitude coordinates named `gphi{x}` and `glam{x}`.
+
+- Depth coordinate named `depth{x}` if NEMO grid dimension `k` exists.
+
+where `x` is final character of the specified grid node. In this example, `gphip`, `glamp` and `depthp` would be expected since we are introducing a new grid node named `"gridP"`.
+
+### Access NEMO Variable Properties
+
+Each variable stored as a `NEMODataArray` has a collection of useful properties to support grid-aware calculations:
+
+* Path to NEMO model grid node where variable is stored:
+```python
+nemo["gridT/thetao_con"].grid
+```
+
+* Type of NEMO model grid where variable is defined (i.e., t, u, v, etc.):
+```python
+nemo["gridU/uo"].grid_type
+```
+
+* Variable NEMO model grid metrics (i.e., a dictionary of NEMO grid scale factors - e1t, e2t, etc.):
+```python
+nemo["gridV/vo"].metrics
+```
+
+* Variable land-sea mask:
+```python
+nemo["gridT/so_abs"].mask
+```
+
+### Apply Land-Sea Mask to NEMO Variable
+
+To mask a given `NEMODataArray` variable with its associated land-sea mask, we can use the `.masked` property:
+
+```python
+nemo["gridT/thetao_con"].masked
+```
+
+In the example above, the 4-dimensional conservative temperature variable `thetao_con` is masked using the 3-dimensional `tmask` before being returned as a `NEMODataArray`.
+
+### Apply Custom Mask to NEMO Variable
+
+To apply a custim mask to a given `NEMODataArray` variable, we can use the `.apply_mask()` method:
+
+```python
+nemo["gridT/so_abs"].apply_mask(mask=my_mask)
+```
+
+Here, the 4-dimensional absolute salinity variable `so_abs` is masked using the `my_mask` boolean mask before being returned as a `NEMODataArray`. 
+
+To drop the absolute salinity values where `my_mask` is `False`, we can optionally use `.apply_mask(mask=my_mask, drop=True)`.
+
+### Index a NEMODataArray to Match the Dimension Labels of Another (NEMO)DataArray
+
+In addition to the more familiar `.sel()` and `.isel()` label based selection methods, the `.sel_like()` method can be used to index a `NEMODataArray` to match the dimension index labels of another `NEMODataArray` or `xarray.DataArray` as follows:
+
+```python
+nda = nemo["gridT/so_abs"].sel(time_counter=slice('2000-01', '2025-01', k=1))
+
+nemo["gridT/thetao_con"].sel_like(nda)
+```
 
 ### Calculate Grid Cell Areas
 
@@ -119,24 +203,34 @@ nemo.clip_domain(dom=".", bbox=bbox)
 
 where `dom` is the prefix of the chosen NEMO model domain. Note `dom="."` for the parent domain.
 
-### Calculate Horizontal Gradients
+### Calculate Horizontal Derivatives
 
-To calculate the gradient of a scalar variable `var` along one of the horizontal dimensions (e.g., `i`, `j`) of a given NEMO model grid, we can use the `.gradient()` method.
+To calculate the derivative of a scalar variable `var` along one of the horizontal dimensions (e.g., `i`, `j`) of a given NEMO model grid, we can use the `.derivative()` method.
 
-For example, to compute the 'meridional' gradient of sea surface temperature `tos_con` along the NEMO model parent domain `j` dimension:
+For example, to compute the 'meridional' derivative of sea surface temperature `tos_con` along the NEMO model parent domain `j` dimension:
 
 ```python
-nemo.gradient(dom='.', var="tos_con", dim="j")
+nemo["gridT/tos_con"].derivative(dim="j")
 ```
 
-### Calculate Vertical Gradients
+Alternatively, to compute the derivative of sea surface temperature `tos_con` along a regional subset of a global, zonally periodic domain NEMO model parent domain `i` dimension:
 
-To calculate the vertical gradient of a scalar variable `var` along the `k` dimension of a given NEMO model grid, we can also use the `.gradient()` method.
+```python
+nemo["gridT/tos_con"].sel(i=slice(10, 100)).derivative(dim="i", iperio=False)
+```
+
+Note, using `iperio=False` overrides the zonal periodicity inherited from the NEMO model grid since the selected subset of the global domain is no longer zonally periodic.
+
+Both the `.diff()` and `.derivative()` methods provide flexibility on how to handle NaN values using the `fillna` argument. By default, `fillna=False`, meaning that NaN values are not filled with zeros prior to performing finite difference operations. However, in the case of velocity variables this may be inappropriate in the vicinity of coastlines and users may prefer to use `fillna=True` to impose zero-magnitude velocity components along land-sea boundaries prior to calculating derivatives. 
+
+### Calculate Vertical Derivative
+
+To calculate the vertical derivative of a scalar variable `var` along the `k` dimension of a given NEMO model grid, we can also use the `.derivative()` method.
 
 For example, to compute the vertical gradient of absolute salinity in our first NEMO model nested child domain:
 
 ```python
-nemo.gradient(dom="1", var="so_abs", dim="k")
+nemo["gridT/so_abs"].derivative(dim="k")
 ```
 
 ### Calculate Divergence
@@ -170,10 +264,10 @@ To integrate a variable along one or more dimensions of a given NEMO model grid,
 For example, to compute the integral of conservative temperature `thetao_con` along the vertical `k` dimension in the NEMO model parent domain:
 
 ```python
-nemo.integral(grid="gridT", var="thetao_con", dims=["k"])
+nemo["gridT/thetao_con"].integral(dims=["k"])
 ```
 
-which will return an `xarray.DataArray` with one less dimension than `thetao_con`, in this case `k` since we have integrated vertically.
+which will return an `NEMODataArray` with one less dimension than `thetao_con`, in this case `k` since we have integrated vertically.
 
 ### Calculate Cumulative Integrals
 
@@ -182,14 +276,9 @@ We can also use the `.integral()` method to calculate cumulative integrals along
 For example, to calculate the vertical meridional overturning stream function from the meridional velocity `vo` (*zonally integrated meridional velocity accumulated with increasing depth*):
 
 ```python
-nemo.integral(grid="gridV",
-              var="vo",
-              dims=["i", "k"], 
-              cum_dims=["k"],
-              dir="+1",
-              )
+nemo["gridV/vo",].integral(dims=["i", "k"], cum_dims=["k"], dir="+1",)
 ```
-where `dims` is a list of the names of all grid dimensions along which integration will be performed, and `cum_dims` specifies which of the dimensions in `dims` should be cumulatively integrated.
+where `dims` is a list of grid dimension names along which integration will be performed, and `cum_dims` specifies which of the dimensions in `dims` should be cumulatively integrated.
 
 The `dir` argument is used to define the direction of cumulative integration, where `dir = "+1"` means accumulating along the chosen dimension, such that grid indices are increasing. Conversely, `dir = "-1"` means that cumulative integration is performed after reversing the chosen dimension, such that grid dimensions are decreasing.
 
@@ -202,10 +291,22 @@ To integrate a variable of a given NEMO model grid in depth coordinates between 
 For example, to compute the vertical integral of conservative temperature `thetao_con` in the upper 100 m in the NEMO model parent domain:
 
 ```python
-nemo.depth_integral(grid='gridT', var='thetao_con', limits=(0, 100))
+nemo["gridT/thetao_con"].depth_integral(limits=(0, 100))
 ```
 
-where `limits` is a tuple of the form (depth_lower, depth_upper) where depth_lower and depth_upper are the lower and upper limits of vertical integration, respectively.
+where `limits` is a tuple of the form (depth_min, depth_max) where depth_min and depth_max are the lower and upper limits of vertical integration, respectively.
+
+### Calculate Weighted Average
+
+To calculate a grid-aware weighted mean of a variable defined on a NEMO model grid, we can use the `.weighted_mean()` method.
+
+For example, to compute the grid cell area-weighted mean sea surface temperature `tos_con` in a NEMO model nested child domain:
+
+```python
+nemo["gridT/1_gridT/tos_con"].weighted_mean(dims=["i", "j"], skipna=True)
+```
+
+where `dims` represent the dimensions of the NEMO model grid to average over. In this example, `dims=["i", "j"]` is equivalent to computing the mean of variable `tos_con` using the horizontal cell area of **T** grid points (i.e., e1t * e2t) as weights.
 
 ### Create Regional Masks using Polygons
 
@@ -224,13 +325,11 @@ To calculate an aggregated statistic from only the model grid cells contained in
 For example, to compute the grid cell area-weighted mean sea surface temperature `tos_con` for a region enclosed in a polygon defined by `lon_poly` and `lat_poly` in a NEMO model nested child domain:
 
 ```python
-nemo.masked_statistic(grid="gridT/1_gridT",
-                      var="tos_con",
-                      lon_poly,
-                      lat_poly,
-                      statistic="weighted_mean",
-                      dims=["i", "j"]
-                      )
+nemo["gridT/1_gridT/tos_con",].masked_statistic(lon_poly,
+                                                lat_poly,
+                                                statistic="weighted_mean",
+                                                dims=["i", "j"]
+                                                )
 ```
 
 where `dims` represent the dimensions of the NEMO model grid used for aggregation. In this example, combining `statistic="weighted_mean"` and `dims=["i", "j"]` is equivalent to computing the mean of variable `tos_con` using the horizontal cell area of **T** grid points (i.e., e1t * e2t) as weights.
@@ -266,7 +365,7 @@ To transform a variable defined on a given NEMO horizontal grid to a neighbourin
 For example, to transform conservative temperature `thetao_con` defined on scalar **T**-points to neighbouring **V**-points in a NEMO model parent domain:
 
 ```python
-nemo.transform_to(grid='gridT', var='thetao_con', to='V')
+nemo["gridT/thetao_con"].transform_to(to="V")
 ```
 
 We can also transform variables defined on **U**- and **V**-points to either scalar or vector grid points. Unlike transforming scalar variables defined on **T**-points,
@@ -275,7 +374,7 @@ this is achieved by linearly interpolating the grid cell face area-weighted flux
 For example, to transform the zonal wind stress defined on **U**-points to neighbouring **V**-points in a NEMO model parent domain and store this in the **V**-grid node of our NEMODataTree:
 
 ```python
-nemo['gridV']['tauuo'] = nemo.transform_to(grid='gridU', var='tauuo', to='V')
+nemo['gridV/tauuo'] = nemo["gridU/tauuo"].transform_to(to="V")
 ```
 
 ### Transform a Vertical Grid
@@ -287,10 +386,7 @@ For example, if we wanted to transform the conservative temperature variable `th
 ```python
 e3t_target = xr.DataArray(np.repeat(200.0, 30), dims=['k_new'])
 
-nemo.transform_vertical_grid(grid='gridT',
-                             var = 'thetao_con',
-                             e3_new = e3t_target
-                            )
+nemo["gridT/thetao_con"].transform_vertical_grid(e3_new = e3t_target)
 ```
 
 where `e3_new` represents the time-invariant vertical grid cell thicknesses defing the vertical grid onto which the variable `var` will be conservatively interpolated. 

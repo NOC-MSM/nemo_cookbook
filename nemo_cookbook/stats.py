@@ -98,12 +98,12 @@ def compute_binned_statistic(
         raise ValueError("mask must be an xarray.DataArray object or None.")
 
     # -- Prepare data -- #
+    if keep_dims is None:
+        keep_dims = []
+
     values_data = values.where(mask) if mask is not None else values
     var_data = [var.where(mask) if mask is not None else var for var in vars]
     keep_vars_data = [values_data[dim] for dim in keep_dims]
-
-    if keep_dims is None:
-        keep_dims = []
     expected_groups = [None for _ in keep_dims]
     expected_groups.extend(bin for bin in bins)
 

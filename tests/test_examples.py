@@ -7,10 +7,11 @@ This module includes unit tests for examples functions.
 Author:
 Ollie Tooth (oliver.tooth@noc.ac.uk)
 """
+from pathlib import Path
+
 import pytest
 import xarray as xr
-from pathlib import Path
-from nemo_cookbook import NEMODataTree
+
 from nemo_cookbook.examples import get_filepaths
 
 
@@ -38,52 +39,59 @@ class TestGetFilepaths():
 
 
 class TestNEMODataTreeExamples():
-    def test_orca2_nemodatatree(self):
+    def test_orca2_nemodatatree(self, example_ORCA2_nemodatatree):
         # -- Create example NEMODataTree for AGRIF_DEMO configuration -- #
-        # Get dict of example filepaths:
-        filepaths = get_filepaths("AGRIF_DEMO")
-        # Define paths dict for NEMODataTree:
-        paths = {"parent": {
-                 "domain": filepaths["domain_cfg.nc"],
-                 "gridT": filepaths["ORCA2_5d_00010101_00010110_grid_T.nc"],
-                 "gridU": filepaths["ORCA2_5d_00010101_00010110_grid_U.nc"],
-                 "gridV": filepaths["ORCA2_5d_00010101_00010110_grid_V.nc"],
-                 "gridW": filepaths["ORCA2_5d_00010101_00010110_grid_W.nc"],
-                 "icemod": filepaths["ORCA2_5d_00010101_00010110_icemod.nc"]
-                }}
-        # Create NEMODataTree from paths dict:
-        nemo = NEMODataTree.from_paths(paths, iperio=True, nftype="T")
+        nemo = example_ORCA2_nemodatatree
 
-        # -- Verify output -- #
+        # -- Verify grid nodes, scale factors & coordinates -- #
         assert isinstance(nemo, xr.DataTree)
         nodes = [entry[0] for entry in list(nemo.subtree_with_keys)]
         for node in ['gridT', 'gridU', 'gridV', 'gridW']:
             assert node in nodes
+            grid_suffix = node[-1].lower() if node != "gridW" else "t"
+            for factor in [f"e1{grid_suffix}", f"e2{grid_suffix}", f"e3{node[-1].lower()}"]:
+                assert factor in nemo[node].data_vars
+            for coord in [f"glam{grid_suffix}", f"gphi{grid_suffix}", f"depth{node[-1].lower()}"]:
+                assert coord in nemo[node].coords
+
+        # -- Tear down -- #
+        # Close files associated with NEMODataTree:
+        nemo.close()
+
+    def test_orca2_linssh_nemodatatree(self, example_ORCA2_linssh_nemodatatree):
+        # -- Create example linear free-surface NEMODataTree from AGRIF_DEMO configuration -- #
+        nemo = example_ORCA2_linssh_nemodatatree
+
+        # -- Verify grid nodes, scale factors & coordinates -- #
+        assert isinstance(nemo, xr.DataTree)
+        nodes = [entry[0] for entry in list(nemo.subtree_with_keys)]
+        for node in ['gridT', 'gridU', 'gridV', 'gridW']:
+            assert node in nodes
+            grid_suffix = node[-1].lower() if node != "gridW" else "t"
+            for factor in [f"e1{grid_suffix}", f"e2{grid_suffix}", f"e3{node[-1].lower()}"]:
+                assert factor in nemo[node].data_vars
+            for coord in [f"glam{grid_suffix}", f"gphi{grid_suffix}", f"depth{node[-1].lower()}"]:
+                assert coord in nemo[node].coords
 
         # -- Tear down -- #
         # Close files associated with NEMODataTree:
         nemo.close()
 
 
-    def test_amm12_nemodatatree(self):
+    def test_amm12_nemodatatree(self, example_AMM12_nemodatatree):
         # -- Create example NEMODataTree for AMM12 configuration -- #
-        # Get dict of example filepaths:
-        filepaths = get_filepaths("AMM12")
-        # Define paths dict for NEMODataTree:
-        paths = {"parent": {
-                 "domain": filepaths["domain_cfg.nc"],
-                 "gridT": filepaths["AMM12_1d_20120102_20120110_grid_T.nc"],
-                 "gridU": filepaths["AMM12_1d_20120102_20120110_grid_U.nc"],
-                 "gridV": filepaths["AMM12_1d_20120102_20120110_grid_V.nc"],
-                }}
-        # Create NEMODataTree from paths dict:
-        nemo = NEMODataTree.from_paths(paths, iperio=False)
+        nemo = example_AMM12_nemodatatree
 
-        # -- Verify output -- #
+        # -- Verify grid nodes, scale factors & coordinates -- #
         assert isinstance(nemo, xr.DataTree)
         nodes = [entry[0] for entry in list(nemo.subtree_with_keys)]
         for node in ['gridT', 'gridU', 'gridV']:
             assert node in nodes
+            grid_suffix = node[-1].lower()
+            for factor in [f"e1{grid_suffix}", f"e2{grid_suffix}"]:
+                assert factor in nemo[node].data_vars
+            for coord in [f"glam{grid_suffix}", f"gphi{grid_suffix}"]:
+                assert coord in nemo[node].coords
 
         # Close files associated with NEMODataTree:
         nemo.close()

@@ -21,13 +21,13 @@
 
     [:octicons-arrow-right-24: Recipe](https://noc-msm.github.io/nemo_cookbook/recipe_moc_z/)
 
--   __Ocean Transports__
+-   __Ocean Heat Content__
 
     ---
 
-    Seawater volume, heat and freshwater transports.
+    Upper ocean heat content using depth integration.
 
-    [:octicons-arrow-right-24: Recipe](https://noc-msm.github.io/nemo_cookbook/)
+    [:octicons-arrow-right-24: Recipe](https://noc-msm.github.io/nemo_cookbook/recipe_heat_content/)
 
 -   __Volume Census__
 

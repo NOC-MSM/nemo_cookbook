@@ -10,8 +10,10 @@ Ollie Tooth (oliver.tooth@noc.ac.uk)
 """
 
 import glob
+
 import numpy as np
 import xarray as xr
+
 from .masks import create_dom_mask, read_dom_mask
 
 _DEFAULT_NBGHOST_CHILD = 4
@@ -293,6 +295,7 @@ def _open_grid_datasets(
 
 def _add_domain_vars(
     d_grids: dict[str, xr.Dataset],
+    key_linssh: bool = False,
     iperio: bool = False,
     nftype: str | None = None,
     read_mask: bool = False,
@@ -312,6 +315,11 @@ def _add_domain_vars(
             'gridV': xr.Dataset,
             'gridW': xr.Dataset
         }
+        
+    key_linssh: bool = False
+        Linear free-surface approximation. If True, vertical coordinates are time-independent and given by
+        (e3t_0, e3u_0, e3v_0, e3w_0). If False, vertical coordinates are time-dependent and must be included
+        in grid datasets. Default is False.
 
     iperio: bool = False
         Zonal periodicity of the domain.
@@ -358,6 +366,8 @@ def _add_domain_vars(
     try:
         d_grids["gridT"]["e1t"] = domain["e1t"]
         d_grids["gridT"]["e2t"] = domain["e2t"]
+        if key_linssh:
+            d_grids["gridT"]["e3t"] = domain["e3t_0"]
         d_grids["gridT"]["gphit"] = domain["gphit"]
         d_grids["gridT"]["glamt"] = domain["glamt"]
         d_grids["gridT"]["top_level"] = domain["top_level"]
@@ -388,6 +398,8 @@ def _add_domain_vars(
     try:
         d_grids["gridU"]["e1u"] = domain["e1u"]
         d_grids["gridU"]["e2u"] = domain["e2u"]
+        if key_linssh:
+            d_grids["gridU"]["e3u"] = domain["e3u_0"]
         d_grids["gridU"]["gphiu"] = domain["gphiu"]
         d_grids["gridU"]["glamu"] = domain["glamu"]
     except AttributeError as e:
@@ -416,6 +428,8 @@ def _add_domain_vars(
     try:
         d_grids["gridV"]["e1v"] = domain["e1v"]
         d_grids["gridV"]["e2v"] = domain["e2v"]
+        if key_linssh:
+            d_grids["gridV"]["e3v"] = domain["e3v_0"]
         d_grids["gridV"]["gphiv"] = domain["gphiv"]
         d_grids["gridV"]["glamv"] = domain["glamv"]
     except AttributeError as e:
@@ -444,6 +458,8 @@ def _add_domain_vars(
     try:
         d_grids["gridW"]["e1t"] = domain["e1t"]
         d_grids["gridW"]["e2t"] = domain["e2t"]
+        if key_linssh:
+            d_grids["gridW"]["e3w"] = domain["e3w_0"]
         d_grids["gridW"]["gphit"] = domain["gphit"]
         d_grids["gridW"]["glamt"] = domain["glamt"]
     except AttributeError as e:
@@ -473,6 +489,8 @@ def _add_domain_vars(
     try:
         d_grids["gridF"]["e1f"] = domain["e1f"]
         d_grids["gridF"]["e2f"] = domain["e2f"]
+        if key_linssh:
+            d_grids["gridF"]["e3f"] = domain["e3f_0"]
         d_grids["gridF"]["gphif"] = domain["gphif"]
         d_grids["gridF"]["glamf"] = domain["glamf"]
     except AttributeError as e:
@@ -618,6 +636,7 @@ def _process_parent(
     iperio: bool = False,
     nftype: str | None = None,
     read_mask: bool = False,
+    key_linssh: bool = False,
     open_kwargs: dict[str, any] | None = None,
 ) -> dict[str, xr.Dataset]:
     """
@@ -657,6 +676,11 @@ def _process_parent(
         If True, read NEMO model land/sea mask from domain files. Default is False, meaning masks are computed
         from top_level and bottom_level domain variables.
 
+    key_linssh: bool = False
+        Linear free-surface approximation. If True, vertical coordinates are time-independent and given by
+        (e3t_0, e3u_0, e3v_0, e3w_0). If False, vertical coordinates are time-dependent and must be included
+        in grid datasets. Default is False.
+
     open_kwargs: dict[str, any], optional
         Additional keyword arguments to pass to xarray.open_dataset or xarray.open_mfdataset when opening
         parent grid files.
@@ -694,7 +718,7 @@ def _process_parent(
 
     # Add domain variables to each grid dataset:
     d_grids = _add_domain_vars(
-        d_grids=d_grids, iperio=iperio, nftype=nftype, read_mask=read_mask
+        d_grids=d_grids, key_linssh=key_linssh, iperio=iperio, nftype=nftype, read_mask=read_mask
     )
 
     # Process T / U / V / W / F grids:
@@ -738,6 +762,7 @@ def _process_child(
     parent_label: int,
     read_mask: bool = False,
     nbghost_child: int = _DEFAULT_NBGHOST_CHILD,
+    key_linssh: bool = False,
     open_kwargs: dict[str, any] | None = None,
 ) -> dict[str, xr.Dataset]:
     """
@@ -790,7 +815,13 @@ def _process_child(
         from top_level and bottom_level domain variables.
 
     nbghost_child : int = _DEFAULT_NBGHOST_CHILD
-        Number of ghost cells to remove from the western/southern boundaries of the (grand)child domain. Default is 4 (`_DEFAULT_NBGHOST_CHILD`).
+        Number of ghost cells to remove from the western/southern boundaries of the (grand)child domain.
+        Default is 4 (`_DEFAULT_NBGHOST_CHILD`).
+
+    key_linssh: bool = False
+        Linear free-surface approximation. If True, vertical coordinates are time-independent and given by
+        (e3t_0, e3u_0, e3v_0, e3w_0). If False, vertical coordinates are time-dependent and must be included
+        in grid datasets. Default is False.
 
     open_kwargs: dict[str, any], optional
         Additional keyword arguments to pass to xarray.open_dataset or xarray.open_mfdataset when opening
@@ -837,7 +868,7 @@ def _process_child(
 
     # Add child domain variables to each grid:
     d_grids = _add_domain_vars(
-        d_grids=d_grids, iperio=d_nests["iperio"], nftype=None, read_mask=read_mask
+        d_grids=d_grids, key_linssh=key_linssh, iperio=d_nests["iperio"], nftype=None, read_mask=read_mask
     )
 
     # Get child domain indices excluding ghost cells:
@@ -915,6 +946,7 @@ def create_datatree_dict(
     nftype: str | None = None,
     read_mask: bool = False,
     nbghost_child: int = _DEFAULT_NBGHOST_CHILD,
+    key_linssh: bool = False,
     open_kwargs: dict[str, any] | None = None,
 ) -> dict[str, xr.Dataset]:
     """
@@ -940,6 +972,9 @@ def create_datatree_dict(
         If True, read NEMO model land/sea mask from domain files. Default is False, meaning masks are computed from top_level and bottom_level domain variables.
     nbghost_child : int = _DEFAULT_NBGHOST_CHILD
         Number of ghost cells to remove from the western/southern boundaries of the (grand)child domain. Default is 4 (`_DEFAULT_NBGHOST_CHILD`).
+    key_linssh: bool = False
+        Linear free-surface approximation. If True, vertical coordinates are time-independent and given by (e3t_0, e3u_0, e3v_0, e3w_0). If False, vertical
+        coordinates are time-dependent and must be included in grid datasets. Default is False.
     open_kwargs : dict[str, any], optional
         Additional keyword arguments passed to `xarray.open_dataset` or `xarray.open_mfdataset` when
         opening NEMO grid files.
@@ -959,6 +994,7 @@ def create_datatree_dict(
         iperio=iperio,
         read_mask=read_mask,
         nftype=nftype,
+        key_linssh=key_linssh,
         open_kwargs=open_kwargs,
     )
 
@@ -984,6 +1020,7 @@ def create_datatree_dict(
                     parent_label=None,
                     read_mask=read_mask,
                     nbghost_child=nbghost_child,
+                    key_linssh=key_linssh,
                     open_kwargs=open_kwargs,
                 )
             )
@@ -1014,6 +1051,7 @@ def create_datatree_dict(
                     parent_label=int(d_nests["parent"]),
                     read_mask=read_mask,
                     nbghost_child=nbghost_child,
+                    key_linssh=key_linssh,
                     open_kwargs=open_kwargs,
                 )
             )
