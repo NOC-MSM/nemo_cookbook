@@ -121,7 +121,7 @@ The ongoing development of NEMO Cookbook is funded by the following projects:
 
 * To contribute your own recipes to **NEMO Cookbook**, see the [Contributing] page
 
-[User Guide]: nemodatatree.md
+[User Guide]: user_guide.md
 [Recipes]: recipes.md
 [How To]: howto.md
 [API Reference]: reference.md

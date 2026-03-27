@@ -1,5 +1,5 @@
 # NEMODataTree API
 
-::: nemo_cookbook.NEMODataTree
+::: nemo_cookbook.nemodatatree.NEMODataTree
 
-::: nemo_cookbook.NEMODataArray
+::: nemo_cookbook.nemodataarray.NEMODataArray
