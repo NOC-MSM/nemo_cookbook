@@ -119,6 +119,8 @@ NEMO Cookbook recipes are Jupyter Notebooks available to view statically in our 
 
 - Meridional overturning stream function in depth coordinates (z/z*).
 
+- Upper ocean heat content.
+
 - Meridional heat & salt transports.
 
 - Surface-forced water mass transformation in potential density coordinates.
@@ -137,7 +139,7 @@ NEMO Cookbook recipes are Jupyter Notebooks available to view statically in our 
 
 - Meridional overturning stream functions in depth coordinates (MEs).
 
-- Ocean heat content & mixed layer heat content. 
+- Mixed layer heat content. 
 
 - Sea ice diagnostics.
 
