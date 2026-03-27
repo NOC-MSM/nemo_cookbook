@@ -97,13 +97,59 @@ NEMO Cookbook is designed to make complex grid-aware analysis of NEMO model outp
 
 ### Pre-Processing Made Simple
 
+* Create a `NEMODataTree` from the National Oceanography Centre's eORCA1 JRA55v1 ocean sea-ice hindcast simulation stored in Analysis-Ready Cloud Optimised (**ARCO**) Zarr stores...
+
+```python
+# Open eORCA1 NEMO domain_cfg:
+ds_domain = xr.open_zarr("https://noc-msm-o.s3-ext.jc.rl.ac.uk/npd-eorca1-jra55v1/domain_cfg", consolidated=True, chunks={})
+
+# Open eORCA1 NEMO gridT dataset:
+ds_gridT = xr.open_zarr("https://noc-msm-o.s3-ext.jc.rl.ac.uk/npd-eorca1-jra55v1/T1y")
+
+# Define dictionary of grid datasets defining eORCA1 parent model domain:
+datasets = {"parent": {"domain": ds_domain, "gridT": ds_gridT}}
+
+# Initialise new NEMODataTree with zonally periodic parent domain north-folding on F-points:
+nemo = NEMODataTree.from_datasets(datasets=datasets, iperio=True, nftype="F", read_mask=True)
+```
+
 ### Exploring NEMO Model Outputs
 
+* Access land-sea masked conservative temperature variable defined on NEMO model T-grid points as a `NEMODataArray`...
+
+```python
+nemo["gridT/thetao_con"].masked
+```
+
+* Access NEMO grid scale factors of zonal velocity variable defined on NEMO model U-grid points...
+
+```python
+nemo["gridU/uo"].metrics
+```
+
+* Access familiar `xarray` operations...
+
+```python
+nemo["gridT/tos_con"].mean(dim="time_counter")
+```
 
 ### Calculating Grid-Aware Diagnostics
 
-### Scalable from Laptops to Clusters
+* Calculate meridional ocean heat transport using a constant reference density `rho0` and specific heat capacity of seawater `cp0`...
 
+```python
+(rho0 * cp0 * nemo["gridT/thetao_con"].transform_to(to='V') * nemo["gridV/vo"]).integral(dim=["i", "k"])
+```
+
+* Transform conservative temperature variable `thetao_con` defined on a NEMO model T-point from it's native 75 z*-levels to regularly spaced geopotential levels at 200 m intervals:
+
+```python
+# Define target vertical grid cell thicknesses:
+e3t_target = xr.DataArray(np.repeat(200.0, 30), dims=['k_new'])
+
+# Transform conservative temperature to new vertical coordinate system:
+nemo["gridT/thetao_con"].transform_vertical_grid(e3_new = e3t_target)
+```
 
 ## **Documentation**
 
