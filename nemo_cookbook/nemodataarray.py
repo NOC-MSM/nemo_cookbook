@@ -923,74 +923,95 @@ class NEMODataArray:
         )
 
         return result
+
+    # ----------------
+    # Binary Operators 
+    # ----------------
+    def _binary_op(self, other: Self | xr.DataArray | int | float, op) -> Self:
+        if isinstance(other, NEMODataArray):
+            if self.grid != other.grid:
+                raise ValueError(
+                    f"Cannot perform binary operation between NEMODataArrays defined on different NEMO grids ({self.name} -> {self.grid}, {other.name} -> {other.grid})."
+                )
+        result = op(self._da, self._unwrap(other))
+        return self._wrap(result)
+
+    def _rbinary_op(self, other: Self | xr.DataArray | int | float, op) -> Self:
+        if isinstance(other, NEMODataArray):
+            if self.grid != other.grid:
+                raise ValueError(
+                    f"Cannot perform binary operation between NEMODataArrays defined on different NEMO grids ({self.name} -> {self.grid}, {other.name} -> {other.grid})."
+                )
+        result = op(self._unwrap(other), self._da)
+        return self._wrap(result)
+
+    def __add__(self, other: Self | xr.DataArray | int | float) -> Self:
+        return self._binary_op(other, operator.add)
+    def __radd__(self, other: Self | xr.DataArray | int | float) -> Self:
+        return self._rbinary_op(other, operator.add)
     
-    # -----------------------------
-    # Wrapped Reduction Operations
-    # -----------------------------
-    def mean(self, *args, **kwargs):
-        result = self._da.mean(*args, **kwargs)
-        return self._wrap(result)
-
-    def median(self, *args, **kwargs):
-        result = self._da.median(*args, **kwargs)
-        return self._wrap(result)
-
-    def var(self, *args, **kwargs):
-        result = self._da.var(*args, **kwargs)
-        return self._wrap(result)
-
-    def std(self, *args, **kwargs):
-        result = self._da.std(*args, **kwargs)
-        return self._wrap(result)
-
-    def min(self, *args, **kwargs):
-        result = self._da.min(*args, **kwargs)
-        return self._wrap(result)
-
-    def max(self, *args, **kwargs):
-        result = self._da.max(*args, **kwargs)
-        return self._wrap(result)
-
-    def sum(self, *args, **kwargs):
-        result = self._da.sum(*args, **kwargs)
-        return self._wrap(result)
-
-    def prod(self, *args, **kwargs):
-        result = self._da.prod(*args, **kwargs)
-        return self._wrap(result)
+    def __sub__(self, other: Self | xr.DataArray | int | float) -> Self:
+        return self._binary_op(other, operator.sub)
+    def __rsub__(self, other: Self | xr.DataArray | int | float) -> Self:
+        return self._rbinary_op(other, operator.sub)
     
-    # -----------------------------
-    # Wrapped Selection Operations
-    # -----------------------------
-    def isel(self, *args, **kwargs):
-        result = self._da.isel(*args, **kwargs)
-        return self._wrap(result)
-    
-    def sel(self, *args, **kwargs):
-        result = self._da.sel(*args, **kwargs)
-        return self._wrap(result)
+    def __mul__(self, other: Self | xr.DataArray | int | float) -> Self:
+        return self._binary_op(other, operator.mul)
+    def __rmul__(self, other: Self | xr.DataArray | int | float) -> Self:
+        return self._rbinary_op(other, operator.mul)
+
+    def __truediv__(self, other: Self | xr.DataArray | int | float) -> Self:
+        return self._binary_op(other, operator.truediv)
+    def __rtruediv__(self, other: Self | xr.DataArray | int | float) -> Self:
+        return self._rbinary_op(other, operator.truediv)
     
     # ----------------
     # Utility Methods 
     # ----------------
-    def _wrap(self, da):
+    def _wrap(self, da: xr.DataArray) -> Self:
         """
         Wrap xarray.DataArray to preserve existing NEMO domain & grid attributes.
-
-        Parameters
-        ----------
-        da : xr.DataArray
-            Variable defined on a NEMO model grid.
         """
         return NEMODataArray(da=da, tree=self._tree, grid=self._grid)
-    
-    def __getattr__(self, name):
-        """
-        Delegate attributes to underlying xarray.DataArray.
-        """
-        return getattr(self._da, name)
 
-    def __repr__(self):
+    def _unwrap(self, other: Any) -> Any:
+        """
+        Unwrap NEMODataArray to access underlying xarray.DataArray.
+        """
+        if isinstance(other, NEMODataArray):
+            return other.data
+        return other
+
+    def _conditional_wrap(self, result: Any) -> Any:
+        """
+        Conditionally wrap result of methods when returning xarray.DataArray.
+        """
+        if isinstance(result, xr.DataArray):
+            try:
+                # Attempt to return NEMODataArray:
+                return self._wrap(result)
+            except Exception:
+                # Otherwise, return unwrapped xarray.DataArray:
+                return result 
+        return result
+
+    def __getattr__(self, name: str) -> Any:
+        """
+        Delegate attributes to xarray.DataArray and attempt to return
+        result as NEMODataArray.
+        """
+        attr = getattr(self._da, name)
+
+        if callable(attr):
+            @wraps(attr)
+            def wrapper(*args: Any, **kwargs: Any) -> Any:
+                result = attr(*args, **kwargs)
+                return self._conditional_wrap(result)
+            return wrapper
+
+        return attr
+
+    def __repr__(self) -> str:
         return (
             f"<NEMODataTree '{self._tree.name or 'unnamed'}'>\n"
             f"  <NEMODataArray '{self.name or 'unnamed'}' (Domain: '{self._dom}', "
@@ -998,7 +1019,7 @@ class NEMODataArray:
             f"{repr(self._da)}"
         )
 
-    def _repr_html_(self):
+    def _repr_html_(self) -> str:
         banner = f"""
         <div style="margin-bottom: 10px;">
             <div">
@@ -1020,4 +1041,4 @@ class NEMODataArray:
             {self.data._repr_html_()}
         </div>
         """
-        
+
