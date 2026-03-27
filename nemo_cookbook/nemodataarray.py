@@ -476,6 +476,109 @@ class NEMODataArray:
         result = result.masked
 
         return result
+    
+    def derivative(
+        self,
+        dim: str,
+        fillna: bool = False,
+        iperio: bool | None = None,
+    ) -> Self:
+        """
+        Calculate the 1st-derivative of a variable along a given dimension
+        (e.g., 'i', 'j', 'k') of a NEMO model grid.
+
+        Parameters
+        ----------
+        dim : str
+            Dimension over which to calculate the derivative (e.g., 'i', 'j', 'k').
+        fillna : bool, optional
+            Fill NaN values in NEMODataArray with zeros prior to finite differencing. Default is False.
+        iperio : bool | None, optional
+            Override the zonal periodicity inherited from the NEMO model grid. Default is None.
+
+        Returns
+        -------
+        NEMODataArray
+            1st-derivative of variable defined on a NEMO model grid.
+
+        Examples
+        --------
+        Compute the derivative of sea surface temperature `tos_con` values
+        along the NEMO parent domain `j` dimension:
+
+        >>> nemo['gridT/tos_con'].derivative(dim="j")
+
+        Compute the derivative of sea surface temperature `tos_con` values along a regional subset of a global,
+        zonally periodic domain NEMO parent domain `i` dimension:
+
+        >>> nemo['gridT/tos_con'].sel(i=slice(10, 80)).derivative(dim="i", iperio=False)
+
+        Note, we override the zonal periodicity inherited from the NEMO model grid since the selected subset
+        of the global domain is no longer zonally periodic.
+
+        Compute the 1st discrete difference of absolute salinity `so_abs` values along the first NEMO
+        nested child domain `k` dimension:
+
+        >>> nemo['gridT/1_gridT/so_abs'].derivative(dim="k")
+
+        See Also
+        --------
+        diff
+        """
+        # -- Validate Inputs -- #
+        if not isinstance(dim, str):
+            raise ValueError(
+                "dim must be a string specifying dimension along which to calculate the gradient (e.g., 'i', 'i1', 'j', 'j1', 'k', 'k1')."
+            )
+        if dim not in self.dims:
+            raise KeyError(
+                f"dimension '{dim}' not found in {self.name or 'unnamed'} dimensions {self.dims}."
+            )
+        if not isinstance(fillna, bool):
+            raise TypeError(
+                "`fillna` must be specified as a boolean. Default is False."
+            )
+        
+        # -- Get NEMO model grid properties -- #
+        if iperio is None:
+            iperio = self._tree[self._grid].attrs.get("iperio", False)
+        else:
+            if not isinstance(iperio, bool):
+                raise TypeError("iperio must be specified as a boolean or None.")
+            
+        # -- Calculate 1st-discrete derivative along dimension -- #
+        # Determine NEMO model grid type and scale factors for derivative:
+        new_grid_suffix, _, new_grid_weights = _NEMO_DIFF_MAP[(self._grid_suffix.upper(),
+                                                               dim.replace(self._dom_suffix, "")
+                                                               )]
+        # Define path to derivative NEMO model grid:
+        new_grid = f"{self._grid.replace(self._grid[-1], new_grid_suffix.upper())}"
+
+        # Collect & mask derivative grid scale factors (e.g., e1u, e3t etc.):
+        try:
+            weights = self._tree[f"{new_grid}/{new_grid_weights}"].masked
+        except KeyError as e:
+            raise KeyError(
+                f"NEMO model grid: '{new_grid}' does not contain grid scale factor '{new_grid_weights}' required to calculate derivatives along the {dim}-dimension."
+            ) from e
+
+        # Calculate 1st-finite difference along dimension:
+        da = self.diff(dim=dim, fillna=fillna, iperio=iperio)
+
+        # Calculate derivative (i.e., diff(var) / e{1/2/3}{t/u/v/w}):
+        if dim in [self.k_name]:
+            # Vertical derivative [k increasing downward]:
+            result = - da.data / weights.data
+        else:
+            # Horizontal derivative [i/j increasing eastward/northward]:
+            result = da.data / weights.data
+
+        # -- Update DataArray properties & return NEMODataArray -- #
+        result.name = f"d({self.name})/d{dim}"
+        result = NEMODataArray(da=result, tree=self._tree, grid=new_grid)
+
+        return result
+
 
     def integral(
         self,
