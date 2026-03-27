@@ -12,7 +12,10 @@ Ollie Tooth (oliver.tooth@noc.ac.uk)
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Self
+import operator
+import warnings
+from functools import wraps
+from typing import TYPE_CHECKING, Any, Self
 
 import numpy as np
 import xarray as xr
@@ -94,17 +97,21 @@ class NEMODataArray:
                 f"{self._grid} not found in available NEMODataTree grids {grid_keys}."
             )
 
-        # Dimension & coordinates exist & values are within NEMODataTree dimensions & coordinates:
+        # Dimension must exist & values must be within NEMODataTree dimension values:
         if not all(dim in list(self._tree[self._grid].dims) for dim in self._da.dims):
             raise ValueError(f"DataArray dimensions {self._da.dims} not all in NEMO model '{self._grid}' dimensions {self._tree[self._grid].dims}.")
-        if not all(dim in list(self._tree[self._grid].coords) for dim in self._da.coords):
-            raise ValueError(f"DataArray coordinates {self._da.coords} not all in NEMO model '{self._grid}' coordinates {self._tree[self._grid].coords}.")
 
         if not all((self._da[dim].min() >= self._tree[self._grid][dim].min()) & (self._da[dim].max() <= self._tree[self._grid][dim].max()) for dim in self._da.dims):
             raise ValueError(f"DataArray dimension values {self._da.dims} not all within NEMO model '{self._grid}' dimension values {self._tree[self._grid].dims}.")
-        if not all((self._da[coord].min() >= self._tree[self._grid].coords[coord].min()) & (self._da[coord].max() <= self._tree[self._grid].coords[coord].max()) for coord in self._da.coords):
-            raise ValueError(f"DataArray coordinate values {self._da.coords} not all within NEMO model '{self._grid}' coordinate values {self._tree[self._grid].coords}.")
-        
+
+        # Core coordinates (glam, gphi, depth, time_counter) must exist & values must be within NEMODataTree coordinate values:
+        core_coords = [coord for coord in self._da.coords if "glam" in coord or "gphi" in coord or "depth" in coord or "time_counter" in coord]
+        if not all(dim in list(self._tree[self._grid].coords) for dim in core_coords):
+            raise ValueError(f"DataArray coordinates {core_coords} not all in NEMO model '{self._grid}' coordinates {self._tree[self._grid].coords}.")
+
+        if not all((self._da[coord].min() >= self._tree[self._grid].coords[coord].min()) & (self._da[coord].max() <= self._tree[self._grid].coords[coord].max()) for coord in core_coords):
+            raise ValueError(f"DataArray coordinate values {core_coords} not all within NEMO model '{self._grid}' coordinate values {self._tree[self._grid].coords}.")
+
         # -- Assign NEMO domain number, grid path and grid type -- #
         dom, dom_prefix, dom_suffix, grid_suffix = self._tree._get_properties(grid=self._grid, infer_dom=True)
         self._dom = dom
@@ -119,7 +126,8 @@ class NEMODataArray:
         self.j_name = ijk_names["j"]
         self.k_name = ijk_names["k"]
         # Temporal dimension except for time-independent variables:
-        t_list = [dim for dim in self._da.dims if "time" in dim]
+        # Use coords to handle single time slices of time-dependent variables.
+        t_list = [dim for dim in self._da.coords if "time" in dim]
         self.t_name = t_list[0] if len(t_list) != 0 else None
 
 
@@ -153,13 +161,13 @@ class NEMODataArray:
         Access grid scale factors for the parent NEMO model grid.
         """
         # 2-dimensional: Horizontal grid scale factors:
-        d_metrics = {"e1": self._tree[f"{self._grid}/e1{self._grid_suffix}"],
-                     "e2": self._tree[f"{self._grid}/e2{self._grid_suffix}"],
+        d_metrics = {"e1": self._tree[f"{self._grid}/e1{self._grid_suffix}"].sel_like(self._da),
+                     "e2": self._tree[f"{self._grid}/e2{self._grid_suffix}"].sel_like(self._da),
                      }
 
         if f"{self._dom_prefix}depth{self._grid_suffix}" in self._da.coords:
             # 3-dimensional: Vertical grid scale factor:
-            d_metrics["e3"] = self._tree[f"{self._grid}/e3{self._grid_suffix}"]
+            d_metrics["e3"] = self._tree[f"{self._grid}/e3{self._grid_suffix}"].sel_like(self._da)
 
         return d_metrics
     
@@ -168,7 +176,7 @@ class NEMODataArray:
         """
         Access variable land-sea mask for the parent NEMO model grid.
         """
-        if (self._da.dims[0] == self.t_name) & (self._da.ndim == 1):
+        if (self._da.ndim == 1) and (self.t_name in self._da.dims):
             raise ValueError("land-sea mask does not exist for variables without spatial dimensions.")
         else:
             if (f"{self._dom_prefix}depth{self._grid_suffix}" in self._da.coords) & (self.k_name in self._da.dims):
@@ -177,15 +185,18 @@ class NEMODataArray:
             else:
                 # 2-dimensional land-sea mask:
                 mask_name = f"{self._grid_suffix}maskutil"
+
+        # Select land-sea mask values according to variable dimension labels:
+        result = self._tree[f"{self._grid}/{mask_name}"].sel_like(self._da).data
         
-        return self._tree[self._grid][mask_name]
+        return result
     
     @property
     def masked(self):
         """
-        Access land-sea masked variable define on NEMO model grid.
+        Apply land-sea mask to variable defined on NEMO model grid.
         """
-        return self.apply_mask()
+        return self.apply_mask(mask=None, drop=False)
 
     # ---------------
     # Public Methods 
@@ -193,6 +204,7 @@ class NEMODataArray:
     def apply_mask(
         self,
         mask: xr.DataArray | None = None,
+        drop: bool = False
     ) -> Self:
         """
         Apply NEMO parent grid land-sea mask or combined land-sea & custom mask
@@ -203,6 +215,9 @@ class NEMODataArray:
         mask : xr.DataArray | None
             Boolean mask to apply to variable defined on NEMO model grid. Default is None
             meaning only land-sea mask of NEMO parent grid is applied.
+        drop : bool, optional
+            If True, coordinate labels that only correspond to False values of the condition
+            are dropped from the result. Default is False.
 
         Returns
         -------
@@ -218,7 +233,54 @@ class NEMODataArray:
             mask = (self.mask & mask)
 
         # -- Apply mask & return NEMODataArray -- #
-        result = self._da.where(mask, drop=False)
+        if drop:
+            warnings.warn(message="Indexing with a boolean dask array is not allowed. Mask will be computed first using .compute(). This may result in high memory usage for large masks.",
+                          category=RuntimeWarning,
+                          stacklevel=2
+                          )
+            mask = mask.load()
+
+        result = self._da.where(mask, drop=drop)
+
+        return self._wrap(result)
+    
+    def sel_like(
+        self,
+        other: Self | xr.DataArray,
+    ) -> Self:
+        """
+        Return a new NEMODataArray whose data is given by matching the dimension
+        index labels present in another NEMODataArray or xarray.DataArray.
+
+        Parameters
+        ----------
+        other : NEMODataArray | xr.DataArray
+            NEMODataArray or xarray.DataArray used to select dimension index labels.
+
+        Returns
+        -------
+        NEMODataArray
+             A new NEMODataArray with data selected according to dimension index labels
+             of input object.
+        """
+        # -- Validate Inputs -- #
+        if not (isinstance(other, NEMODataArray) or isinstance(other, xr.DataArray)):
+            raise TypeError("other must be specified as a NEMODataArray or xarray.DataArray.")
+
+        if isinstance(other, NEMODataArray):
+            other = other.data
+
+        # -- Index data using dimension labels of other object & return NEMODataArray -- #
+        coord_dims = [self.t_name, self.k_name, self.j_name, self.i_name]
+        d_dims = {}
+        for dim in coord_dims:
+            # Select only dimensions present in both objects:
+            if (dim in other.coords) and (dim in self.data.coords):
+                # Select only dimensions whose index labels do not already match:
+                if other.coords[dim].size != self.data.coords[dim].size:
+                    d_dims[dim] = other.coords[dim].data
+
+        result = self.data.sel(d_dims)
 
         return self._wrap(result)
     
@@ -257,7 +319,7 @@ class NEMODataArray:
     def diff(
         self,
         dim: str,
-        fillna: bool = True,
+        fillna: bool = False,
         iperio: bool | None = None,
     ) -> Self:
         """
@@ -269,10 +331,9 @@ class NEMODataArray:
         dim : str
             Dimension over which to calculate the finite difference (e.g., 'i', 'j', 'k').
         fillna : bool, optional
-            Fill NaN values in NEMODataArray with zeros prior to finite differencing. Default is True.
+            Fill NaN values in NEMODataArray with zeros prior to finite differencing. Default is False.
         iperio : bool | None, optional
             Override the zonal periodicity inherited from the NEMO model grid. Default is None.
-
         Returns
         -------
         NEMODataArray
@@ -313,7 +374,7 @@ class NEMODataArray:
             )
         if not isinstance(fillna, bool):
             raise TypeError(
-                "`fillna` must be specified as a boolean. Default is True."
+                "`fillna` must be specified as a boolean. Default is False."
             )
 
         # -- Get NEMO model grid properties -- #
@@ -516,7 +577,7 @@ class NEMODataArray:
 
         # -- Apply land-sea mask & return NEMODataArray -- #
         result.name = f"integral_{''.join(dims)}({self.name})"
-        result = self._wrap(result).masked
+        result = self._wrap(result)
 
         return result
     
@@ -581,14 +642,12 @@ class NEMODataArray:
         )
 
         # -- Define integral variable DataArray -- #
-        if self.t_name is not None:
-            result = result.transpose(self.t_name, "k_new", self.j_name, self.i_name).squeeze()
-        else:
-            result = result.transpose("k_new", self.j_name, self.i_name).squeeze()
+        dim_list = [dim for dim in [self.t_name, "k_new", self.j_name, self.i_name] if (dim is not None) and (dim in result.dims)]
+        result = result.transpose(*dim_list).squeeze()
         result.name = f"integral_z({self.name})"
 
         # -- Apply land-sea mask & return NEMODataArray -- #
-        result = self._wrap(result).masked
+        result = self._wrap(result)
 
         return result
 
@@ -850,8 +909,11 @@ class NEMODataArray:
         )
 
         # -- Construct transformed variable Dataset -- #
-        var_out = var_out.transpose(self.t_name, "k_new", self.j_name, self.i_name)
-        e3_out = e3_out.transpose(self.t_name, "k_new", self.j_name, self.i_name)
+        var_dim_list = [dim for dim in [self.t_name, "k_new", self.j_name, self.i_name] if (dim is not None) and (dim in var_out.dims)]
+        var_out = var_out.transpose(*var_dim_list).squeeze()
+    
+        e3_dim_list = [dim for dim in [self.t_name, "k_new", self.j_name, self.i_name] if (dim is not None) and (dim in e3_out.dims)]
+        e3_out = e3_out.transpose(*e3_dim_list).squeeze()
 
         result = xr.Dataset(
             data_vars={self.name: var_out, f"e3{self._grid_suffix}_new": e3_out},
