@@ -146,11 +146,11 @@ NEMO Cookbook recipes are Jupyter Notebooks available to view statically in our 
 - Vorticity diagnostics.
 
 ## **Funding**
-Development of NEMO Cookbook has been funded by the following projects: 
+The ongoing development of NEMO Cookbook is funded by the following projects: 
 
-- **AtlantiS**:
-- **ARIA PROMOTE**: 
-- **EPOC**: Explaining & Predicting the Ocean Conveyor
+- **AtlantiS**: [Atlantic Climate and Environment Strategic Science](https://atlantis.ac.uk)
+- **ARIA - PROMOTE**: [Progressing earth system Modelling for Tipping Point Early warning systems](https://aria.org.uk/opportunity-spaces/scoping-our-planet/forecasting-tipping-points/)
+- **EPOC**: [Explaining & Predicting the Ocean Conveyor](https://epoc-eu.org)
 
 ## **Contact**
 

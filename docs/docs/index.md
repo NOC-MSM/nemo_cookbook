@@ -102,6 +102,15 @@ pip install -e .
 
 ---
 
+## **Funding**
+The ongoing development of NEMO Cookbook is funded by the following projects: 
+
+- **AtlantiS**: [Atlantic Climate and Environment Strategic Science](https://atlantis.ac.uk)
+- **ARIA - PROMOTE**: [Progressing earth system Modelling for Tipping Point Early warning systems](https://aria.org.uk/opportunity-spaces/scoping-our-planet/forecasting-tipping-points/)
+- **EPOC**: [Explaining & Predicting the Ocean Conveyor](https://epoc-eu.org)
+
+---
+
 ### Next Steps...
 
 * To learn more about **NEMO Data Structures**, see the [User Guide] and [How To] pages - this is an especially starting point for new NEMO users!
