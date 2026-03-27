@@ -270,36 +270,43 @@ Each `NEMODataArray` interfaces with its parent `NEMODataTree` to provide useful
 
 - *Masking* :material-arrow-right: `.apply_mask()`.
 
+- *Selections* :material-arrow-right: `.sel_like()`.
+
 - *Grid Operators* :material-arrow-right: `.diff()`, `.derivative()`, `.integral()`, `.depth_integral()`.
 
 - *Statistics:* :material-arrow-right: `.weighted_mean()`, `.masked_statistic()`.
 
 - *Transformations:* :material-arrow-right: `.transform_to()`, `.transform_vertical_grid()`.
 
-The following `xarray` operations also return `NEMODataArrays`:
+**All other standard `xarray` operations can also be used with `NEMODataArray`.**
 
-- *Reductions* :material-arrow-right: `.min()`, `.max()`, `.mean()`, `.median()`, `.var()`, `.std()`, `.sum()`, `.prod()`.
-
-- *Selections* :material-arrow-right: `.sel()`, `.isel()`.
-
-- *Masking* :material-arrow-right: `.where()`.
-
-**All other standard `xarray` operations will return an `xarray.DataArray` when used with `NEMODataArray`.**
+This is possible because `NEMODataArray` will delegate to `xarray.DataArray` and then returns a corresponding `NEMODataArray` whenever possible, otherwise the default return type is returned.
 
 ```python
-nemo["gridT/tos_con"].chunk({"k": 10})
-xarray.DataArray
+nemo["gridT/tos_con"].chunk({"i": 50})
+
+<NEMODataTree 'Example Global NEMO Model'>
+  <NEMODataArray 'tos_con' (Domain: '.', Grid: 'gridT', Grid Type: 'T')>
+
+<xarray.DataArray 'tos_con' (time_counter: 3, j: 10, i: 10)> Size: 2kB
+dask.array<xarray-<this-array>, shape=(3, 10, 10), dtype=float64, chunksize=(3, 10, 10), chunktype=numpy.ndarray>
+Coordinates:
+  * i             (i) int64 80B 1 2 3 4 5 6 7 8 9 10
+  * j             (j) int64 80B 1 2 3 4 5 6 7 8 9 10
+  * time_counter  (time_counter) datetime64[s] 24B 2000-01-01 ... 2000-03-01
+    gphit         (j, i) float64 800B dask.array<chunksize=(10, 10), meta=np.ndarray>
+    glamt         (j, i) float64 800B dask.array<chunksize=(10, 10), meta=np.ndarray>
 ```
 
-In this example, the chunking operation is performed on the `.data` property (`xarray.DataArray`) of the `NEMODataArray`.
+In this example, the chunking operation is performed on the `.data` property (`xarray.DataArray`) before being returned as a `NEMODataArray`.
 
-**Crucially, `NEMODataArrays` support method-chaining, allowing us to construct complex diagnostics in a single line of code...**
+**Crucially, `NEMODataArrays` support method-chaining, allowing us to build complex diagnostics in a single line of code...**
 
 ```python
-nemo["gridT/thetao_con"].masked.weighted_mean(dims=["i", "j"], skipna=True).plot()
+nemo["gridT/thetao_con"].apply_mask(mask=my_mask).weighted_mean(dims=["i", "j"], skipna=True).plot()
 ```
 
-*Here, we apply the land-sea mask to the global sea surface temperature field, before calculating the horizontal grid cell area-weighted mean, and finally plotting the time-series.*
+*Here, we apply my_mask to the global sea surface temperature field, before calculating the horizontal grid cell area-weighted mean, and finally plotting the resulting time-series.*
 
 ## Example NEMODataTrees
 
