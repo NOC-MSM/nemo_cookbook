@@ -389,6 +389,62 @@ class NEMODataTree(xr.DataTree):
         datatree.name = name
 
         return datatree
+    
+    def __setitem__(
+            self,
+            key: str,
+            value: NEMODataArray | xr.DataArray | xr.Dataset,
+            validate: bool = True
+        ) -> None:
+        """
+        Set a child node or variable in this NEMODataTree.
+
+        Overloads the __setitem__() method of xarray.DataTree to allow
+        setting NEMODataArrays via variable paths (i.e, /grid/var).
+
+        Validate option used for testing only.
+
+        Parameters
+        ----------
+        key : str
+            Name of variable or child node, or unix-like path to variable
+            within a child node.
+
+        value : NEMODataArray | xarray.DataArray | xarray.Dataset
+            Object to set at the specified key. If a NEMODataArray is provided,
+            the underlying xarray.DataArray will be set at the specified key.
+
+        validate : bool, optional
+            Validate Datasets assigned to NEMO grid nodes to ensure they contain
+            the required dimensions and coordinates. Default is True.
+
+        Returns
+        -------
+        None
+        """
+        # -- Access DataArray from NEMODataArray -- #
+        if isinstance(value, NEMODataArray):
+            value = value.data
+
+        if validate & isinstance(value, xr.Dataset):
+            # Define suffix NEMO grid node:
+            grid_type = key[-1].lower()
+            hgrid_type = grid_type if "w" not in grid_type else "t"
+
+            # -- Verify coordinates of NEMO grid node dataset -- #
+            if any([coord not in value.coords for coord in ["i", "j"]]):
+                raise ValueError("Missing required NEMO grid coordinates (i, j) in xarray.Dataset.")
+
+            if all([f'gphi{hgrid_type}' not in coord for coord in value.coords]):
+                raise ValueError(f"Missing required latitude (e.g., gphi{hgrid_type}) coordinates in xarray.Dataset.")
+
+            if all([f'glam{hgrid_type}' not in coord for coord in value.coords]):
+                raise ValueError(f"Missing required longitude (e.g., glam{hgrid_type}) coordinates in xarray.Dataset.")
+
+            if all([f'depth{grid_type}' not in coord for coord in value.coords]) and ("k" in value.coords):
+                raise ValueError(f"Missing required depth (e.g., depth{grid_type}) coordinates in xarray.Dataset.")
+
+        return super().__setitem__(key, value)
 
     def __getitem__(self, key: str) -> Self | NEMODataArray:
         """
