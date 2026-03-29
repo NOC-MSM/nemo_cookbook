@@ -360,23 +360,22 @@ where `vars` is a list of the names of variables to be binned using the bin edge
 
 We can use `keep_dims` to specify the dimensions of the `xarray.DataArray` named `values` to retain. In the example above, using `keep_dims="time_counter"` will return the average depths of water in each potential density bin for each time-slice of available NEMO model output.
 
-### Transform Variable to a Neighbouring Horizontal Grid
+### Interpolate Variable to a Neighbouring Horizontal Grid
 
-To transform a variable defined on a given NEMO horizontal grid to a neighbouring grid using linear interpolation, we can use the `.transform_to()` method.
+To linearly interpolate a variable defined on a given NEMO horizontal grid to a neighbouring grid, we can use the `.interp_to()` method.
 
-For example, to transform conservative temperature `thetao_con` defined on scalar **T**-points to neighbouring **V**-points in a NEMO model parent domain:
+For example, to interpolate conservative temperature `thetao_con` defined on scalar **T**-points to neighbouring **V**-points in a NEMO model parent domain:
 
 ```python
-nemo["gridT/thetao_con"].transform_to(to="V")
+nemo["gridT/thetao_con"].interp_to(to="V")
 ```
 
-We can also transform variables defined on **U**- and **V**-points to either scalar or vector grid points. Unlike transforming scalar variables defined on **T**-points,
-this is achieved by linearly interpolating the grid cell face area-weighted flux onto the target grid, before then normalising by the grid cell face area defined on the target horizontal grid.
+We can also interpolate variables defined on **U**- and **V**-points to either scalar or vector grid points. Unlike interpolating scalar variables defined on **T**-points, this is achieved by linearly interpolating the grid cell face area-weighted flux onto the target grid, before then normalising by the grid cell face area defined on the target horizontal grid.
 
-For example, to transform the zonal wind stress defined on **U**-points to neighbouring **V**-points in a NEMO model parent domain and store this in the **V**-grid node of our NEMODataTree:
+For example, to interpolate the zonal wind stress defined on **U**-points to neighbouring **V**-points in a NEMO model parent domain and store this in the **V**-grid node of our NEMODataTree:
 
 ```python
-nemo['gridV/tauuo'] = nemo["gridU/tauuo"].transform_to(to="V")
+nemo['gridV/tauuo'] = nemo["gridU/tauuo"].interp_to(to="V")
 ```
 
 ### Transform a Vertical Grid
