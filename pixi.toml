@@ -50,16 +50,19 @@ test = "pytest --maxfail=1 --disable-warnings --tb=short"
 [feature.docs.pypi-dependencies]
 mkdocs-material = "*"
 mkdocs-glightbox = "*"
-mkdocs-jupyter = "*"
+mkdocs-jupyter = ">=0.26.1"
 mkdocstrings = "*"
 mkdocstrings-python = "*"
 
 [feature.docs.tasks]
-build_docs = "mkdocs serve"
+docs = "cd docs/; mkdocs serve"
 
 [feature.dev.dependencies]
-ipykernel = ">=7.2.0,<8"
 cartopy = ">=0.25.0,<0.26"
+ipykernel = ">=7.2.0,<8"
+nc-time-axis = "*"
+notebook = "*"
+pyarrow = "*"
 
 [environments]
 default = { solve-group = "default" }

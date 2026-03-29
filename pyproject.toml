@@ -41,10 +41,9 @@ dependencies = [
 
 [project.optional-dependencies]
 
-complete = ["nemo_cookbook[parallel,viz,interactive]"]
+complete = ["nemo_cookbook[parallel,interactive]"]
 parallel = ["dask[complete]"]
-viz = ["cartopy>=0.23", "matplotlib", "nc-time-axis"]
-interactive = ["jupyter>=1.1.1", "notebook>=7.4.1", "ipykernel>=6.29.5", "pyarrow>=21.0.0"]
+interactive = ["jupyter>=1.1.1", "notebook>=7.4.1", "ipykernel>=6.29.5", "pyarrow>=21.0.0", "cartopy>=0.23", "nc-time-axis"]
 tests = ["pytest", "pytest-mock"]
 docs = ["mkdocs-material", "mkdocs-glightbox", "mkdocs-jupyter", "mkdocstrings", "mkdocstrings-python"]
 
@@ -72,4 +71,3 @@ ignore = ["E501"]
 
 [tool.ruff.format]
 quote-style = "double"
-
