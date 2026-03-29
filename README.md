@@ -12,6 +12,12 @@
 <a href="https://github.com/NOC-MSM/nemo_cookbook/issues"><strong>Report an Issue</strong></a>
 </p>
 
+[![Xarray](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/pydata/xarray/refs/heads/main/doc/badge.json)](https://xarray.dev)
+[![Powered by Pixi](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/prefix-dev/pixi/main/assets/badge/v0.json)](https://pixi.sh)
+[![Tests](https://github.com/NOC-MSM/nemo_cookbook/actions/workflows/ci_tests.yml/badge.svg?branch=main)](https://github.com/NOC-MSM/nemo_cookbook/actions/workflows/ci_tests.yml?query=branch%3Amain)
+[![Docs](https://github.com/NOC-MSM/nemo_cookbook/actions/workflows/ci_docs.yml/badge.svg?branch=main)](https://github.com/NOC-MSM/nemo_cookbook/actions/workflows/ci_docs.yml?query=branch%3Amain)
+[![DOI](https://zenodo.org/badge/880731833.svg)](https://doi.org/10.5281/zenodo.18292768)
+
 ## **About**
 
 NEMO Cookbook extends the familiar xarray data model with grid-aware data structures designed for performing reproducible analyses of the Nucleus for European Modelling of the Ocean ([**NEMO**](https://www.nemo-ocean.eu)) ocean general circulation model outputs.
@@ -141,7 +147,7 @@ nemo["gridT/tos_con"].mean(dim="time_counter")
 (rho0 * cp0 * nemo["gridT/thetao_con"].transform_to(to='V') * nemo["gridV/vo"]).integral(dim=["i", "k"])
 ```
 
-* Transform conservative temperature variable `thetao_con` defined on a NEMO model T-point from it's native 75 z*-levels to regularly spaced geopotential levels at 200 m intervals:
+* Transform conservative temperature variable `thetao_con` defined on a NEMO model T-point from it's native 75 z*-levels to regularly spaced geopotential levels at 200 m intervals...
 
 ```python
 # Define target vertical grid cell thicknesses:
