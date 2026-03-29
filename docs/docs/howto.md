@@ -26,6 +26,8 @@ NEMODataTree.from_paths(paths, iperio=True, nftype="T")
 
 In the example above, we consider only a global parent domain, which is zonally periodic (`iperio=True`) and north-folding on **T** grid points (`nftype="T"`). Note, that we are only required to specify paths for one or more NEMO model grid types (e.g., `*_gridT.nc`).
 
+For NEMO models using a linear free surface approximation (i.e., vertical scale factors are time-independent), we should also specify `key_linssh=True` to read these directly from the domain_cfg file included in the `paths` dictionary.
+
 ### Create a NEMODataTree from `xarray.Datasets`
 
 Alternatively, we can create a `NEMODataTree` from a dictionary of single or multi-file `xarray.Datasets`. This is particularly valuable when working with remote NEMO model data or Coupled Model Intercomparison Project (CMIP) outputs which require us to reformat coordinate dimensions (see **Example NEMODataTrees**).
@@ -45,13 +47,13 @@ If all land-sea masks expected by `NEMODataTree` are included in `ds_domain`, we
 
 ### Access NEMO Variables
 
-To access a variable stored within a given grid node of a `NEMODataTree` as an `xarray.DataArray`, we can use the follow syntax:
+To access a variable stored in a given grid node of a `NEMODataTree` as an `xarray.DataArray`, we can use the following syntax:
 
 ```python
 nemo[{grid_name}][{variable_name}]
 ```
 
-However, if we want to access the chosen variable as a grid-aware `NEMODataArray` (**recommended**), we can instead provide the direct path to the variable as follows:
+However, if we want to access the chosen variable as a grid-aware `NEMODataArray` (**recommended**), we can instead provide the direct path to the variable:
 
 ```python
 nemo["gridT/thetao_con"]
@@ -59,13 +61,13 @@ nemo["gridT/thetao_con"]
 
 ### Adding a NEMO Variable to a NEMODataTree
 
-To add a new variable stored as a `NEMODataArray` to a given grid node of an existing `NEMODataTree`, we can use the following syntax:
+To add a new variable stored as a `NEMODataArray` to the grid node of an existing `NEMODataTree`, we can use the following syntax:
 
 ```python
 nemo["gridT/my_var"] = nemo["gridT/thetao_con"].depth_integral(limits=(0, 100))
 ```
 
-Note, this simply adds the underlying `xarray.DataArray` to the NEMO model T-grid node `xarray.Dataset` in our `NEMODataTree` with the name `my_var`.
+Note, this simply adds the underlying `xarray.DataArray` to the NEMO model **T**-grid node `xarray.Dataset` in our `NEMODataTree` with the name `my_var`.
 
 ### Adding a New Grid Node to a NEMODataTree
 
@@ -75,7 +77,7 @@ To create a new grid node from an `xarray.Dataset` containing NEMO model grid va
 nemo["gridP"] = ds_gridP
 ```
 
-Note, before adding a new grid node to an existing `NEMODataTree`, the `xarray.Dataset` will be validated to ensure it contains:
+Before the new grid node is added to an existing `NEMODataTree`, the `xarray.Dataset` will be validated to ensure it contains:
 
 - NEMO grid dimension coordinates (`i`, `j`).
 
@@ -99,7 +101,7 @@ nemo["gridT/thetao_con"].grid
 nemo["gridU/uo"].grid_type
 ```
 
-* Variable NEMO model grid metrics (i.e., a dictionary of NEMO grid scale factors - e1t, e2t, etc.):
+* Dictionary of variable NEMO grid scale factors (e.g., e1t, e2t, e3t):
 ```python
 nemo["gridV/vo"].metrics
 ```
@@ -121,7 +123,7 @@ In the example above, the 4-dimensional conservative temperature variable `theta
 
 ### Apply Custom Mask to NEMO Variable
 
-To apply a custim mask to a given `NEMODataArray` variable, we can use the `.apply_mask()` method:
+To apply a custom mask to a given `NEMODataArray` variable, we can use the `.apply_mask()` method:
 
 ```python
 nemo["gridT/so_abs"].apply_mask(mask=my_mask)
@@ -133,7 +135,7 @@ To drop the absolute salinity values where `my_mask` is `False`, we can optional
 
 ### Index a NEMODataArray to Match the Dimension Labels of Another (NEMO)DataArray
 
-In addition to the more familiar `.sel()` and `.isel()` label based selection methods, the `.sel_like()` method can be used to index a `NEMODataArray` to match the dimension index labels of another `NEMODataArray` or `xarray.DataArray` as follows:
+In addition to the more familiar `.sel()` and `.isel()` label based selection methods, the `.sel_like()` method can be used to index a `NEMODataArray` according to the dimension index labels of another `NEMODataArray` or `xarray.DataArray` as follows:
 
 ```python
 nda = nemo["gridT/so_abs"].sel(time_counter=slice('2000-01', '2025-01', k=1))
