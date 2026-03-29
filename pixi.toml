@@ -45,7 +45,7 @@ pytest = "*"
 pytest-mock = "*"
 
 [feature.test.tasks]
-test = "pytest --maxfail=1 --disable-warnings --tb=short"
+test = { cmd = "pytest --maxfail=1 --disable-warnings --tb=short", description = "Run NEMO Cookbook unit tests using pytest." }
 
 [feature.docs.pypi-dependencies]
 mkdocs-material = "*"
@@ -55,7 +55,7 @@ mkdocstrings = "*"
 mkdocstrings-python = "*"
 
 [feature.docs.tasks]
-docs = "cd docs/; mkdocs serve"
+docs = { cmd = "cd docs/; mkdocs serve", description = "Run the MkDocs built-in development server to build docs locally." }
 
 [feature.dev.dependencies]
 cartopy = ">=0.25.0,<0.26"
