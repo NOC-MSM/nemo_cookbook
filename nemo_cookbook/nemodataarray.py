@@ -135,28 +135,28 @@ class NEMODataArray:
     # Properties 
     # -----------
     @property
-    def data(self):
+    def data(self) -> xr.DataArray:
         """
         Access underlying xarray.DataArray.
         """
         return self._da
     
     @property
-    def grid(self):
+    def grid(self) -> str:
         """
         Access path to parent NEMO model grid.
         """
         return self._grid
     
     @property
-    def grid_type(self):
+    def grid_type(self) -> str:
         """
         Access type of parent NEMO model grid (e.g. 't', 'u', etc.).
         """
         return self._grid_suffix
     
     @property
-    def metrics(self):
+    def metrics(self) -> dict[str, "NEMODataArray"]:
         """
         Access grid scale factors for the parent NEMO model grid.
         """
@@ -172,7 +172,7 @@ class NEMODataArray:
         return d_metrics
     
     @property
-    def mask(self):
+    def mask(self) -> xr.DataArray:
         """
         Access variable land-sea mask for the parent NEMO model grid.
         """
@@ -197,6 +197,22 @@ class NEMODataArray:
         Apply land-sea mask to variable defined on NEMO model grid.
         """
         return self.apply_mask(mask=None, drop=False)
+    
+    @property
+    def iperio(self):
+        """
+        Zonal periodicity of variable defined on NEMO model grid.
+        """
+        # Determine zonal periodicity of parent NEMO model grid:
+        iperio = self._tree[self._grid].attrs.get("iperio", False)
+
+        # Update zonal periodicity if variable is defined on a subset
+        # of i-dimension labels of the parent NEMO model grid:
+        if iperio:
+            if self._da.coords[self.i_name].size != self._tree[self._grid].coords[self.i_name].size:
+                iperio = False
+
+        return iperio
 
     # ---------------
     # Public Methods 
@@ -363,10 +379,9 @@ class NEMODataArray:
         self,
         dim: str,
         fillna: bool = False,
-        iperio: bool | None = None,
     ) -> Self:
         """
-        Calculate the 1st-order discrete difference of a variable along a given dimension
+        Calculate the discrete difference of a variable along a given dimension
         (e.g., 'i', 'j', 'k') of a NEMO model grid.
 
         Parameters
@@ -375,12 +390,10 @@ class NEMODataArray:
             Dimension over which to calculate the finite difference (e.g., 'i', 'j', 'k').
         fillna : bool, optional
             Fill NaN values in NEMODataArray with zeros prior to finite differencing. Default is False.
-        iperio : bool | None, optional
-            Override the zonal periodicity inherited from the NEMO model grid. Default is None.
         Returns
         -------
         NEMODataArray
-            1st-order discrete difference of variable defined on a NEMO model grid.
+            Discrete difference of variable defined on a NEMO model grid.
 
         Examples
         --------
@@ -392,12 +405,12 @@ class NEMODataArray:
         Compute the difference of sea surface temperature `tos_con` values along a regional subset of a global,
         zonally periodic domain NEMO parent domain `i` dimension:
 
-        >>> nemo['gridT/tos_con'].sel(i=slice(10, 80)).diff(dim="i", iperio=False)
+        >>> nemo['gridT/tos_con'].sel(i=slice(10, 80)).diff(dim="i")
 
-        Note, we override the zonal periodicity inherited from the NEMO model grid since the selected subset
+        Here, the zonal periodicity inherited from the NEMO model grid is automatically set to `False` since a subset
         of the global domain is no longer zonally periodic.
 
-        Compute the 1st discrete difference of absolute salinity `so_abs` values along the first NEMO
+        Compute the discrete difference of absolute salinity `so_abs` values along the first NEMO
         nested child domain `k` dimension:
 
         >>> nemo['gridT/1_gridT/so_abs'].diff(dim="k")
@@ -422,11 +435,6 @@ class NEMODataArray:
 
         # -- Get NEMO model grid properties -- #
         grid_paths = self._tree._get_grid_paths(dom=self._dom)
-        if iperio is None:
-            iperio = self._tree[self._grid].attrs.get("iperio", False)
-        else:
-            if not isinstance(iperio, bool):
-                raise TypeError("iperio must be specified as a boolean or None.")
 
         # -- Calculate 1st-order discrete difference -- #
         if fillna:
@@ -450,20 +458,17 @@ class NEMODataArray:
                     result.coords[self.k_name] = (result.coords[self.k_name].fillna(0) + 0.5)
 
         elif dim == self.i_name:
-            if iperio:
-                if da.coords[self.i_name].size != self._tree[self._grid].coords[self.i_name].size:
-                    raise ValueError(f"Zonal periodic (iperio = {iperio}) NEMO model grid specified, but size of NEMODataArray i-dimension ({da.coords[self.i_name].size}) does not match i-dimension ({self._tree[self._grid].coords[self.i_name].size}) of NEMO model grid.")
             match self._grid_suffix:
                 case "t" | "v" | "w":
                     # T/V/W-grids located at i = 1, 2 ... Ni
-                    if iperio:
+                    if self.iperio:
                         result = da.roll({self.i_name: -1}) - da
                     else:
                         result = da.shift({self.i_name: -1}) - da
                     result.coords[self.i_name] = result.coords[self.i_name] + 0.5
                 case "u" | "f":
                     # U/F-grids located at i = 1.5, 2.5 ... Ni+0.5
-                    if iperio:
+                    if self.iperio:
                         result = da - da.roll({self.i_name: 1})
                         result.coords[self.i_name] = result.coords[self.i_name] - 0.5
                     else:
@@ -524,10 +529,9 @@ class NEMODataArray:
         self,
         dim: str,
         fillna: bool = False,
-        iperio: bool | None = None,
     ) -> Self:
         """
-        Calculate the 1st-derivative of a variable along a given dimension
+        Calculate the derivative of a variable along a given dimension
         (e.g., 'i', 'j', 'k') of a NEMO model grid.
 
         Parameters
@@ -536,13 +540,11 @@ class NEMODataArray:
             Dimension over which to calculate the derivative (e.g., 'i', 'j', 'k').
         fillna : bool, optional
             Fill NaN values in NEMODataArray with zeros prior to finite differencing. Default is False.
-        iperio : bool | None, optional
-            Override the zonal periodicity inherited from the NEMO model grid. Default is None.
 
         Returns
         -------
         NEMODataArray
-            1st-derivative of variable defined on a NEMO model grid.
+            Derivative of variable defined on a NEMO model grid.
 
         Examples
         --------
@@ -554,12 +556,12 @@ class NEMODataArray:
         Compute the derivative of sea surface temperature `tos_con` values along a regional subset of a global,
         zonally periodic domain NEMO parent domain `i` dimension:
 
-        >>> nemo['gridT/tos_con'].sel(i=slice(10, 80)).derivative(dim="i", iperio=False)
+        >>> nemo['gridT/tos_con'].sel(i=slice(10, 80)).derivative(dim="i")
 
-        Note, we override the zonal periodicity inherited from the NEMO model grid since the selected subset
+        Here, the zonal periodicity inherited from the NEMO model grid is automatically set to `False` since a subset
         of the global domain is no longer zonally periodic.
 
-        Compute the 1st discrete difference of absolute salinity `so_abs` values along the first NEMO
+        Compute the discrete difference of absolute salinity `so_abs` values along the first NEMO
         nested child domain `k` dimension:
 
         >>> nemo['gridT/1_gridT/so_abs'].derivative(dim="k")
@@ -581,13 +583,7 @@ class NEMODataArray:
             raise TypeError(
                 "`fillna` must be specified as a boolean. Default is False."
             )
-        
-        # -- Get NEMO model grid properties -- #
-        if iperio is None:
-            iperio = self._tree[self._grid].attrs.get("iperio", False)
-        else:
-            if not isinstance(iperio, bool):
-                raise TypeError("iperio must be specified as a boolean or None.")
+
             
         # -- Calculate 1st-discrete derivative along dimension -- #
         # Determine NEMO model grid type and scale factors for derivative:
@@ -606,7 +602,7 @@ class NEMODataArray:
             ) from e
 
         # Calculate 1st-finite difference along dimension:
-        da = self.diff(dim=dim, fillna=fillna, iperio=iperio)
+        da = self.diff(dim=dim, fillna=fillna)
 
         # Calculate derivative (i.e., diff(var) / e{1/2/3}{t/u/v/w}):
         if dim in [self.k_name]:
@@ -888,12 +884,12 @@ class NEMODataArray:
 
         return result
 
-    def transform_to(
+    def interp_to(
         self,
         to: str,
     ) -> Self:
         """
-        Transform variable to a neighbouring horizontal grid using linear interpolation.
+        Linearly interpolate variable to a neighbouring horizontal grid.
 
         For flux variables defined at U/V-points, the specified variable
         is first weighted by grid cell face area prior to linear interpolation,
@@ -903,7 +899,7 @@ class NEMODataArray:
         Parameters
         ----------
         to : str
-            Suffix of neighbouring horizontal NEMO model grid to transform
+            Suffix of neighbouring horizontal NEMO model grid to linear interpolate
             variable to. Options are 'T', 'U', 'V', 'F'.
 
         Returns
@@ -913,10 +909,10 @@ class NEMODataArray:
 
         Examples
         --------
-        Transform conservative temperature `thetao_con` defined on scalar T-points
+        Linearly interpolate conservative temperature `thetao_con` defined on scalar T-points
         to neighbouring V-points in a NEMO model parent domain:
 
-        >>> nemo['gridT/thetao_con'].transform_to(to='V')
+        >>> nemo['gridT/thetao_con'].interp_to(to='V')
 
         See Also
         --------
@@ -930,7 +926,6 @@ class NEMODataArray:
 
         # -- Get NEMO model grid properties -- #
         ijk_names = self._tree._get_ijk_names(grid=self._grid)
-        iperio = self._tree[self._grid].attrs.get("iperio", False)
         target_grid = f"{self._grid.replace(self._grid[-1], to)}"
 
         # -- Collect variable grid scale factors -- #
@@ -961,27 +956,32 @@ class NEMODataArray:
             mask=self.mask,
             source_grid=self._grid_suffix.upper(),
             target_grid=to,
-            iperio=iperio,
+            iperio=self.iperio,
             ijk_names=ijk_names,
         )
 
-        # Retain input variable name:
+        # -- Updating NEMO model grid coordinates -- #
+        geo_coords = [coord for coord in da.coords if coord not in (self.t_name, self.k_name, self.i_name, self.j_name)]
+
+        # Define new geographical coordinates (glam, gphi, depth) based on new grid type:
+        # NOTE: Subsets of NEMODataTree geographical coordinates are supported implicitly since the
+        # (i, j, k) coordinates of the grid dimensions (i, j, k) can be used to align incoming (i.e., _tree) coordinates.
+        new_coords = {
+            f"{self._dom_prefix}glam{to.lower()}": self._tree[target_grid][f"{self._dom_prefix}glam{to.lower()}"],
+            f"{self._dom_prefix}gphi{to.lower()}": self._tree[target_grid][f"{self._dom_prefix}gphi{to.lower()}"],
+        }
+        if self.k_name in result.coords:
+            new_coords[f"{self._dom_prefix}depth{to.lower()}"] = self._tree[target_grid][f"{self._dom_prefix}depth{to.lower()}"]
+
+        # -- Update DataArray properties -- #
+        result = result.drop_vars(geo_coords)
+        result = result.assign_coords(new_coords)
+        # Retain original variable name:
         result.name = da.name
+
         # Reorder dimensions (time_counter, [k], j, i):
-        new_dims = (result.dims[-1], *result.dims[:-1])
-        result = result.transpose(*new_dims)
-
-        # Update NEMO grid coords:
-        result[self.i_name] = self._tree[target_grid][self.i_name]
-        result[self.j_name] = self._tree[target_grid][self.j_name]
-        if self.k_name in result.dims:
-            result[self.k_name] = self._tree[target_grid][self.k_name]
-
-        # Drop NEMO source grid coords:
-        drop_vars = [f"{self._dom_prefix}glam{self._grid_suffix}", f"{self._dom_prefix}gphi{self._grid_suffix}"]
-        if f"{self._dom_prefix}depth{self._grid_suffix}" in da.coords:
-            drop_vars.append(f"{self._dom_prefix}depth{self._grid_suffix}")
-        result = result.drop_vars(drop_vars)
+        var_dims = [dim for dim in [self.t_name, self.k_name, self.j_name, self.i_name] if (dim is not None) and (dim in result.dims)]
+        result = result.transpose(*var_dims).squeeze()
 
         # Normalise by target grid cell weights for flux variables:
         if self._grid_suffix.upper() in ["U", "V"]:
@@ -1055,11 +1055,11 @@ class NEMODataArray:
         )
 
         # -- Construct transformed variable Dataset -- #
-        var_dim_list = [dim for dim in [self.t_name, "k_new", self.j_name, self.i_name] if (dim is not None) and (dim in var_out.dims)]
-        var_out = var_out.transpose(*var_dim_list).squeeze()
+        var_dims = [dim for dim in [self.t_name, "k_new", self.j_name, self.i_name] if (dim is not None) and (dim in var_out.dims)]
+        var_out = var_out.transpose(*var_dims).squeeze()
     
-        e3_dim_list = [dim for dim in [self.t_name, "k_new", self.j_name, self.i_name] if (dim is not None) and (dim in e3_out.dims)]
-        e3_out = e3_out.transpose(*e3_dim_list).squeeze()
+        e3_dims = [dim for dim in [self.t_name, "k_new", self.j_name, self.i_name] if (dim is not None) and (dim in e3_out.dims)]
+        e3_out = e3_out.transpose(*e3_dims).squeeze()
 
         result = xr.Dataset(
             data_vars={self.name: var_out, f"e3{self._grid_suffix}_new": e3_out},

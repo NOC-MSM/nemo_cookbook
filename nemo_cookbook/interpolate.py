@@ -88,8 +88,8 @@ def interpolate_grid(
                 if iperio:
                     # Zonally periodic domain:
                     result = masked_average(
-                        da_list=[da.roll({i_name: 1}), da],
-                        mask_list=[mask.roll({i_name: 1}), mask],
+                        da_list=[da.roll({i_name: -1}), da],
+                        mask_list=[mask.roll({i_name: -1}), mask],
                     )
                 else:
                     # Non-periodic domain:
@@ -97,26 +97,32 @@ def interpolate_grid(
                         da_list=[da, da.shift({i_name: -1})],
                         mask_list=[mask, mask.shift({i_name: -1})],
                     )
+                # Update (i + 1/2) -> U-grid:
+                result.coords[i_name] = result.coords[i_name] + 0.5
+
             elif target_grid == "V":
                 # T -> V grid:
                 result = masked_average(
                     da_list=[da, da.shift({j_name: -1})],
                     mask_list=[mask, mask.shift({j_name: -1})],
                 )
+                # Update (j + 1/2) -> V-grid:
+                result.coords[j_name] = result.coords[j_name] + 0.5
+
             elif target_grid == "F":
                 # T -> F grid:
                 if iperio:
                     # Zonally periodic domain:
                     result = masked_average(
                         da_list=[
-                            da.roll({i_name: 1}).shift({j_name: -1}),
-                            da.roll({i_name: 1}),
+                            da.roll({i_name: -1}).shift({j_name: -1}),
+                            da.roll({i_name: -1}),
                             da.shift({j_name: -1}),
                             da,
                         ],
                         mask_list=[
-                            mask.roll({i_name: 1}).shift({j_name: -1}),
-                            mask.roll({i_name: 1}),
+                            mask.roll({i_name: -1}).shift({j_name: -1}),
+                            mask.roll({i_name: -1}),
                             mask.shift({j_name: -1}),
                             mask,
                         ],
@@ -137,6 +143,11 @@ def interpolate_grid(
                             mask,
                         ],
                     )
+                # Update (i + 1/2) -> F-grid:
+                result.coords[i_name] = result.coords[i_name] + 0.5
+                # Update (j + 1/2) -> F-grid:
+                result.coords[j_name] = result.coords[j_name] + 0.5
+
             else:
                 raise ValueError(
                     f"Unsupported grid transformation from '{source_grid}' to '{target_grid}'."
@@ -155,24 +166,27 @@ def interpolate_grid(
                 else:
                     # Non-periodic domain:
                     result = masked_average(
-                        da_list=[da, da.shift({i_name: -1})],
-                        mask_list=[mask, mask.shift({i_name: -1})],
+                        da_list=[da, da.shift({i_name: 1})],
+                        mask_list=[mask, mask.shift({i_name: 1})],
                     )
+                # Update (i - 1/2) -> T-grid:
+                result.coords[i_name] = result.coords[i_name] - 0.5
+
             elif target_grid == "V":
                 # U -> V grid:
                 if iperio:
                     # Zonally periodic domain:
                     result = masked_average(
                         da_list=[
-                            da.roll({i_name: 1}).shift({j_name: 1}),
+                            da.roll({i_name: 1}).shift({j_name: -1}),
                             da.roll({i_name: 1}),
-                            da.shift({j_name: 1}),
+                            da.shift({j_name: -1}),
                             da,
                         ],
                         mask_list=[
-                            mask.roll({i_name: 1}).shift({j_name: 1}),
+                            mask.roll({i_name: 1}).shift({j_name: -1}),
                             mask.roll({i_name: 1}),
-                            mask.shift({j_name: 1}),
+                            mask.shift({j_name: -1}),
                             mask,
                         ],
                     )
@@ -180,18 +194,23 @@ def interpolate_grid(
                     # Non-periodic domain:
                     result = masked_average(
                         da_list=[
-                            da.shift({i_name: 1}).shift({j_name: 1}),
+                            da.shift({i_name: 1}).shift({j_name: -1}),
                             da.shift({i_name: 1}),
-                            da.shift({j_name: 1}),
+                            da.shift({j_name: -1}),
                             da,
                         ],
                         mask_list=[
-                            mask.shift({i_name: 1}).shift({j_name: 1}),
+                            mask.shift({i_name: 1}).shift({j_name: -1}),
                             mask.shift({i_name: 1}),
-                            mask.shift({j_name: 1}),
+                            mask.shift({j_name: -1}),
                             mask,
                         ],
                     )
+                # Update (i - 1/2) -> V-grid:
+                result.coords[i_name] = result.coords[i_name] - 0.5
+                # Update (j + 1/2) -> V-grid:
+                result.coords[j_name] = result.coords[j_name] + 0.5
+
             else:
                 raise ValueError(
                     f"Unsupported grid transformation from '{source_grid}' to '{target_grid}'."
@@ -205,22 +224,30 @@ def interpolate_grid(
                     da_list=[da, da.shift({j_name: 1})],
                     mask_list=[mask, mask.shift({j_name: 1})],
                 )
+                # Update (j - 1/2) -> T-grid:
+                result.coords[j_name] = result.coords[j_name] - 0.5
+
             elif target_grid == "U":
                 # V -> U grid:
                 result = masked_average(
                     da_list=[
-                        da.shift({i_name: 1}).shift({j_name: 1}),
-                        da.shift({i_name: 1}),
+                        da.shift({i_name: -1}).shift({j_name: 1}),
+                        da.shift({i_name: -1}),
                         da.shift({j_name: 1}),
                         da,
                     ],
                     mask_list=[
-                        mask.shift({i_name: 1}).shift({j_name: 1}),
-                        mask.shift({i_name: 1}),
+                        mask.shift({i_name: -1}).shift({j_name: 1}),
+                        mask.shift({i_name: -1}),
                         mask.shift({j_name: 1}),
                         mask,
                     ],
                 )
+                # Update (i + 1/2) -> U-grid:
+                result.coords[i_name] = result.coords[i_name] + 0.5
+                # Update (j - 1/2) -> U-grid:
+                result.coords[j_name] = result.coords[j_name] - 0.5
+
             else:
                 raise ValueError(
                     f"Unsupported grid transformation from '{source_grid}' to '{target_grid}'."
