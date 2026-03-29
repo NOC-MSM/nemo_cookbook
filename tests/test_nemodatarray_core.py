@@ -544,23 +544,23 @@ class TestNEMODataArrayMaskedStatistic:
             nda.masked_statistic(lon_poly=[], lat_poly=[], statistic="mean", dims=["j", "i"], skipna=skipna_error)
 
 
-class TestNEMODataArrayTransformTo:
+class TestNEMODataArrayInterpTo:
     """
-    Test NEMODataArray.transform_to() Input Validation and Behavior.
+    Test NEMODataArray.interp_to() Input Validation and Behavior.
     """
     @pytest.mark.parametrize("to_error", [1, None, ["V"], ("V",)])
     def test_to_type_error(self, to_error, example_global_nemodatatree):
         nemo = example_global_nemodatatree
         nda = nemo["gridT/tos_con"]
         with pytest.raises(TypeError, match=re.escape("'to' must be a string")):
-            nda.transform_to(to=to_error)
+            nda.interp_to(to=to_error)
 
     @pytest.mark.parametrize("to_value_error", ["W", "t", "u", "X", ""])
     def test_to_value_error(self, to_value_error, example_global_nemodatatree):
         nemo = example_global_nemodatatree
         nda = nemo["gridT/tos_con"]
         with pytest.raises(ValueError, match=re.escape("'to' must be one of ['T', 'U', 'V', 'F']")):
-            nda.transform_to(to=to_value_error)
+            nda.interp_to(to=to_value_error)
 
     @pytest.mark.parametrize("dom_type,source_grid,var,target_grid_suffix", [
         ("global", "gridT", "tos_con", "v"),
@@ -570,50 +570,50 @@ class TestNEMODataArrayTransformTo:
         ("global", "gridU", "uo", "t"),
         ("regional", "gridV", "vo", "t"),
     ])
-    def test_transform_to_grid_type(
+    def test_interp_to_grid_type(
         self, dom_type, source_grid, var, target_grid_suffix,
         example_global_nemodatatree, example_regional_nemodatatree
     ):
         nemo = _get_nemodatatree(dom_type, example_global_nemodatatree, example_regional_nemodatatree)
         nda = nemo[f"{source_grid}/{var}"]
-        result = nda.transform_to(to=target_grid_suffix.upper())
+        result = nda.interp_to(to=target_grid_suffix.upper())
         assert isinstance(result, NEMODataArray)
         assert result.grid_type == target_grid_suffix
 
     @pytest.mark.parametrize("dom_type", ["global", "regional"])
-    def test_transform_to_returns_correct_grid_path(
+    def test_interp_to_returns_correct_grid_path(
         self, dom_type, example_global_nemodatatree, example_regional_nemodatatree
     ):
         nemo = _get_nemodatatree(dom_type, example_global_nemodatatree, example_regional_nemodatatree)
-        result = nemo["gridT/tos_con"].transform_to(to="V")
+        result = nemo["gridT/tos_con"].interp_to(to="V")
         assert result.grid == "gridV"
 
     @pytest.mark.parametrize("dom_type", ["global", "regional"])
-    def test_transform_to_returns_correct_coords(
+    def test_interp_to_returns_correct_coords(
         self, dom_type, example_global_nemodatatree, example_regional_nemodatatree
     ):
         nemo = _get_nemodatatree(dom_type, example_global_nemodatatree, example_regional_nemodatatree)
-        result = nemo["gridT/tos_con"].transform_to(to="V")
+        result = nemo["gridT/tos_con"].interp_to(to="V")
         assert 'gphiv' in result.data.coords
         assert 'glamv' in result.data.coords
         assert 'depthv' not in result.data.coords
 
     @pytest.mark.parametrize("dom_type", ["global", "regional"])
-    def test_transform_to_returns_correct_mask(
+    def test_interp_to_returns_correct_mask(
         self, dom_type, example_global_nemodatatree, example_regional_nemodatatree
     ):
         nemo = _get_nemodatatree(dom_type, example_global_nemodatatree, example_regional_nemodatatree)
-        result = nemo["gridT/tos_con"].transform_to(to="V")
+        result = nemo["gridT/tos_con"].interp_to(to="V")
         assert result.mask.equals(nemo["gridV"]["vmaskutil"])
 
     @pytest.mark.parametrize("dom_type", ["global", "regional"])
-    def test_transform_to_preserves_dims(
+    def test_interp_to_preserves_dims(
         self, dom_type, example_global_nemodatatree, example_regional_nemodatatree
     ):
         # Test transformed variable has same dimensions as the input:
         nemo = _get_nemodatatree(dom_type, example_global_nemodatatree, example_regional_nemodatatree)
         nda = nemo["gridT/thetao_con"]
-        result = nda.transform_to(to="U")
+        result = nda.interp_to(to="U")
         assert ("time_counter" in result.dims) and ("j" in result.dims) and ("i" in result.dims) and ("k" in result.dims)
 
 class TestNEMODataArrayTransformVerticalGrid:
