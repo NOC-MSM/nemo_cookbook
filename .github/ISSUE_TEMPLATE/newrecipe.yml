@@ -1,0 +1,27 @@
+name: 💡 Recipe Request
+description: Suggest a New Recipe or Update an Existing Recipe in NEMO Cookbook.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the NEMO Cookbook Recipe you would like to create or update...
+      description: |
+        Please search our existing issues to make sure that this recipe is not already being implemented.
+        Please provide a clear and concise description of the diagnostic you would like to calculate or improve in this Recipe.
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Describe how you will calculate this diagnostic using NEMO Cookbook in your Recipe...
+      description: |
+        A clear and concise description of the diagnostic implementation using NEMO Cookbook data structures.
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context
+      description: |
+        Add any other context about the Recipe request here.
+    validations:
+      required: false
