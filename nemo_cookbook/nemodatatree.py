@@ -785,7 +785,7 @@ class NEMODataTree(xr.DataTree):
 
     @deprecated(version_since="2026.03.b1",
                 version_removed="2026.05",
-                alternative="NEMODataArray.gradient"
+                alternative="NEMODataArray.derivative or NEMOVectorField.gradient from v2026.04 onwards"
                 )
     def gradient(
         self,
@@ -936,7 +936,7 @@ class NEMODataTree(xr.DataTree):
 
     @deprecated(version_since="2026.03.b1",
                 version_removed="2026.05",
-                alternative="NEMOVectorField.divergence"
+                alternative="NEMOVectorField.divergence from v2026.04 onwards"
                 )
     def divergence(
         self,
@@ -1050,7 +1050,7 @@ class NEMODataTree(xr.DataTree):
 
     @deprecated(version_since="2026.03.b1",
                 version_removed="2026.05",
-                alternative="NEMOVectorField.curl"
+                alternative="NEMOVectorField.curl from v2026.04 onwards"
                 )
     def curl(
         self,
@@ -2227,7 +2227,7 @@ class NEMODataTree(xr.DataTree):
 
     @deprecated(version_since="2026.03.b1",
                 version_removed="2026.05",
-                alternative="NEMODataArray.transform_to"
+                alternative="NEMODataArray.interp_to"
                 )
     def transform_to(
         self,
