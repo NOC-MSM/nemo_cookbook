@@ -78,6 +78,7 @@ nav:
     - recipes.md
     - Meridional Overturning - Depth Space: recipe_moc_z.ipynb
     - Meridional Overturning - Tracer Space: recipe_moc_tracer.ipynb
+    - Ocean Heat Transport: recipe_heat_transport.ipynb
     - Barotropic Stream Functions: recipe_barotropic_sf.ipynb
     - Ocean Heat Content: recipe_heat_content.ipynb
     - Regional Masked Statistics: recipe_masked_stats.ipynb

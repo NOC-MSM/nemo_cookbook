@@ -21,13 +21,13 @@
 
     [:octicons-arrow-right-24: Recipe](https://noc-msm.github.io/nemo_cookbook/recipe_moc_z/)
 
--   __Ocean Heat Content__
+-   __Ocean Heat Transport__
 
     ---
 
-    Upper ocean heat content using depth integration.
+    Global meridional ocean heat transport.
 
-    [:octicons-arrow-right-24: Recipe](https://noc-msm.github.io/nemo_cookbook/recipe_heat_content/)
+    [:octicons-arrow-right-24: Recipe](https://noc-msm.github.io/nemo_cookbook/recipe_heat_transport/)
 
 -   __Volume Census__
 
@@ -60,6 +60,14 @@
     Regional barotropic stream functions using grid-aware integration.
 
     [:octicons-arrow-right-24: Recipe](https://noc-msm.github.io/nemo_cookbook/recipe_barotropic_sf)
+
+-   __Ocean Heat Content__
+
+    ---
+
+    Upper ocean heat content using depth integration.
+
+    [:octicons-arrow-right-24: Recipe](https://noc-msm.github.io/nemo_cookbook/recipe_heat_content/)
 
 -   __Vertical Coordinate Transformations__
 
