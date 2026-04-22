@@ -324,10 +324,14 @@ class NEMODataArray:
                 if other.coords[dim].size != self.data.coords[dim].size:
                     d_dims[dim] = other.coords[dim].data
 
-        result = self.data.sel(d_dims)
+        # Indexing only required if dimensions modified:
+        if len(d_dims) > 0:
+            result = self.data.sel(d_dims)
+            return self._wrap(result)
+        # Otherwise return original NEMODataArray:
+        else:
+            return self
 
-        return self._wrap(result)
-    
     def weighted_mean(
         self,
         dims : list,
@@ -593,9 +597,9 @@ class NEMODataArray:
         # Define path to derivative NEMO model grid:
         new_grid = f"{self._grid.replace(self._grid[-1], new_grid_suffix.upper())}"
 
-        # Collect & mask derivative grid scale factors (e.g., e1u, e3t etc.):
+        # Collect derivative grid scale factors (e.g., e1u, e3t etc.):
         try:
-            weights = self._tree[f"{new_grid}/{new_grid_weights}"].masked
+            weights = self._tree[new_grid][new_grid_weights]
         except KeyError as e:
             raise KeyError(
                 f"NEMO model grid: '{new_grid}' does not contain grid scale factor '{new_grid_weights}' required to calculate derivatives along the {dim}-dimension."
@@ -607,10 +611,10 @@ class NEMODataArray:
         # Calculate derivative (i.e., diff(var) / e{1/2/3}{t/u/v/w}):
         if dim in [self.k_name]:
             # Vertical derivative [k increasing downward]:
-            result = - da.data / weights.data
+            result = - da.data / weights
         else:
             # Horizontal derivative [i/j increasing eastward/northward]:
-            result = da.data / weights.data
+            result = da.data / weights
 
         # -- Update DataArray properties & return NEMODataArray -- #
         result.name = f"d({self.name})/d{dim}"
@@ -669,7 +673,7 @@ class NEMODataArray:
         --------
         depth_integral
         """
-        # -- Validate input -- #
+        # -- Validate Input -- #
         if cum_dims is not None:
             for dim in cum_dims:
                 if dim not in dims:
@@ -689,11 +693,7 @@ class NEMODataArray:
                 )
 
         # -- Collect variable, weights & mask -- #
-        da = (
-            self.masked.data.where(mask)
-            if mask is not None
-            else self.masked.data
-            )
+        da = self.apply_mask(mask=mask).data
         weights = self._tree._get_weights(grid=self._grid, dims=dims)
 
         # -- Perform integration -- #
@@ -853,7 +853,7 @@ class NEMODataArray:
         )
 
         # -- Apply masks & calculate statistic -- #
-        da = self.masked.data.where(mask_poly)
+        da = self.apply_mask(mask=mask_poly).data
 
         match statistic:
             case "mean":
