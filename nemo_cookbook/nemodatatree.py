@@ -623,7 +623,7 @@ class NEMODataTree(xr.DataTree):
             "k": f"e3{grid_suffix}",
         }
         try:
-            weights_list = [self[f"{grid}/{weights_dict[dim]}"].masked.data for dim in dims]
+            weights_list = [self[f"{grid}"][weights_dict[dim]] for dim in dims]
         except KeyError as e:
             raise KeyError(
                 f"weights missing for dimensions {dims} of NEMO model grid {grid}"
