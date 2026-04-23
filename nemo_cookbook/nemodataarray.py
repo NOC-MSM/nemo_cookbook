@@ -97,20 +97,20 @@ class NEMODataArray:
                 f"{self._grid} not found in available NEMODataTree grids {grid_keys}."
             )
 
-        # Dimension must exist & values must be within NEMODataTree dimension values:
+        # Dimension must exist & sizes must be less than or equal to NEMODataTree dimensions:
         if not all(dim in list(self._tree[self._grid].dims) for dim in self._da.dims):
             raise ValueError(f"DataArray dimensions {self._da.dims} not all in NEMO model '{self._grid}' dimensions {self._tree[self._grid].dims}.")
 
-        if not all((self._da[dim].min() >= self._tree[self._grid][dim].min()) & (self._da[dim].max() <= self._tree[self._grid][dim].max()) for dim in self._da.dims):
-            raise ValueError(f"DataArray dimension values {self._da.dims} not all within NEMO model '{self._grid}' dimension values {self._tree[self._grid].dims}.")
+        if not all(self._da.sizes[d] <= self._tree[self._grid].sizes[d] for d in self._da.dims):
+            raise ValueError(f"DataArray dimension sizes {self._da.dims} not all less than or equal to NEMO model '{self._grid}' dimension sizes {self._tree[self._grid].dims}.")
 
-        # Core coordinates (glam, gphi, depth, time_counter) must exist & values must be within NEMODataTree coordinate values:
+        # Core coordinates (glam, gphi, depth, time_counter) must exist & sizes must be less than or equal to NEMODataTree coordinates:
         core_coords = [coord for coord in self._da.coords if "glam" in coord or "gphi" in coord or "depth" in coord or "time_counter" in coord]
         if not all(dim in list(self._tree[self._grid].coords) for dim in core_coords):
             raise ValueError(f"DataArray coordinates {core_coords} not all in NEMO model '{self._grid}' coordinates {self._tree[self._grid].coords}.")
 
-        if not all((self._da[coord].min() >= self._tree[self._grid].coords[coord].min()) & (self._da[coord].max() <= self._tree[self._grid].coords[coord].max()) for coord in core_coords):
-            raise ValueError(f"DataArray coordinate values {core_coords} not all within NEMO model '{self._grid}' coordinate values {self._tree[self._grid].coords}.")
+        if not all(self._da[coord].sizes[d] <= self._tree[self._grid].coords[coord].sizes[d] for coord in core_coords for d in self._da[coord].dims):
+            raise ValueError(f"DataArray coordinate sizes {core_coords} not all less than or equal to NEMO model '{self._grid}' coordinate sizes {self._tree[self._grid].coords}.")
 
         # -- Assign NEMO domain number, grid path and grid type -- #
         dom, dom_prefix, dom_suffix, grid_suffix = self._tree._get_properties(grid=self._grid, infer_dom=True)
