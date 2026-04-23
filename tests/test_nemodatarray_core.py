@@ -129,6 +129,23 @@ class TestNEMODataArrayWeightedMean:
         with pytest.raises(TypeError, match=re.escape("skipna must be specified as a boolean or None.")):
             nda.weighted_mean(dims=["j"], skipna=skipna_error)
 
+    @pytest.mark.parametrize("mask_error", ["mask", np.array([]), [1,0,1]])
+    def test_mask_type_error(self, mask_error, example_global_nemodatatree):
+        nemo = example_global_nemodatatree
+        nda = nemo["gridT/tos_con"]
+        with pytest.raises(TypeError, match=re.escape("mask must be an xarray.DataArray.")):
+            nda.weighted_mean(dims=["j"], mask=mask_error)
+
+    @pytest.mark.parametrize("dom_type", ["global", "regional"])
+    def test_mask_dim_error(
+        self, dom_type, example_global_nemodatatree, example_regional_nemodatatree
+    ):
+        nemo = _get_nemodatatree(dom_type, example_global_nemodatatree, example_regional_nemodatatree)
+        nda = nemo["gridT/tos_con"]
+        mask = xr.DataArray(np.ones((10, 10)), dims=["j", "x"])
+        with pytest.raises(ValueError, match=re.escape("mask must have dimensions subset from")):
+            nda.weighted_mean(dims=["i"], mask=mask)
+
     @pytest.mark.parametrize("dom_type", ["global", "regional"])
     def test_weighted_mean_returns_nemodataarray(
         self, dom_type, example_global_nemodatatree, example_regional_nemodatatree

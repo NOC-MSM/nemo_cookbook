@@ -335,6 +335,7 @@ class NEMODataArray:
     def weighted_mean(
         self,
         dims : list,
+        mask: xr.DataArray | None = None,
         skipna : bool | None = None
     ) -> Self:
         """
@@ -344,6 +345,9 @@ class NEMODataArray:
         ----------
         dims : list
             Dimensions over which to apply weighted mean (e.g., ['i', 'j']).
+        mask: xr.DataArray, optional
+            Boolean mask identifying NEMO model grid points to be included (1)
+            or neglected (0) from integration.
         skipna : bool | None
             If True, skip missing values (as marked by NaN).
             By default, only skips missing values for float dtypes.
@@ -367,14 +371,22 @@ class NEMODataArray:
         # -- Validate Input -- #
         if not isinstance(dims, list):
             raise TypeError("dims must be specified as a list.")
+        if mask is not None:
+            if not isinstance(mask, xr.DataArray):
+                raise TypeError("mask must be an xarray.DataArray.")
+            if any(dim not in self.dims for dim in mask.dims):
+                raise ValueError(
+                    f"mask must have dimensions subset from {self.dims}."
+                )
         if skipna is not None:
             if not isinstance(skipna, bool):
                 raise TypeError("skipna must be specified as a boolean or None.")
 
         # -- Calculate weighted mean & return NEMODataArray -- #
+        da = self.apply_mask(mask=mask).data
         weight_dims = [dim.replace(self._dom_suffix, "") for dim in dims]
         weights = self._tree._get_weights(grid=self._grid, dims=weight_dims)
-        result = self.weighted(weights).mean(dim=dims, skipna=skipna)
+        result = da.weighted(weights).mean(dim=dims, skipna=skipna)
         result.name = f"wmean_{'_'.join(dims)}({self.name})"
 
         return self._wrap(result)
@@ -397,7 +409,9 @@ class NEMODataArray:
         Returns
         -------
         NEMODataArray
-            Discrete difference of variable defined on a NEMO model grid.
+            Discrete difference of variable defined on a new NEMO model grid. For example, the
+            discrete difference along the i-dimension of a scalar variable defined on a T-grid
+            returns a NEMODataArray defined on the U-grid. 
 
         Examples
         --------
@@ -753,7 +767,7 @@ class NEMODataArray:
         --------
         integral
         """
-        # -- Validate input -- #
+        # -- Validate Input -- #
         if (not isinstance(limits, tuple)) | (len(limits) != 2):
             raise TypeError(
                 "depth limits of integration should be given by a tuple of the form (depth_min, depth_max)"
