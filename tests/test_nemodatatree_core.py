@@ -91,12 +91,18 @@ class TestCellArea():
             )
         areacello = nemo.cell_area(grid=grid, dim='i')
 
+        assert areacello.name == "areacello"
+        assert areacello.equals(data)
+
         # -- Meridional grid cell face area -- #
         data = (
             nemo[grid][f"e3{grid_suffix}"].where(nemo[grid][f"{grid_suffix}mask"])
             * nemo[grid][f"e1{grid_suffix}"].where(nemo[grid][f"{grid_suffix}maskutil"])
             )
         areacello = nemo.cell_area(grid=grid, dim='j')
+
+        assert areacello.name == "areacello"
+        assert areacello.equals(data)
 
         # -- Horizontal grid cell area -- #
         data = (
@@ -105,7 +111,6 @@ class TestCellArea():
             )
         areacello = nemo.cell_area(grid=grid, dim='k')
 
-        # -- Verify equal dims, coords and data values -- #
         assert areacello.name == "areacello"
         assert areacello.equals(data)
 
