@@ -1041,7 +1041,7 @@ class NEMODataArray:
         --------
         transform_to
         """
-        # -- Validate input -- #
+        # -- Validate Input -- #
         if e3_new.dims != ("k_new",) or (e3_new.ndim != 1):
             raise ValueError(
                 "e3_new must be a 1-dimensional xarray.DataArray with dimension 'k_new'."
@@ -1050,9 +1050,12 @@ class NEMODataArray:
         # -- Define input variables -- #
         var_in = self.masked.data
         e3_in = self.metrics["e3"].masked.data
-        if e3_new.sum(dim="k_new") < var_in[f"depth{self._grid_suffix}"].max(dim=self.k_name):
+
+        # Ensure total depth of new vertical grid >= total depth of NEMO model vertical grid:
+        depth_max = self._tree[self._grid][f"{self._dom_prefix}depth{self._grid_suffix}"].max(self.k_name)
+        if e3_new.sum(dim="k_new") < depth_max:
             raise ValueError(
-                f"e3_new must sum to at least the maximum depth ({var_in[f'depth{self._grid_suffix}'].max(dim=self.k_name).item()} m) of the original vertical grid."
+                f"e3_new must sum to at least the maximum depth ({depth_max.item()} m) of the original vertical grid."
             )
 
         # -- Transform variable to target vertical grid -- #
