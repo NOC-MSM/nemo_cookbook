@@ -426,7 +426,7 @@ class NEMODataTree(xr.DataTree):
         if isinstance(value, NEMODataArray):
             value = value.data
 
-        if validate & isinstance(value, xr.Dataset):
+        if validate and isinstance(value, xr.Dataset):
             # Define suffix NEMO grid node:
             grid_type = key[-1].lower()
             hgrid_type = grid_type if "w" not in grid_type else "t"
@@ -471,7 +471,7 @@ class NEMODataTree(xr.DataTree):
         is_gridpath = key.startswith("/grid") or key.startswith("grid")
 
         # -- Return NEMODataArray -- #
-        if isinstance(item, xr.DataArray) & is_gridpath:
+        if isinstance(item, xr.DataArray) and is_gridpath:
             var_name = key.split("/")[-1]
             grid = key.replace(f"/{var_name}", "")
             item = NEMODataArray(da=item,
@@ -512,7 +512,7 @@ class NEMODataTree(xr.DataTree):
         tuple[str]
             NEMO model domain and grid properties.
         """
-        if (grid is None) & (dom is not None):
+        if (grid is None) and (dom is not None):
             dom_prefix = "" if dom == "." else f"{dom}_"
             dom_suffix = "" if dom == "." else f"{dom}"
             return dom_prefix, dom_suffix
@@ -552,7 +552,7 @@ class NEMODataTree(xr.DataTree):
 
         if dom == ".":
             grid_paths = [
-                path for path in grid_paths if ("_" not in path) & ("grid" in path)
+                path for path in grid_paths if ("_" not in path) and ("grid" in path)
             ]
         else:
             grid_paths = [path for path in grid_paths if dom in path]
@@ -1007,7 +1007,7 @@ class NEMODataTree(xr.DataTree):
         da_j = self[f"{gridV}/{var_j}"].masked.data
 
         # -- Collect mask -- #
-        if (f"{dom_prefix}depthu" in da_i.coords) & (
+        if (f"{dom_prefix}depthu" in da_i.coords) and (
             f"{dom_prefix}depthv" in da_j.coords
         ):
             # 3-dimensional tmask:
@@ -1120,7 +1120,7 @@ class NEMODataTree(xr.DataTree):
         da_j = self[f"{gridV}/{var_j}"].masked.data
 
         # -- Collect mask -- #
-        if (f"{dom_prefix}depthu" in da_i.coords) & (
+        if (f"{dom_prefix}depthu" in da_i.coords) and (
             f"{dom_prefix}depthv" in da_j.coords
         ):
             # 3-dimensional fmask

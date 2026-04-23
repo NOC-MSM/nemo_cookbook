@@ -212,7 +212,7 @@ def _check_grid_datasets(d: dict[str, xr.Dataset]) -> dict[str, xr.Dataset]:
             _check_grid_dims(ds=d[key], grid=key)
 
     # Combining sea ice and scalar variables both stored on T-grid:
-    if ("gridT" in d.keys()) & ("icemod" in d.keys()):
+    if ("gridT" in d.keys()) and ("icemod" in d.keys()):
         d["gridT"] = xr.merge([d["icemod"], d["gridT"]], compat="no_conflicts")
 
     return d

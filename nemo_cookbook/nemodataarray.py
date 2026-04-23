@@ -179,7 +179,7 @@ class NEMODataArray:
         if (self._da.ndim == 1) and (self.t_name in self._da.dims):
             raise ValueError("land-sea mask does not exist for variables without spatial dimensions.")
         else:
-            if (f"{self._dom_prefix}depth{self._grid_suffix}" in self._da.coords) & (self.k_name in self._da.dims):
+            if (f"{self._dom_prefix}depth{self._grid_suffix}" in self._da.coords) and (self.k_name in self._da.dims):
                 # 3-dimensional land-sea mask:
                 mask_name = f"{self._grid_suffix}mask"
             else:

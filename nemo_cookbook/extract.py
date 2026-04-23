@@ -193,10 +193,10 @@ def get_section_indexes(
 
     # -- Define section in terms of boundary indexes -- #
     if bdy_start.size > 1:
-        if (bdy_start[0] == 0) & (bdy_start[-1] == ds_bdy["bdy"][-1]):
+        if (bdy_start[0] == 0) and (bdy_start[-1] == ds_bdy["bdy"][-1]):
             bdy_start = bdy_start[0]
     if bdy_end.size > 1:
-        if (bdy_end[0] == 0) & (bdy_end[-1] == ds_bdy["bdy"][-1]):
+        if (bdy_end[0] == 0) and (bdy_end[-1] == ds_bdy["bdy"][-1]):
             bdy_end = bdy_end[0]
 
     sec_start, sec_end = int(bdy_start.item()), int(bdy_end.item())
