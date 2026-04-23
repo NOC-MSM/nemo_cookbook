@@ -17,6 +17,7 @@ import warnings
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Self
 
+import dask
 import numpy as np
 import xarray as xr
 
@@ -264,8 +265,8 @@ class NEMODataArray:
             mask = (self.mask & mask)
 
         # -- Apply mask & return NEMODataArray -- #
-        if drop:
-            warnings.warn(message="Indexing with a boolean dask array is not allowed. Mask will be computed first using .compute(). This may result in high memory usage for large masks.",
+        if drop and isinstance(mask.data, dask.array.Array):
+            warnings.warn(message="Indexing with a boolean dask array is not allowed. Mask will be materialised first using .load(). This may result in high memory usage for large masks.",
                           category=RuntimeWarning,
                           stacklevel=2
                           )
