@@ -483,7 +483,7 @@ class NEMODataTree(xr.DataTree):
 
     def _get_properties(
         self, dom: str | None = None, grid: str | None = None, infer_dom: bool = False
-    ) -> str:
+    ) -> str | tuple[str, ...]:
         """
         Get NEMO model domain and grid properties.
 
@@ -509,7 +509,7 @@ class NEMODataTree(xr.DataTree):
 
         Returns
         -------
-        tuple[str]
+        str | tuple[str, ...]
             NEMO model domain and grid properties.
         """
         if (grid is None) and (dom is not None):
@@ -533,7 +533,7 @@ class NEMODataTree(xr.DataTree):
             else:
                 return grid_suffix
 
-    def _get_grid_paths(self, dom: str) -> str:
+    def _get_grid_paths(self, dom: str) -> dict[str, str]:
         """
         Get paths to NEMO model grids in a given domain.
 
@@ -561,7 +561,7 @@ class NEMODataTree(xr.DataTree):
 
         return d_paths
 
-    def _get_ijk_names(self, dom: str | None = None, grid: str | None = None) -> str:
+    def _get_ijk_names(self, dom: str | None = None, grid: str | None = None) -> dict[str, str]:
         """
         Get (i, j, k) grid index names for given NEMO model domain.
 

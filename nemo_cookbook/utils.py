@@ -17,7 +17,7 @@ from typing import Callable
 def deprecated(
     version_since: str,
     version_removed : str,
-    alternative : str = None
+    alternative : str | None = None
     ) -> Callable:
     """
     Utility function to issue a deprecation warning.
