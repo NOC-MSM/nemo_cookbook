@@ -9,60 +9,12 @@ fixtures from conftest.py.
 Author:
 Ollie Tooth (oliver.tooth@noc.ac.uk)
 """
+import re
+
+import numpy as np
 import pytest
+import xarray as xr
 
-
-class TestVariableMasking():
-    @pytest.mark.parametrize("dom_type", ["global", "regional"])
-    def test_grid_error(self, dom_type, example_global_nemodatatree, example_regional_nemodatatree):
-        # -- Select NEMODataTree based on domain type -- #
-        match dom_type:
-            case "regional":
-                nemo = example_regional_nemodatatree
-            case "global":
-                nemo = example_global_nemodatatree
-            case _:
-                raise ValueError("dom_type must be 'global' or 'regional'")
-
-        # -- Verify KeyError is raised for non-existent grid -- #
-        with pytest.raises(KeyError, match="/gridT not found in available NEMODataTree grids"):
-            nemo['/gridT/tos_con']
-
-    @pytest.mark.parametrize("dom_type", ["global", "regional"])
-    def test_global_mask_2D_var(self, dom_type, example_global_nemodatatree, example_regional_nemodatatree):
-        # -- Select NEMODataTree based on domain type -- #
-        match dom_type:
-            case "regional":
-                nemo = example_regional_nemodatatree
-            case "global":
-                nemo = example_global_nemodatatree
-            case _:
-                raise ValueError("dom_type must be 'global' or 'regional'")
-
-        # -- Verify equal dims, coords and data values -- #
-        assert (nemo['gridT/tos_con']
-                .equals(
-                    nemo['gridT']['tos_con'].where(nemo['gridT']['tmaskutil'])
-                    )
-                )
-
-    @pytest.mark.parametrize("dom_type", ["global", "regional"])
-    def test_global_mask_3D_var(self, dom_type, example_global_nemodatatree, example_regional_nemodatatree):
-        # -- Select NEMODataTree based on domain type -- #
-        match dom_type:
-            case "regional":
-                nemo = example_regional_nemodatatree
-            case "global":
-                nemo = example_global_nemodatatree
-            case _:
-                raise ValueError("dom_type must be 'global' or 'regional'")
-
-        # -- Verify equal dims, coords and data values -- #
-        assert (nemo['gridT/thetao_con']
-                .equals(
-                    nemo['gridT']['thetao_con'].where(nemo['gridT']['tmask'])
-                    )
-                )
 
 class TestCellArea():
     @pytest.mark.parametrize(
@@ -146,35 +98,204 @@ class TestCellVolume():
         assert volcello.name == "volcello"
         assert volcello.equals(data)
 
-class TestDepthIntegral():
-    @pytest.mark.parametrize("limits", [[0, 100], "0, 100", {"lower": 0, "upper": 100}])
-    def test_limits_type(self, limits, example_global_nemodatatree):
-        # -- Verify TypeError is raised for invalid limit type -- #
-        with pytest.raises(TypeError, match="depth limits of integration should be given by a tuple"):
-            example_global_nemodatatree.depth_integral(grid="gridT", var="thetao_con", limits=limits)
-
-    def test_limits_size(self, example_global_nemodatatree):
-        # -- Verify TypeError is raised for invalid limit size -- #
-        with pytest.raises(TypeError, match="depth limits of integration should be given by a tuple"):
-            example_global_nemodatatree.depth_integral(grid="gridT", var="thetao_con", limits=(0, 100, 100))
-
-    @pytest.mark.parametrize("limits", [(-1, 5), (0, -1), (-5, -1)])
-    def test_limits_value(self, limits, example_global_nemodatatree):
-        # -- Verify ValueError is raised for negative limits -- #
-        with pytest.raises(ValueError, match="depth limits of integration must be non-negative"):
-            example_global_nemodatatree.depth_integral(grid="gridT", var='thetao_con', limits=limits)
-
-    def test_limits_order(self, example_global_nemodatatree):
-        # -- Verify ValueError is raised for lower limit >= upper limit -- #
-        with pytest.raises(ValueError, match="lower depth limit must be less than upper depth limit"):
-            example_global_nemodatatree.depth_integral(grid="gridT", var='thetao_con', limits=(5, 2))
+class TestClipGrid():
+    @pytest.mark.parametrize("bbox", [[0, 1, 0, 2], (0, 1), "0 1 2 3"])
+    def test_bbox_type(self, bbox, example_global_nemodatatree):
+        # -- Verify ValueError is raised for invalid bbox -- #
+        with pytest.raises(ValueError, match=re.escape("bounding box must be a tuple (lon_min, lon_max, lat_min, lat_max).")):
+            example_global_nemodatatree.clip_grid(grid="gridT", bbox=bbox)
 
     @pytest.mark.parametrize(
-            "dom_type, limits",
-            [("global", (0, 100)), ("regional", (0, 100)),
-             ("global", (25, 125)), ("regional", (25, 125))
+            "dom_type, grid",
+            [("global", "gridT"), ("regional", "gridT"), ("global", "gridU"), ("regional", "gridU"),
+             ("global", "gridV"), ("regional", "gridV"), ("global", "gridW"), ("regional", "gridW"),
+             ("global", "gridF"), ("regional", "gridF")
              ])
-    def test_depth_integral(self, dom_type, limits, example_global_nemodatatree, example_regional_nemodatatree):
+    def test_clip_grid(self, dom_type, grid, example_global_nemodatatree, example_regional_nemodatatree):
+        # -- Select NEMODataTree based on domain type -- #
+        match dom_type:
+            case "regional":
+                nemo = example_regional_nemodatatree
+                bbox = (40, 62, -50, -32)
+            case "global":
+                nemo = example_global_nemodatatree
+                bbox = (-45, 60, -25, 30)
+            case _:
+                raise ValueError("dom_type must be 'global' or 'regional'")
+
+        grid_suffix = grid[-1].lower()
+        hgrid_type = grid_suffix if "w" not in grid_suffix else "t"
+
+        # -- Clip NEMO model grid -- #
+        nemo_clipped = nemo.clip_grid(grid=grid, bbox=bbox)
+
+        # -- Validate Clipped NEMODataTree -- #
+        # Expect NEMODataTree is returned:
+        assert isinstance(nemo_clipped, type(nemo))
+        # Expect all NEMO model grid nodes are retained:
+        assert nemo_clipped.groups == nemo.groups
+
+        # Expect clipped grid dims sizes to be <= original NEMO model grid:
+        assert nemo_clipped[grid].sizes["i"] <= nemo[grid].sizes["i"]
+        assert nemo_clipped[grid].sizes["j"] <= nemo[grid].sizes["j"]
+
+        # Expect all grid coordinates to be within bounding box:
+        assert nemo_clipped[grid][f"glam{hgrid_type}"].min() >= bbox[0]
+        assert nemo_clipped[grid][f"glam{hgrid_type}"].max() <= bbox[1]
+        assert nemo_clipped[grid][f"gphi{hgrid_type}"].min() >= bbox[2]
+        assert nemo_clipped[grid][f"gphi{hgrid_type}"].max() <= bbox[3]
+
+class TestClipDomain():
+    @pytest.mark.parametrize("bbox", [[0, 1, 0, 2], (0, 1), "0 1 2 3"])
+    def test_bbox_type(self, bbox, example_global_nemodatatree):
+        # -- Verify ValueError is raised for invalid bbox -- #
+        with pytest.raises(ValueError, match=re.escape("bounding box must be a tuple (lon_min, lon_max, lat_min, lat_max).")):
+            example_global_nemodatatree.clip_grid(grid="gridT", bbox=bbox)
+
+    @pytest.mark.parametrize("dom_type", ["global", "regional"])
+    def test_clip_domain(self, dom_type, example_global_nemodatatree, example_regional_nemodatatree):
+        # -- Select NEMODataTree based on domain type -- #
+        match dom_type:
+            case "regional":
+                nemo = example_regional_nemodatatree
+                bbox = (40, 62, -50, -32)
+            case "global":
+                nemo = example_global_nemodatatree
+                bbox = (-45, 60, -25, 30)
+            case _:
+                raise ValueError("dom_type must be 'global' or 'regional'")
+
+        # -- Clip NEMO model domain -- #
+        nemo_clipped = nemo.clip_domain(dom='.', bbox=bbox)
+
+        # -- Validate Clipped NEMODataTree -- #
+        # Expect NEMODataTree is returned:
+        assert isinstance(nemo_clipped, type(nemo))
+        # Expect all NEMO model grid nodes are retained:
+        assert nemo_clipped.groups == nemo.groups
+
+        # Expect all T-grid coordinates to be within bounding box:
+        assert nemo_clipped["gridT"]["glamt"].min() >= bbox[0]
+        assert nemo_clipped["gridT"]["glamt"].max() <= bbox[1]
+        assert nemo_clipped["gridT"]["gphit"].min() >= bbox[2]
+        assert nemo_clipped["gridT"]["gphit"].max() <= bbox[3]
+
+        grids = ["gridT", "gridU", "gridV", "gridW", "gridF"]
+        # Expect clipped grid dims sizes to be <= original NEMO model grid:
+        assert all(nemo_clipped[grid].sizes["i"] <= nemo[grid].sizes["i"] for grid in grids)
+        assert all(nemo_clipped[grid].sizes["j"] <= nemo[grid].sizes["j"] for grid in grids)
+    
+        # Expect clipped grid dims sizes to be consistent across all grids:
+        assert len(set([nemo_clipped[grid].sizes["i"] for grid in grids])) == 1
+        assert len(set([nemo_clipped[grid].sizes["j"] for grid in grids])) == 1
+
+    @pytest.mark.parametrize("dom_type", ["global", "regional"])
+    def test_clip_domain_sizes(self, dom_type, example_global_nemodatatree, example_regional_nemodatatree):
+        # -- Select NEMODataTree based on domain type -- #
+        match dom_type:
+            case "regional":
+                nemo = example_regional_nemodatatree
+                bbox = (40, 62, -50, -32)
+            case "global":
+                nemo = example_global_nemodatatree
+                bbox = (-45, 60, -25, 30)
+            case _:
+                raise ValueError("dom_type must be 'global' or 'regional'")
+
+        # -- Clip NEMO model domain -- #
+        nemo_clipped = nemo.clip_domain(dom='.', bbox=bbox)
+
+        # -- Validate Clipped NEMODataTree -- #
+        grids = ["gridT", "gridU", "gridV", "gridW", "gridF"]
+        # Expect clipped grid dims sizes to be consistent across all grids:
+        assert len(set([nemo_clipped[grid].sizes["i"] for grid in grids])) == 1
+        assert len(set([nemo_clipped[grid].sizes["j"] for grid in grids])) == 1
+
+class TestExtractSection():
+    @pytest.mark.parametrize("lon_section", [[0, 1, 0], "glamt"])
+    def test_lon_type(self, lon_section, example_global_nemodatatree):
+        # -- Verify TypeError is raised for invalid lon_section type -- #
+        with pytest.raises(TypeError, match="lon_section must be a numpy array."):
+            example_global_nemodatatree.extract_section(lon_section=lon_section, lat_section=np.array([0, 1]), uv_vars=["uo", "vo"], vars=None, dom=".")
+
+    @pytest.mark.parametrize("lat_section", [[0, 1, 0], "gphit"])
+    def test_lat_type(self, lat_section, example_global_nemodatatree):
+        # -- Verify TypeError is raised for invalid lat_section type -- #
+        with pytest.raises(TypeError, match="lat_section must be a numpy array."):
+            example_global_nemodatatree.extract_section(lon_section=np.array([0, 1]), lat_section=lat_section, uv_vars=["uo", "vo"], vars=None, dom=".")
+
+    @pytest.mark.parametrize("uv_vars", [{"u": "uo", "v": "vo"}, "uo, vo", ["uo", "vo", "wo"]])
+    def test_uv_vars_values(self, uv_vars, example_global_nemodatatree):
+        # -- Verify TypeError is raised for invalid uv_vars type -- #
+        with pytest.raises(TypeError, match=re.escape("uv_vars must be a list of velocity variables to extract (e.g., ['uo', 'vo']).")):
+            example_global_nemodatatree.extract_section(lon_section=np.array([0, 1]), lat_section=np.array([0, 1]), uv_vars=uv_vars, vars=None, dom=".")
+
+    def test_extract_section(self, example_global_nemodatatree):
+        # -- Define NEMODataTree based on domain type -- #
+        nemo = example_global_nemodatatree
+
+        # -- Defining idealised section endpoints -- #
+        lon_section = np.array([-50, 50])
+        lat_section = np.array([-20, 40])
+        
+        # -- Extract mask boundary -- #
+        ds_bdy = nemo.extract_section(lon_section=lon_section,
+                                      lat_section=lat_section,
+                                      uv_vars=["uo", "vo"],
+                                      vars=["thetao_con"],
+                                      dom="."
+                                      )
+
+        # -- Verify section properties -- #
+        # Expect section to have 6 grid cell faces:
+        assert ds_bdy['bdy'].size == 6
+        # Expected section coordinates:
+        for coord in ["gphib", "glamb", "depthb"]:
+            assert coord in ds_bdy.coords
+
+        # -- Verify section grid cell faces -- #
+        expected_flux_types = ["U", "V", "U", "V", "U", "V"]
+        assert ds_bdy['flux_type'].values.tolist() == expected_flux_types
+        # Flux direction is defined as positive for northward/eastward fluxes:
+        expected_flux_dir = [-1, 1, -1, 1, -1, 1]
+        assert ds_bdy['flux_dir'].values.tolist() == expected_flux_dir
+
+        # -- Verify section variables -- #
+        # Expected section variables:
+        for var in ["i_bdy", "j_bdy", "e1b", "e3b", "bmask"]:
+             assert var in ds_bdy.data_vars
+
+        # Expected velocity variable:
+        assert "velocity" in ds_bdy.data_vars
+        assert ds_bdy['velocity'].dims == ("time_counter", "k", "bdy")
+        # Expected tracer variable:
+        assert "thetao_con" in ds_bdy.data_vars
+        assert ds_bdy['thetao_con'].dims == ("time_counter", "k", "bdy")
+
+class TestExtractMaskBoundary():
+    @pytest.mark.parametrize("mask", [[0, 1, 0], "mask_name"])
+    def test_mask_type(self, mask, example_global_nemodatatree):
+        # -- Verify TypeError is raised for invalid mask type -- #
+        with pytest.raises(TypeError, match="mask must be an xarray DataArray"):
+            example_global_nemodatatree.extract_mask_boundary(mask=mask, uv_vars=["uo", "vo"], vars=None, dom=".")
+
+    def test_mask_dims(self, example_global_nemodatatree):
+        # -- Verify ValueError is raised for invalid mask dimensions -- #
+        nemo = example_global_nemodatatree
+        mask = np.zeros((10, 10), dtype=bool)
+        mask[4:6, 4:6] = True
+        da_mask = xr.DataArray(mask, dims=["y", "x"])
+        with pytest.raises(ValueError, match=re.escape("mask must have dimensions 'i' and 'j'")):
+            nemo.extract_mask_boundary(mask=da_mask, uv_vars=["uo", "vo"], vars=None, dom=".")
+
+    @pytest.mark.parametrize("uv_vars", [{"u": "uo", "v": "vo"}, "uo, vo", ["uo", "vo", "wo"]])
+    def test_uv_vars_values(self, uv_vars, example_global_nemodatatree):
+        # -- Verify TypeError is raised for invalid uv_vars type -- #
+        with pytest.raises(TypeError, match=re.escape("uv_vars must be a list of velocity variables to extract (e.g., ['uo', 'vo']).")):
+            example_global_nemodatatree.extract_mask_boundary(mask=xr.DataArray(), uv_vars=uv_vars, vars=None, dom=".")
+
+    @pytest.mark.parametrize("dom_type", ["global", "regional"])
+    def test_extract_mask_boundary(self, dom_type, example_global_nemodatatree, example_regional_nemodatatree):
         # -- Select NEMODataTree based on domain type -- #
         match dom_type:
             case "regional":
@@ -184,15 +305,42 @@ class TestDepthIntegral():
             case _:
                 raise ValueError("dom_type must be 'global' or 'regional'")
 
-        # -- Depth integration -- #
-        data = (nemo['gridT/thetao_con']
-                .isel(k=0)
-                .drop_vars(['k', 'deptht'])
-                )
-        data = (limits[1] - limits[0]) * data
+        # -- Defining idealised mask -- #
+        # Define 2x2 square mask at the domain centre:
+        mask = np.zeros((10, 10), dtype=bool)
+        mask[4:6, 4:6] = True
+        da_mask = xr.DataArray(mask,
+                               dims=["j", "i"],
+                               coords={"j": nemo["gridT"]["j"], "i": nemo["gridT"]["i"]}
+                               )
+        
+        # -- Extract mask boundary -- #
+        ds_bdy = nemo.extract_mask_boundary(mask=da_mask,
+                                            uv_vars=["uo", "vo"],
+                                            vars=["thetao_con"],
+                                            dom="."
+                                            )
 
-        integral = nemo.depth_integral(grid='gridT', var='thetao_con', limits=limits)
+        # -- Verify boundary properties -- #
+        # Expect boundary to have 8 grid cell faces:
+        assert ds_bdy['bdy'].size == 8
+        # Expected boundary coordinates:
+        for coord in ["gphib", "glamb", "depthb"]:
+            assert coord in ds_bdy.coords
+        # Expected boundary variables:
+        for var in ["i_bdy", "j_bdy", "e1b", "e3b", "bmask"]:
+             assert var in ds_bdy.data_vars
 
-        # -- Verify equal dims, coords and data values -- #
-        assert integral.name == "integral_z(thetao_con)"
-        assert integral.equals(data)
+        # -- Verify boundary grid cell faces -- #
+        expected_flux_types = ["U", "U", "V", "V", "U", "U", "V", "V"]
+        assert ds_bdy['flux_type'].values.tolist() == expected_flux_types
+        # Flux direction is defined as the outward normal:
+        expected_flux_dir = [1, 1, -1, -1, -1, -1, 1, 1]
+        assert ds_bdy['flux_dir'].values.tolist() == expected_flux_dir
+
+        # Expected velocity variable:
+        assert "velocity" in ds_bdy.data_vars
+        assert ds_bdy['velocity'].dims == ("time_counter", "k", "bdy")
+        # Expected tracer variable:
+        assert "thetao_con" in ds_bdy.data_vars
+        assert ds_bdy['thetao_con'].dims == ("time_counter", "k", "bdy")
