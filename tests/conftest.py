@@ -54,6 +54,7 @@ def example_global_nemodatatree() -> NEMODataTree:
         'e1t': (("j", "i"), np.ones((nj, ni))),
         'e2t': (("j", "i"), np.ones((nj, ni))),
         'e3t': (e3_dims, e3_data),
+        'tmaskutil': (("j", "i"), np.ones((nj, ni)).astype(bool)),
         'tmask': (("k", "j", "i"), np.ones((nk, nj, ni)).astype(bool)),
     })
     nemo["gridT"] = (ds_gridT
@@ -79,6 +80,7 @@ def example_global_nemodatatree() -> NEMODataTree:
         'e1u': (("j", "i"), np.ones((nj, ni))),
         'e2u': (("j", "i"), np.ones((nj, ni))),
         'e3u': (e3_dims, e3_data),
+        'umaskutil': (("j", "i"), np.ones((nj, ni)).astype(bool)),
         'umask': (("k", "j", "i"), np.ones((nk, nj, ni)).astype(bool)),
     })
     nemo["gridU"] = (ds_gridU
@@ -104,6 +106,7 @@ def example_global_nemodatatree() -> NEMODataTree:
         'e1v': (("j", "i"), np.ones((nj, ni))),
         'e2v': (("j", "i"), np.ones((nj, ni))),
         'e3v': (e3_dims, e3_data),
+        'vmaskutil': (("j", "i"), np.ones((nj, ni)).astype(bool)),
         'vmask': (("k", "j", "i"), np.ones((nk, nj, ni)).astype(bool)),
     })
     nemo["gridV"] = (ds_gridV
@@ -130,6 +133,7 @@ def example_global_nemodatatree() -> NEMODataTree:
         'e1w': (("j", "i"), np.ones((nj, ni))),
         'e2w': (("j", "i"), np.ones((nj, ni))),
         'e3w': (e3_dims, e3_data),
+        'wmaskutil': (("j", "i"), np.ones((nj, ni)).astype(bool)),
         'wmask': (("k", "j", "i"), np.ones((nk, nj, ni)).astype(bool)),
     })
     nemo["gridW"] = (ds_gridW
@@ -137,8 +141,8 @@ def example_global_nemodatatree() -> NEMODataTree:
                                     j=np.arange(1, nj + 1),
                                     k=np.arange(1, nk + 1) - 0.5,
                                     time_counter=time_data,
-                                    gphit=(("j", "i"), gphi[::2, :]),
-                                    glamt=(("j", "i"), glam[:, ::2]),
+                                    gphiw=(("j", "i"), gphi[::2, :]),
+                                    glamw=(("j", "i"), glam[:, ::2]),
                                     depthw=(("k"), np.arange(0, 250, 50))
                                     )
                     )
@@ -155,6 +159,7 @@ def example_global_nemodatatree() -> NEMODataTree:
         'e1f': (("j", "i"), np.ones((nj, ni))),
         'e2f': (("j", "i"), np.ones((nj, ni))),
         'e3f': (e3_dims, e3_data),
+        'fmaskutil': (("j", "i"), np.ones((nj, ni)).astype(bool)),
         'fmask': (("k", "j", "i"), np.ones((nk, nj, ni)).astype(bool)),
     })
     nemo["gridF"] = (ds_gridF
@@ -294,6 +299,7 @@ def example_regional_nemodatatree() -> NEMODataTree:
         'e1t': (("j", "i"), np.ones((nj, ni))),
         'e2t': (("j", "i"), np.ones((nj, ni))),
         'e3t': (e3_dims, e3_data),
+        'tmaskutil': (("j", "i"), np.ones((nj, ni)).astype(bool)),
         'tmask': (("k", "j", "i"), np.ones((nk, nj, ni)).astype(bool)),
     })
     nemo["gridT"] = (ds_gridT
@@ -320,6 +326,7 @@ def example_regional_nemodatatree() -> NEMODataTree:
         'e1u': (("j", "i"), np.ones((nj, ni))),
         'e2u': (("j", "i"), np.ones((nj, ni))),
         'e3u': (e3_dims, e3_data),
+        'umaskutil': (("j", "i"), np.ones((nj, ni)).astype(bool)),
         'umask': (("k", "j", "i"), np.ones((nk, nj, ni)).astype(bool)),
     })
     nemo["gridU"] = (ds_gridU
@@ -346,6 +353,7 @@ def example_regional_nemodatatree() -> NEMODataTree:
         'e1v': (("j", "i"), np.ones((nj, ni))),
         'e2v': (("j", "i"), np.ones((nj, ni))),
         'e3v': (e3_dims, e3_data),
+        'vmaskutil': (("j", "i"), np.ones((nj, ni)).astype(bool)),
         'vmask': (("k", "j", "i"), np.ones((nk, nj, ni)).astype(bool)),
     })
     nemo["gridV"] = (ds_gridV
@@ -373,6 +381,7 @@ def example_regional_nemodatatree() -> NEMODataTree:
         'e1w': (("j", "i"), np.ones((nj, ni))),
         'e2w': (("j", "i"), np.ones((nj, ni))),
         'e3w': (e3_dims, e3_data),
+        'wmaskutil': (("j", "i"), np.ones((nj, ni)).astype(bool)),
         'wmask': (("k", "j", "i"), np.ones((nk, nj, ni)).astype(bool)),
     })
     nemo["gridW"] = (ds_gridW
@@ -380,8 +389,8 @@ def example_regional_nemodatatree() -> NEMODataTree:
                                     j=np.arange(1, nj + 1),
                                     k=np.arange(1, nk + 1) - 0.5,
                                     time_counter=time_data,
-                                    gphit=(("j", "i"), gphi[1::2, :]),
-                                    glamt=(("j", "i"), glam[:, ::2]),
+                                    gphiw=(("j", "i"), gphi[1::2, :]),
+                                    glamw=(("j", "i"), glam[:, ::2]),
                                     depthw=(("k"), np.arange(0, 250, 50))
                                     )
                     )
@@ -400,6 +409,7 @@ def example_regional_nemodatatree() -> NEMODataTree:
         'e2f': (("j", "i"), np.ones((nj, ni))),
         'e3f': (e3_dims, e3_data),
         'depthf': (("k"), np.linspace(0, 500, nk)),
+        'fmaskutil': (("j", "i"), np.ones((nj, ni)).astype(bool)),
         'fmask': (("k", "j", "i"), np.ones((nk, nj, ni)).astype(bool)),
     })
     nemo["gridF"] = (ds_gridF

@@ -457,12 +457,12 @@ def _add_domain_vars(
 
     # W-grid:
     try:
-        d_grids["gridW"]["e1t"] = domain["e1t"]
-        d_grids["gridW"]["e2t"] = domain["e2t"]
+        d_grids["gridW"]["e1w"] = domain["e1t"]
+        d_grids["gridW"]["e2w"] = domain["e2t"]
         if key_linssh:
             d_grids["gridW"]["e3w"] = domain["e3w_0"]
-        d_grids["gridW"]["gphit"] = domain["gphit"]
-        d_grids["gridW"]["glamt"] = domain["glamt"]
+        d_grids["gridW"]["gphiw"] = domain["gphit"]
+        d_grids["gridW"]["glamw"] = domain["glamt"]
     except AttributeError as e:
         raise AttributeError(
             "missing required W-grid variable in domain dataset"
@@ -564,8 +564,6 @@ def _process_grid(
     """
     # Define variable names and dimension mappings:
     grid_type = grid[-1].lower()
-    # W-grid is horizontally co-located with T-grid, so use 'glamt' and 'gphit':
-    hgrid_type = grid_type if grid_type in ("t", "u", "v", "f") else "t"
     mask_name = f"{label}{grid_type}mask"
 
     # Rename horizontal dimensions of grid:
@@ -573,8 +571,8 @@ def _process_grid(
 
     # Rename vertical dimension & grid coordinate variables:
     d_vars = {
-        f"gphi{hgrid_type}": f"{label}gphi{hgrid_type}",
-        f"glam{hgrid_type}": f"{label}glam{hgrid_type}",
+        f"gphi{grid_type}": f"{label}gphi{grid_type}",
+        f"glam{grid_type}": f"{label}glam{grid_type}",
     }
     if f"depth{grid_type}" in data.coords:
         data = data.rename_dims({f"depth{grid_type}": k_name})
@@ -613,8 +611,8 @@ def _process_grid(
     d_coords = {
         j_name: data[j_name] + j_offset,
         i_name: data[i_name] + i_offset,
-        f"{label}gphi{hgrid_type}": data[f"{label}gphi{hgrid_type}"],
-        f"{label}glam{hgrid_type}": data[f"{label}glam{hgrid_type}"],
+        f"{label}gphi{grid_type}": data[f"{label}gphi{grid_type}"],
+        f"{label}glam{grid_type}": data[f"{label}glam{grid_type}"],
     }
     if k_name in data.coords:
         d_coords.update({k_name: data[k_name] + k_offset})

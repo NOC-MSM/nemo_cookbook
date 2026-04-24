@@ -48,10 +48,10 @@ class TestNEMODataTreeExamples():
         nodes = [entry[0] for entry in list(nemo.subtree_with_keys)]
         for node in ['gridT', 'gridU', 'gridV', 'gridW']:
             assert node in nodes
-            grid_suffix = node[-1].lower() if node != "gridW" else "t"
-            for factor in [f"e1{grid_suffix}", f"e2{grid_suffix}", f"e3{node[-1].lower()}"]:
+            grid_suffix = node[-1].lower()
+            for factor in [f"e1{grid_suffix}", f"e2{grid_suffix}", f"e3{grid_suffix}"]:
                 assert factor in nemo[node].data_vars
-            for coord in [f"glam{grid_suffix}", f"gphi{grid_suffix}", f"depth{node[-1].lower()}"]:
+            for coord in [f"glam{grid_suffix}", f"gphi{grid_suffix}", f"depth{grid_suffix}"]:
                 assert coord in nemo[node].coords
 
         # -- Tear down -- #
@@ -67,10 +67,10 @@ class TestNEMODataTreeExamples():
         nodes = [entry[0] for entry in list(nemo.subtree_with_keys)]
         for node in ['gridT', 'gridU', 'gridV', 'gridW']:
             assert node in nodes
-            grid_suffix = node[-1].lower() if node != "gridW" else "t"
-            for factor in [f"e1{grid_suffix}", f"e2{grid_suffix}", f"e3{node[-1].lower()}"]:
+            grid_suffix = node[-1].lower()
+            for factor in [f"e1{grid_suffix}", f"e2{grid_suffix}", f"e3{grid_suffix}"]:
                 assert factor in nemo[node].data_vars
-            for coord in [f"glam{grid_suffix}", f"gphi{grid_suffix}", f"depth{node[-1].lower()}"]:
+            for coord in [f"glam{grid_suffix}", f"gphi{grid_suffix}", f"depth{grid_suffix}"]:
                 assert coord in nemo[node].coords
 
         # -- Tear down -- #

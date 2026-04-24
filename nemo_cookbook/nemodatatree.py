@@ -12,6 +12,7 @@ Ollie Tooth (oliver.tooth@noc.ac.uk)
 
 from typing import Self
 
+import icechunk
 import numpy as np
 import xarray as xr
 from xarray.indexes import NDPointIndex
@@ -31,6 +32,7 @@ from nemo_cookbook.processing import create_datatree_dict
 from nemo_cookbook.stats import compute_binned_statistic
 from nemo_cookbook.transform import transform_vertical_coords
 from nemo_cookbook.utils import deprecated
+from nemo_cookbook.validation import validate_nemo_grid_node
 
 
 class NEMODataTree(xr.DataTree):
@@ -150,10 +152,9 @@ class NEMODataTree(xr.DataTree):
 
         Examples
         --------
-        Create a zonally periodic `NEMODataTree` from a dictionary of paths to local netCDF files:
+        Create a zonally periodic `NEMODataTree` with north folding on T-points from a dictionary of paths to local netCDF files:
 
         >>> from nemo_cookbook import NEMODataTree
-
         >>> paths = {"parent": {
         ...          "domain": "/path/to/domain_cfg.nc",
         ...          "gridT": "path/to/*_gridT.nc",
@@ -162,7 +163,6 @@ class NEMODataTree(xr.DataTree):
         ...          "gridW": "path/to/*_gridW.nc",
         ...          "icemod": "path/to/*_icemod.nc",
         ...          }}
-
         >>> nemo = NEMODataTree.from_paths(paths, name="My NEMO model", iperio=True, nftype="T")
 
         Create a regional `NEMODataTree` using a linear free-surface approximation from a dictionary of paths to remote netCDF files:
@@ -197,7 +197,7 @@ class NEMODataTree(xr.DataTree):
         if not isinstance(open_kwargs, dict):
             raise TypeError("`open_kwargs` must be a dictionary.")
 
-        # Define parent, child, grandchild filepath collections:
+        # -- Define parent, child, grandchild filepath collections -- #
         d_child, d_grandchild = None, None
         if "parent" in paths.keys() and isinstance(paths["parent"], dict):
             for key in paths.keys():
@@ -219,7 +219,7 @@ class NEMODataTree(xr.DataTree):
                 "Invalid `paths` structure. Expected a nested dictionary defining NEMO 'parent', 'child' and 'grandchild' domains."
             )
 
-        # Construct DataTree from parent / child / grandchild domains:
+        # -- Construct DataTree from parent / child / grandchild domains -- #
         d_tree = create_datatree_dict(
             d_parent=d_parent,
             d_child=d_child,
@@ -233,10 +233,10 @@ class NEMODataTree(xr.DataTree):
             open_kwargs=dict(**open_kwargs),
         )
 
-        datatree = super().from_dict(d_tree)
-        datatree.name = name
+        nemo = super().from_dict(d_tree)
+        nemo.name = name
 
-        return datatree
+        return nemo
 
     @classmethod
     def from_datasets(
@@ -307,16 +307,13 @@ class NEMODataTree(xr.DataTree):
 
         Examples
         --------
-        Create a `NEMODataTree` from a dictionary of xarray.Dataset objects:
+        Create a zonally periodic `NEMODataTree` with north folding on T-points from a dictionary of xarray.Dataset objects:
 
         >>> import xarray as xr
         >>> from nemo_cookbook import NEMODataTree
-
         >>> ds_domain = xr.open_zarr("https://some_remote_data/domain_cfg.zarr")
         >>> ds_gridT = xr.open_zarr("https://some_remote_data/my_model_gridT.zarr")
-
         >>> datasets = {"parent": {"domain": ds_domain, "gridT": ds_gridT}}
-
         >>> nemo = NEMODataTree.from_datasets(datasets=datasets, name="My NEMO Model", iperio=True, nftype="T")
 
         Create a regional `NEMODataTree` using a linear free-surface approximation from a dictionary of xarray.Dataset objects:
@@ -349,7 +346,7 @@ class NEMODataTree(xr.DataTree):
                 "number of ghost cells along the western/southern boundaries (`nbghost_child`) must be an integer."
             )
 
-        # Define parent, child, grandchild dataset collections:
+        # -- Define parent, child, grandchild dataset collections -- #
         d_child, d_grandchild = None, None
         if "parent" in datasets.keys() and isinstance(datasets["parent"], dict):
             for key in datasets.keys():
@@ -371,7 +368,7 @@ class NEMODataTree(xr.DataTree):
                 "Invalid `datasets` structure. Expected a nested dictionary defining NEMO 'parent', 'child' and 'grandchild' domains."
             )
 
-        # Construct DataTree from parent / child / grandchild domains:
+        # -- Construct DataTree from parent / child / grandchild domains -- #
         d_tree = create_datatree_dict(
             d_parent=d_parent,
             d_child=d_child,
@@ -384,16 +381,166 @@ class NEMODataTree(xr.DataTree):
             nbghost_child=nbghost_child,
         )
 
-        datatree = super().from_dict(d_tree)
-        datatree.name = name
+        nemo = super().from_dict(d_tree)
+        nemo.name = name
 
-        return datatree
+        return nemo
+
+    @classmethod
+    def from_icechunk(
+        cls,
+        repo: icechunk.repository.Repository,
+        name: str = "NEMO model",
+        iperio: bool = False,
+        nftype: str | None = None,
+        open_kwargs: dict[str, any] | None = None,
+        **session_kwargs: dict[str, any],
+    ) -> Self:
+        """
+        Create a NEMODataTree from an Icechunk repository storing NEMO model outputs
+        organised into a hierarchy of domains (i.e., 'parent', 'child', 'grandchild').
+
+        Parameters
+        ----------
+        repo : icechunk.repository.Repository
+            Icechunk repository containing NEMO model outputs organised into a
+            hierarchy of domains.
+
+        name : str, optional
+            Name of the NEMODataTree. Default is "NEMO model".
+        
+        iperio: bool = False
+            Zonal periodicity of the parent domain. Default is False.
+        
+        nftype: str, optional
+            Type of north fold lateral boundary condition to apply. Options are 'T' for T-point pivot or 'F' for F-point
+
+        open_kwargs : dict[str, Any], optional
+            Additional keyword arguments to pass to `xarray.open_datatree`. Default is None.
+
+        **session_kwargs : dict[str, Any], optional
+            Additional keyword arguments to pass to Icechunk `repo.readonly_session`.
+
+        Returns
+        -------
+        NEMODataTree
+            Hierarchical DataTree of NEMO model outputs.
+
+        Examples
+        --------
+        Create a zonally periodic `NEMODataTree` with north folding on F-points from the main branch of an Icechunk repository:
+
+        >>> from nemo_cookbook import NEMODataTree
+        >>> nemo = NEMODataTree.from_icechunk(repo=repo, branch="main", iperio=True, nftype="F")
+
+        See Also
+        --------
+        from_zarr
+        """
+        # -- Validate Inputs -- #
+        if not hasattr(repo, "readonly_session"):
+            raise TypeError("`repo` must implement readonly_session().")
+        if not isinstance(name, str):
+            raise TypeError("`name` must be a string.")
+        if not isinstance(iperio, bool):
+            raise TypeError("zonal periodicity (`iperio`) of parent domain must be a boolean.")
+        if nftype is not None and nftype not in ("T", "F"):
+            raise ValueError(
+                "north fold type (`nftype`) of parent domain must be 'T' (T-pivot fold), 'F' (F-pivot fold), or None."
+            )
+
+        # -- Create NEMODataTree from Icechunk repository -- #:
+        session = repo.readonly_session(**session_kwargs)
+        datatree = xr.open_datatree(session.store, engine="zarr", **(open_kwargs or {}))
+        nemo = super().from_dict(datatree.to_dict())
+
+        # -- Update NEMODataTree properties -- #
+        nemo["/"].attrs.update({"nftype": nftype, "iperio": iperio})
+        nemo.name = name
+
+        # -- Validate NEMO grid node Datasets -- #
+        for key in [grid for grid in nemo.groups if grid.startswith("grid")]:
+            validate_nemo_grid_node(key=key, value=nemo[key])
+
+        return nemo
+
+    @classmethod
+    def from_zarr(
+        cls,
+        store: str,
+        name: str = "NEMO model",
+        iperio: bool = False,
+        nftype: str | None = None,
+        **open_kwargs: dict[str, any],
+    ) -> Self:
+        """
+        Create a NEMODataTree from Zarr store groups storing NEMO model outputs
+        organised into a hierarchy of domains (i.e., 'parent', 'child', 'grandchild').
+
+        Parameters
+        ----------
+        store : str
+            Path to the Zarr store containing NEMO model outputs in hierarchical groups.
+
+        name : str, optional
+            Name of the NEMODataTree. Default is "NEMO model".
+        
+        iperio: bool = False
+            Zonal periodicity of the parent domain. Default is False.
+        
+        nftype: str, optional
+            Type of north fold lateral boundary condition to apply. Options are 'T' for T-point pivot or 'F' for F-point
+
+        **open_kwargs : dict[str, Any], optional
+            Additional keyword arguments to pass to `xarray.open_datatree`.
+
+        Returns
+        -------
+        NEMODataTree
+            Hierarchical DataTree of NEMO model outputs.
+
+        Examples
+        --------
+        Create a zonally periodic `NEMODataTree` with north folding on T-points from a hierarchical Zarr store:
+
+        >>> from nemo_cookbook import NEMODataTree
+        >>> nemo = NEMODataTree.from_zarr(store="path/to/zarr/store", iperio=True, nftype="T")
+
+        See Also
+        --------
+        from_icechunk
+        """
+        # -- Validate Inputs -- #
+        if not isinstance(store, str):
+            raise TypeError("`store` must be a string.")
+        if not isinstance(name, str):
+            raise TypeError("`name` must be a string.")
+        if not isinstance(iperio, bool):
+            raise TypeError("zonal periodicity (`iperio`) of parent domain must be a boolean.")
+        if nftype is not None and nftype not in ("T", "F"):
+            raise ValueError(
+                "north fold type (`nftype`) of parent domain must be 'T' (T-pivot fold), 'F' (F-pivot fold), or None."
+            )
+
+        # -- Create NEMODataTree from Zarr store -- #:
+        datatree = xr.open_datatree(store, engine="zarr", **(open_kwargs or {}))
+        nemo = super().from_dict(datatree.to_dict())
+
+        # -- Update NEMODataTree properties -- #
+        nemo["/"].attrs.update({"nftype": nftype, "iperio": iperio})
+        nemo.name = name
+
+        # -- Validate NEMO grid node Datasets -- #
+        for key in [grid for grid in nemo.groups if grid.startswith("grid")]:
+            validate_nemo_grid_node(key=key, value=nemo[key])
+
+        return nemo
     
     def __setitem__(
             self,
             key: str,
             value: NEMODataArray | xr.DataArray | xr.Dataset,
-            validate: bool = True
+            strict: bool = True
         ) -> None:
         """
         Set a child node or variable in this NEMODataTree.
@@ -401,7 +548,7 @@ class NEMODataTree(xr.DataTree):
         Overloads the __setitem__() method of xarray.DataTree to allow
         setting NEMODataArrays via variable paths (i.e, /grid/var).
 
-        Validate option used for testing only.
+        Optionally set strict=False to bypass validation of child grid nodes.
 
         Parameters
         ----------
@@ -413,7 +560,7 @@ class NEMODataTree(xr.DataTree):
             Object to set at the specified key. If a NEMODataArray is provided,
             the underlying xarray.DataArray will be set at the specified key.
 
-        validate : bool, optional
+        strict : bool, optional
             Validate Datasets assigned to NEMO grid nodes to ensure they contain
             the required dimensions and coordinates. Default is True.
 
@@ -425,23 +572,9 @@ class NEMODataTree(xr.DataTree):
         if isinstance(value, NEMODataArray):
             value = value.data
 
-        if validate and isinstance(value, xr.Dataset):
-            # Define suffix NEMO grid node:
-            grid_type = key[-1].lower()
-            hgrid_type = grid_type if "w" not in grid_type else "t"
-
-            # -- Verify coordinates of NEMO grid node dataset -- #
-            if any([coord not in value.coords for coord in ["i", "j"]]):
-                raise ValueError("Missing required NEMO grid coordinates (i, j) in xarray.Dataset.")
-
-            if all([f'gphi{hgrid_type}' not in coord for coord in value.coords]):
-                raise ValueError(f"Missing required latitude (e.g., gphi{hgrid_type}) coordinates in xarray.Dataset.")
-
-            if all([f'glam{hgrid_type}' not in coord for coord in value.coords]):
-                raise ValueError(f"Missing required longitude (e.g., glam{hgrid_type}) coordinates in xarray.Dataset.")
-
-            if all([f'depth{grid_type}' not in coord for coord in value.coords]) and ("k" in value.coords):
-                raise ValueError(f"Missing required depth (e.g., depth{grid_type}) coordinates in xarray.Dataset.")
+        if strict and isinstance(value, xr.Dataset):
+            # -- Validate NEMO grid node Dataset -- #
+            validate_nemo_grid_node(key=key, value=value)
 
         return super().__setitem__(key, value)
 
@@ -1419,12 +1552,11 @@ class NEMODataTree(xr.DataTree):
 
         # -- Get NEMO model grid properties -- #
         _, dom_prefix, _, grid_suffix = self._get_properties(grid=grid, infer_dom=True)
-        hgrid_type = grid_suffix if "w" not in grid_suffix else "t"
 
         # -- Clip the grid to given bounding box -- #
         # Indexing with a mask requires loading coords into memory:
-        glam = self[grid][f"{dom_prefix}glam{hgrid_type}"].load()
-        gphi = self[grid][f"{dom_prefix}gphi{hgrid_type}"].load()
+        glam = self[grid][f"{dom_prefix}glam{grid_suffix}"].load()
+        gphi = self[grid][f"{dom_prefix}gphi{grid_suffix}"].load()
 
         grid_clipped = self[grid].dataset.where(
             (glam >= bbox[0])
@@ -1587,16 +1719,15 @@ class NEMODataTree(xr.DataTree):
 
         # -- Get NEMO model grid properties -- #
         dom, dom_prefix, _, grid_suffix = self._get_properties(grid=grid, infer_dom=True)
-        hgrid_type = grid_suffix if "w" not in grid_suffix else "t"
         ijk_names = self._get_ijk_names(grid=grid)
         i_name, j_name = ijk_names["i"], ijk_names["j"]
 
         if dom == ".":
-            lon_name = f"glam{hgrid_type}"
-            lat_name = f"gphi{hgrid_type}"
+            lon_name = f"glam{grid_suffix}"
+            lat_name = f"gphi{grid_suffix}"
         else:
-            lon_name = f"{dom_prefix}glam{hgrid_type}"
-            lat_name = f"{dom_prefix}gphi{hgrid_type}"
+            lon_name = f"{dom_prefix}glam{grid_suffix}"
+            lat_name = f"{dom_prefix}gphi{grid_suffix}"
 
         # -- Create mask using polygon coordinates -- #
         mask = create_polygon_mask(

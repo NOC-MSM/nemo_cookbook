@@ -124,7 +124,6 @@ class TestClipGrid():
                 raise ValueError("dom_type must be 'global' or 'regional'")
 
         grid_suffix = grid[-1].lower()
-        hgrid_type = grid_suffix if "w" not in grid_suffix else "t"
 
         # -- Clip NEMO model grid -- #
         nemo_clipped = nemo.clip_grid(grid=grid, bbox=bbox)
@@ -140,10 +139,10 @@ class TestClipGrid():
         assert nemo_clipped[grid].sizes["j"] <= nemo[grid].sizes["j"]
 
         # Expect all grid coordinates to be within bounding box:
-        assert nemo_clipped[grid][f"glam{hgrid_type}"].min() >= bbox[0]
-        assert nemo_clipped[grid][f"glam{hgrid_type}"].max() <= bbox[1]
-        assert nemo_clipped[grid][f"gphi{hgrid_type}"].min() >= bbox[2]
-        assert nemo_clipped[grid][f"gphi{hgrid_type}"].max() <= bbox[3]
+        assert nemo_clipped[grid][f"glam{grid_suffix}"].min() >= bbox[0]
+        assert nemo_clipped[grid][f"glam{grid_suffix}"].max() <= bbox[1]
+        assert nemo_clipped[grid][f"gphi{grid_suffix}"].min() >= bbox[2]
+        assert nemo_clipped[grid][f"gphi{grid_suffix}"].max() <= bbox[3]
 
 class TestClipDomain():
     @pytest.mark.parametrize("bbox", [[0, 1, 0, 2], (0, 1), "0 1 2 3"])
