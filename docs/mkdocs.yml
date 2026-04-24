@@ -75,17 +75,18 @@ nav:
   - User Guide: user_guide.md
   - How To...: howto.md
   - Recipes:
-    - recipes.md
-    - Meridional Overturning - Depth Space: recipe_moc_z.ipynb
-    - Meridional Overturning - Tracer Space: recipe_moc_tracer.ipynb
-    - Ocean Heat Transport: recipe_heat_transport.ipynb
-    - Barotropic Stream Functions: recipe_barotropic_sf.ipynb
-    - Ocean Heat Content: recipe_heat_content.ipynb
-    - Regional Masked Statistics: recipe_masked_stats.ipynb
-    - Volume Census in T-S Space: recipe_volume_census.ipynb
-    - Surface-Forced Water Mass Transformation: recipe_sfwmt_sigma0.ipynb
-    - Extracting Hydrographic Sections: recipe_extract_osnap.ipynb
-    - Vertical Coordinate Transformation: recipe_transform_vertical_coords.ipynb
+    - Summary: recipes.md
+    - Recipe List:
+      - Meridional Overturning - Depth Space: recipe_moc_z.ipynb
+      - Meridional Overturning - Tracer Space: recipe_moc_tracer.ipynb
+      - Ocean Heat Transport: recipe_heat_transport.ipynb
+      - Barotropic Stream Functions: recipe_barotropic_sf.ipynb
+      - Ocean Heat Content: recipe_heat_content.ipynb
+      - Regional Masked Statistics: recipe_masked_stats.ipynb
+      - Volume Census in T-S Space: recipe_volume_census.ipynb
+      - Surface-Forced Water Mass Transformation: recipe_sfwmt_sigma0.ipynb
+      - Extracting Hydrographic Sections: recipe_extract_osnap.ipynb
+      - Vertical Coordinate Transformation: recipe_transform_vertical_coords.ipynb
   - API Reference: reference.md
   - Contributing: contributing.md
   - Release Notes: release_notes.md
