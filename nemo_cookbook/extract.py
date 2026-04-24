@@ -163,7 +163,9 @@ def create_boundary_dataset(
 def get_section_indexes(
     lon_section: np.ndarray,
     lat_section: np.ndarray,
-    ds_bdy: xr.Dataset,
+    gphib: np.ndarray,
+    glamb: np.ndarray,
+    bdy: np.ndarray,
 ) -> list[int]:
     """
     Get indexes along a mask boundary corresponding to the start
@@ -175,8 +177,12 @@ def get_section_indexes(
         Longitudes defining hydrographic section.
     lat_section : np.ndarray
         Latitudes defining hydrographic section.
-    ds_bdy : xr.Dataset
-        Dataset containing mask boundary indexes.
+    gphib : np.ndarray
+        Latitudes of boundary points.
+    glamb : np.ndarray
+        Longitudes of boundary points.
+    bdy : np.ndarray
+        Boundary indexes.
 
     Returns
     -------
@@ -184,7 +190,7 @@ def get_section_indexes(
         List of boundary indexes corresponding to the hydrographic section.
     """
     # -- Find indexes of boundary start and end points -- #
-    bdy_points = np.array(list(zip(ds_bdy["gphib"].values, ds_bdy["glamb"].values, strict=True)))
+    bdy_points = np.array(list(zip(gphib, glamb, strict=True)))
     geoballtree = SklearnGeoBallTreeAdapter(points=bdy_points, options={})
 
     # Collect indices of nearest boundary points to start and end points of section:
@@ -193,10 +199,10 @@ def get_section_indexes(
 
     # -- Define section in terms of boundary indexes -- #
     if bdy_start.size > 1:
-        if (bdy_start[0] == 0) and (bdy_start[-1] == ds_bdy["bdy"][-1]):
+        if (bdy_start[0] == 0) and (bdy_start[-1] == bdy[-1]):
             bdy_start = bdy_start[0]
     if bdy_end.size > 1:
-        if (bdy_end[0] == 0) and (bdy_end[-1] == ds_bdy["bdy"][-1]):
+        if (bdy_end[0] == 0) and (bdy_end[-1] == bdy[-1]):
             bdy_end = bdy_end[0]
 
     sec_start, sec_end = int(bdy_start.item()), int(bdy_end.item())
@@ -205,7 +211,7 @@ def get_section_indexes(
     elif sec_end < sec_start:
         # Note: start and end indexes are duplicated to close boundary -> do not include final index:
         sec_indexes = np.concatenate(
-            [np.arange(sec_start, ds_bdy["bdy"][-2] + 1), np.arange(0, sec_end + 1)]
+            [np.arange(sec_start, bdy[-2] + 1), np.arange(0, sec_end + 1)]
         ).tolist()
     else:
         raise ValueError(
