@@ -11,6 +11,7 @@ Ollie Tooth (oliver.tooth@noc.ac.uk)
 """
 import re
 
+import icechunk
 import numpy as np
 import pytest
 import xarray as xr
@@ -193,6 +194,91 @@ class TestNEMODataTreeDatasets():
         result = NEMODataTree.from_datasets(datasets=datasets)
         assert isinstance(result, NEMODataTree) & isinstance(result, xr.DataTree)
 
+class TestNEMODataTreeFromIcechunk():
+    def test_repo_errors(self):
+        # -- Verify TypeError -- #
+        expected_str = "`repo` must implement readonly_session()."
+        with pytest.raises(TypeError, match=re.escape(expected_str)):
+            NEMODataTree.from_icechunk(repo="invalid_repo")
+
+    @pytest.mark.parametrize("name", [["Model"], ("My", "Model"), 123, None])
+    def test_name_errors(self, mocker, name):
+        mock_repo = mocker.MagicMock(spec=icechunk.repository.Repository)
+        # -- Verify TypeError -- #
+        expected_str = "`name` must be a string."
+        with pytest.raises(TypeError, match=re.escape(expected_str)):
+            NEMODataTree.from_icechunk(repo=mock_repo, name=name)
+
+    @pytest.mark.parametrize("iperio", ["False", 0])
+    def test_iperio_errors(self, mocker, iperio):
+        mock_repo = mocker.MagicMock(spec=icechunk.repository.Repository)
+        # -- Verify TypeError -- #
+        expected_str = "zonal periodicity (`iperio`) of parent domain must be a boolean."
+        with pytest.raises(TypeError, match=re.escape(expected_str)):
+            NEMODataTree.from_icechunk(repo=mock_repo, iperio=iperio)
+    
+    @pytest.mark.parametrize("nftype", ["invalid", 123])
+    def test_nftype_errors(self, mocker, nftype):
+        mock_repo = mocker.MagicMock(spec=icechunk.repository.Repository)
+        # -- Verify ValueError -- #
+        expected_str = "north fold type (`nftype`) of parent domain must be 'T' (T-pivot fold), 'F' (F-pivot fold), or None."
+        with pytest.raises(ValueError, match=re.escape(expected_str)):
+            NEMODataTree.from_icechunk(repo=mock_repo, nftype=nftype)
+
+    def test_from_icechunk_properties(self, mocker, example_global_nemodatatree):
+        # -- Create mock Icechunk repository and session -- #
+        mock_repo = mocker.MagicMock(spec=icechunk.repository.Repository)
+        mock_session = mocker.MagicMock()
+        mock_session.store = "fake_store"
+        mock_repo.readonly_session.return_value = mock_session
+
+        # -- Mock xarray.open_datatree to return example NEMODataTree -- #
+        mocker.patch("xarray.open_datatree", return_value=example_global_nemodatatree)
+
+        # -- Verify NEMODataTree properties -- #
+        result = NEMODataTree.from_icechunk(repo=mock_repo, name="MyModel", iperio=True, nftype="T")
+        assert result.name == "MyModel"
+        assert result.attrs["iperio"]
+        assert result.attrs["nftype"] == "T"
+
+class TestNEMODataTreeFromZarr():
+    @pytest.mark.parametrize("store", [["store"], ("store",), 123, None])
+    def test_store_errors(self, store):
+        # -- Verify TypeError -- #
+        expected_str = "`store` must be a string."
+        with pytest.raises(TypeError, match=re.escape(expected_str)):
+            NEMODataTree.from_zarr(store=store)
+
+    @pytest.mark.parametrize("name", [['Model'], ("Model",), 123, None])
+    def test_name_errors(self, name):
+        # -- Verify TypeError -- #
+        expected_str = "`name` must be a string."
+        with pytest.raises(TypeError, match=re.escape(expected_str)):
+            NEMODataTree.from_zarr(store="path/to/store", name=name)
+
+    @pytest.mark.parametrize("iperio", ["False", 0])
+    def test_iperio_errors(self, iperio):
+        # -- Verify TypeError -- #
+        expected_str = "zonal periodicity (`iperio`) of parent domain must be a boolean."
+        with pytest.raises(TypeError, match=re.escape(expected_str)):
+            NEMODataTree.from_zarr(store="path/to/store", iperio=iperio)
+    
+    @pytest.mark.parametrize("nftype", ["invalid", 123])
+    def test_nftype_errors(self, nftype):
+        # -- Verify ValueError -- #
+        expected_str = "north fold type (`nftype`) of parent domain must be 'T' (T-pivot fold), 'F' (F-pivot fold), or None."
+        with pytest.raises(ValueError, match=re.escape(expected_str)):
+            NEMODataTree.from_zarr(store="path/to/store", nftype=nftype)
+
+    def test_from_zarr_properties(self, mocker, example_global_nemodatatree):
+        # -- Mock xarray.open_datatree to return example NEMODataTree -- #
+        mocker.patch("xarray.open_datatree", return_value=example_global_nemodatatree)
+
+        # -- Verify NEMODataTree properties -- #
+        result = NEMODataTree.from_zarr(store="path/to/store", name="MyModel", iperio=True, nftype="T")
+        assert result.name == "MyModel"
+        assert result.attrs["iperio"]
+        assert result.attrs["nftype"] == "T"
 
 class TestNEMODataTreeUtils():
     @pytest.mark.parametrize("dom", [".", "1"])

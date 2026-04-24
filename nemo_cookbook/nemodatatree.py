@@ -152,10 +152,9 @@ class NEMODataTree(xr.DataTree):
 
         Examples
         --------
-        Create a zonally periodic `NEMODataTree` from a dictionary of paths to local netCDF files:
+        Create a zonally periodic `NEMODataTree` with north folding on T-points from a dictionary of paths to local netCDF files:
 
         >>> from nemo_cookbook import NEMODataTree
-
         >>> paths = {"parent": {
         ...          "domain": "/path/to/domain_cfg.nc",
         ...          "gridT": "path/to/*_gridT.nc",
@@ -164,7 +163,6 @@ class NEMODataTree(xr.DataTree):
         ...          "gridW": "path/to/*_gridW.nc",
         ...          "icemod": "path/to/*_icemod.nc",
         ...          }}
-
         >>> nemo = NEMODataTree.from_paths(paths, name="My NEMO model", iperio=True, nftype="T")
 
         Create a regional `NEMODataTree` using a linear free-surface approximation from a dictionary of paths to remote netCDF files:
@@ -309,16 +307,13 @@ class NEMODataTree(xr.DataTree):
 
         Examples
         --------
-        Create a `NEMODataTree` from a dictionary of xarray.Dataset objects:
+        Create a zonally periodic `NEMODataTree` with north folding on T-points from a dictionary of xarray.Dataset objects:
 
         >>> import xarray as xr
         >>> from nemo_cookbook import NEMODataTree
-
         >>> ds_domain = xr.open_zarr("https://some_remote_data/domain_cfg.zarr")
         >>> ds_gridT = xr.open_zarr("https://some_remote_data/my_model_gridT.zarr")
-
         >>> datasets = {"parent": {"domain": ds_domain, "gridT": ds_gridT}}
-
         >>> nemo = NEMODataTree.from_datasets(datasets=datasets, name="My NEMO Model", iperio=True, nftype="T")
 
         Create a regional `NEMODataTree` using a linear free-surface approximation from a dictionary of xarray.Dataset objects:
@@ -398,6 +393,7 @@ class NEMODataTree(xr.DataTree):
         name: str = "NEMO model",
         iperio: bool = False,
         nftype: str | None = None,
+        open_kwargs: dict[str, any] | None = None,
         **session_kwargs: dict[str, any],
     ) -> Self:
         """
@@ -419,7 +415,10 @@ class NEMODataTree(xr.DataTree):
         nftype: str, optional
             Type of north fold lateral boundary condition to apply. Options are 'T' for T-point pivot or 'F' for F-point
 
-        **session_kwargs : dict, optional
+        open_kwargs : dict[str, Any], optional
+            Additional keyword arguments to pass to `xarray.open_datatree`. Default is None.
+
+        **session_kwargs : dict[str, Any], optional
             Additional keyword arguments to pass to Icechunk `repo.readonly_session`.
 
         Returns
@@ -429,18 +428,18 @@ class NEMODataTree(xr.DataTree):
 
         Examples
         --------
-        Create a `NEMODataTree` from the main branch of an Icechunk repository:
+        Create a zonally periodic `NEMODataTree` with north folding on F-points from the main branch of an Icechunk repository:
 
         >>> from nemo_cookbook import NEMODataTree
-        >>> nemo = NEMODataTree.from_icechunk(repo=repo, branch="main")
+        >>> nemo = NEMODataTree.from_icechunk(repo=repo, branch="main", iperio=True, nftype="F")
 
         See Also
         --------
-        from_datasets
+        from_zarr
         """
         # -- Validate Inputs -- #
-        if not isinstance(repo, icechunk.repository.Repository):
-            raise TypeError("`repo` must be an Icechunk repository.")
+        if not hasattr(repo, "readonly_session"):
+            raise TypeError("`repo` must implement readonly_session().")
         if not isinstance(name, str):
             raise TypeError("`name` must be a string.")
         if not isinstance(iperio, bool):
@@ -452,7 +451,79 @@ class NEMODataTree(xr.DataTree):
 
         # -- Create NEMODataTree from Icechunk repository -- #:
         session = repo.readonly_session(**session_kwargs)
-        datatree = xr.open_datatree(session.store, engine="zarr")
+        datatree = xr.open_datatree(session.store, engine="zarr", **(open_kwargs or {}))
+        nemo = super().from_dict(datatree.to_dict())
+
+        # -- Update NEMODataTree properties -- #
+        nemo["/"].attrs.update({"nftype": nftype, "iperio": iperio})
+        nemo.name = name
+
+        # -- Validate NEMO grid node Datasets -- #
+        for key in [grid for grid in nemo.groups if grid.startswith("grid")]:
+            validate_nemo_grid_node(key=key, value=nemo[key])
+
+        return nemo
+
+    @classmethod
+    def from_zarr(
+        cls,
+        store: str,
+        name: str = "NEMO model",
+        iperio: bool = False,
+        nftype: str | None = None,
+        **open_kwargs: dict[str, any],
+    ) -> Self:
+        """
+        Create a NEMODataTree from Zarr store groups storing NEMO model outputs
+        organised into a hierarchy of domains (i.e., 'parent', 'child', 'grandchild').
+
+        Parameters
+        ----------
+        store : str
+            Path to the Zarr store containing NEMO model outputs in hierarchical groups.
+
+        name : str, optional
+            Name of the NEMODataTree. Default is "NEMO model".
+        
+        iperio: bool = False
+            Zonal periodicity of the parent domain. Default is False.
+        
+        nftype: str, optional
+            Type of north fold lateral boundary condition to apply. Options are 'T' for T-point pivot or 'F' for F-point
+
+        **open_kwargs : dict[str, Any], optional
+            Additional keyword arguments to pass to `xarray.open_datatree`.
+
+        Returns
+        -------
+        NEMODataTree
+            Hierarchical DataTree of NEMO model outputs.
+
+        Examples
+        --------
+        Create a zonally periodic `NEMODataTree` with north folding on T-points from a hierarchical Zarr store:
+
+        >>> from nemo_cookbook import NEMODataTree
+        >>> nemo = NEMODataTree.from_zarr(store="path/to/zarr/store", iperio=True, nftype="T")
+
+        See Also
+        --------
+        from_icechunk
+        """
+        # -- Validate Inputs -- #
+        if not isinstance(store, str):
+            raise TypeError("`store` must be a string.")
+        if not isinstance(name, str):
+            raise TypeError("`name` must be a string.")
+        if not isinstance(iperio, bool):
+            raise TypeError("zonal periodicity (`iperio`) of parent domain must be a boolean.")
+        if nftype is not None and nftype not in ("T", "F"):
+            raise ValueError(
+                "north fold type (`nftype`) of parent domain must be 'T' (T-pivot fold), 'F' (F-pivot fold), or None."
+            )
+
+        # -- Create NEMODataTree from Zarr store -- #:
+        datatree = xr.open_datatree(store, engine="zarr", **(open_kwargs or {}))
         nemo = super().from_dict(datatree.to_dict())
 
         # -- Update NEMODataTree properties -- #
