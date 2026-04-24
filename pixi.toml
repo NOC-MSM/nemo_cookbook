@@ -21,7 +21,7 @@ aiohttp = "*"
 dask = "*"
 flox = "*"
 fsspec = "*"
-gsw = "*"
+icechunk = "*"
 matplotlib = "*"
 numbagg = "*"
 numba = "0.62*"
@@ -63,6 +63,7 @@ ipykernel = ">=7.2.0,<8"
 nc-time-axis = "*"
 notebook = "*"
 pyarrow = "*"
+gsw = "*"
 
 [environments]
 default = { solve-group = "default" }
