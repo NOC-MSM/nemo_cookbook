@@ -69,6 +69,49 @@ def read_dom_mask(
     return mask
 
 
+def read_dom_maskutil(
+    ds_domain: xr.Dataset,
+    cd_nat: str,
+) -> xr.DataArray:
+    """
+    Read land/ocean mask arrays at tracer points, horizontal velocity
+    points (u & v) and vorticity points (f) points from domain dataset.
+
+    Expected dimensions are: (y, x) for 2D arrays. All dimensions are
+    expected to use zero-based indexing.
+
+    Parameters
+    ----------
+    ds_domain : xr.Dataset
+        NEMO model domain dataset.
+    cd_nat : str
+        Nature of array grid-points to read land/sea mask for.
+        Options are 'T', 'W', 'U', 'V' or 'F'.
+
+    Returns
+    -------
+    xr.DataArray
+        Read land/ocean mask for the specified grid point type.
+    """
+    if not isinstance(ds_domain, xr.Dataset):
+        raise TypeError("ds_domain must be an xarray Dataset")
+    if cd_nat not in ["T", "U", "V", "W", "F"]:
+        raise ValueError("cd_nat must be one of 'T', 'U', 'V', 'W', or 'F'")
+
+    # -- Read mask from domain dataset -- #
+    try:
+        mask = ds_domain[f"{cd_nat.lower()}maskutil"]
+    except AttributeError as e:
+        raise AttributeError(
+            f"missing '{cd_nat.lower()}maskutil' variable in domain dataset"
+        ) from e
+
+    # Update coordinates to use zero-based indexing:
+    mask = mask.assign_coords({"y": mask["y"], "x": mask["x"]})
+
+    return mask
+
+
 def create_dom_mask(
     ka: xr.DataArray,
     top_level: xr.DataArray,

@@ -14,7 +14,7 @@ import glob
 import numpy as np
 import xarray as xr
 
-from .masks import create_dom_mask, read_dom_mask
+from .masks import create_dom_mask, read_dom_mask, read_dom_maskutil
 
 _DEFAULT_NBGHOST_CHILD = 4
 
@@ -370,8 +370,6 @@ def _add_domain_vars(
             d_grids["gridT"]["e3t"] = domain["e3t_0"]
         d_grids["gridT"]["gphit"] = domain["gphit"]
         d_grids["gridT"]["glamt"] = domain["glamt"]
-        d_grids["gridT"]["top_level"] = domain["top_level"]
-        d_grids["gridT"]["bottom_level"] = domain["bottom_level"]
     except AttributeError as e:
         raise AttributeError(
             "missing required T-grid variable in domain dataset"
@@ -379,6 +377,7 @@ def _add_domain_vars(
 
     if read_mask:
         d_grids["gridT"]["tmask"] = read_dom_mask(ka=ka, ds_domain=domain, cd_nat="T")
+        d_grids["gridT"]["tmaskutil"] = read_dom_maskutil(ds_domain=domain, cd_nat="T")
     else:
         d_grids["gridT"]["tmask"] = create_dom_mask(
             ka=ka,
@@ -389,9 +388,9 @@ def _add_domain_vars(
             iperio=iperio,
             mask_opensea=mask_opensea,
         )
-    d_grids["gridT"]["tmaskutil"] = d_grids["gridT"]["tmask"][0, :, :].squeeze(
-        drop=True
-    )
+        d_grids["gridT"]["tmaskutil"] = d_grids["gridT"]["tmask"][0, :, :].squeeze(
+            drop=True
+        )
     d_grids["gridT"] = d_grids["gridT"].assign_attrs(nftype=nftype, iperio=iperio)
 
     # U-grid:
@@ -409,6 +408,7 @@ def _add_domain_vars(
 
     if read_mask:
         d_grids["gridU"]["umask"] = read_dom_mask(ka=ka, ds_domain=domain, cd_nat="U")
+        d_grids["gridU"]["umaskutil"] = read_dom_maskutil(ds_domain=domain, cd_nat="U")
     else:
         d_grids["gridU"]["umask"] = create_dom_mask(
             ka=ka,
@@ -419,9 +419,9 @@ def _add_domain_vars(
             iperio=iperio,
             mask_opensea=mask_opensea,
         )
-    d_grids["gridU"]["umaskutil"] = d_grids["gridU"]["umask"][0, :, :].squeeze(
-        drop=True
-    )
+        d_grids["gridU"]["umaskutil"] = d_grids["gridU"]["umask"][0, :, :].squeeze(
+            drop=True
+        )
     d_grids["gridU"] = d_grids["gridU"].assign_attrs(nftype=nftype, iperio=iperio)
 
     # V-grid:
@@ -439,6 +439,7 @@ def _add_domain_vars(
 
     if read_mask:
         d_grids["gridV"]["vmask"] = read_dom_mask(ka=ka, ds_domain=domain, cd_nat="V")
+        d_grids["gridV"]["vmaskutil"] = read_dom_maskutil(ds_domain=domain, cd_nat="V")
     else:
         d_grids["gridV"]["vmask"] = create_dom_mask(
             ka=ka,
@@ -449,9 +450,9 @@ def _add_domain_vars(
             iperio=iperio,
             mask_opensea=mask_opensea,
         )
-    d_grids["gridV"]["vmaskutil"] = d_grids["gridV"]["vmask"][0, :, :].squeeze(
-        drop=True
-    )
+        d_grids["gridV"]["vmaskutil"] = d_grids["gridV"]["vmask"][0, :, :].squeeze(
+            drop=True
+        )
     d_grids["gridV"] = d_grids["gridV"].assign_attrs(nftype=nftype, iperio=iperio)
 
     # W-grid:
@@ -469,6 +470,8 @@ def _add_domain_vars(
 
     if read_mask:
         d_grids["gridW"]["wmask"] = read_dom_mask(ka=ka, ds_domain=domain, cd_nat="W")
+        # W-grid is horizontally co-located with T-grid -> use tmaskutil:
+        d_grids["gridW"]["wmaskutil"] = read_dom_maskutil(ds_domain=domain, cd_nat="T")
     else:
         d_grids["gridW"]["wmask"] = create_dom_mask(
             ka=ka,
@@ -479,9 +482,9 @@ def _add_domain_vars(
             iperio=iperio,
             mask_opensea=mask_opensea,
         )
-    d_grids["gridW"]["wmaskutil"] = d_grids["gridW"]["wmask"][0, :, :].squeeze(
-        drop=True
-    )
+        d_grids["gridW"]["wmaskutil"] = d_grids["gridW"]["wmask"][0, :, :].squeeze(
+            drop=True
+        )
     d_grids["gridW"] = d_grids["gridW"].assign_attrs(nftype=nftype, iperio=iperio)
 
     # F-grid:
@@ -500,6 +503,7 @@ def _add_domain_vars(
 
     if read_mask:
         d_grids["gridF"]["fmask"] = read_dom_mask(ka=ka, ds_domain=domain, cd_nat="F")
+        d_grids["gridF"]["fmaskutil"] = read_dom_maskutil(ds_domain=domain, cd_nat="F")
     else:
         d_grids["gridF"]["fmask"] = create_dom_mask(
             ka=ka,
@@ -510,9 +514,9 @@ def _add_domain_vars(
             iperio=iperio,
             mask_opensea=mask_opensea,
         )
-    d_grids["gridF"]["fmaskutil"] = d_grids["gridF"]["fmask"][0, :, :].squeeze(
-        drop=True
-    )
+        d_grids["gridF"]["fmaskutil"] = d_grids["gridF"]["fmask"][0, :, :].squeeze(
+            drop=True
+        )
     d_grids["gridF"] = d_grids["gridF"].assign_attrs(nftype=nftype, iperio=iperio)
 
     return d_grids
