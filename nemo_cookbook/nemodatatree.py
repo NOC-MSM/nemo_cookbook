@@ -12,7 +12,6 @@ Ollie Tooth (oliver.tooth@noc.ac.uk)
 
 from typing import Self
 
-import dask
 import numpy as np
 import xarray as xr
 from xarray.indexes import NDPointIndex
@@ -426,7 +425,7 @@ class NEMODataTree(xr.DataTree):
         if isinstance(value, NEMODataArray):
             value = value.data
 
-        if validate & isinstance(value, xr.Dataset):
+        if validate and isinstance(value, xr.Dataset):
             # Define suffix NEMO grid node:
             grid_type = key[-1].lower()
             hgrid_type = grid_type if "w" not in grid_type else "t"
@@ -471,7 +470,7 @@ class NEMODataTree(xr.DataTree):
         is_gridpath = key.startswith("/grid") or key.startswith("grid")
 
         # -- Return NEMODataArray -- #
-        if isinstance(item, xr.DataArray) & is_gridpath:
+        if isinstance(item, xr.DataArray) and is_gridpath:
             var_name = key.split("/")[-1]
             grid = key.replace(f"/{var_name}", "")
             item = NEMODataArray(da=item,
@@ -483,7 +482,7 @@ class NEMODataTree(xr.DataTree):
 
     def _get_properties(
         self, dom: str | None = None, grid: str | None = None, infer_dom: bool = False
-    ) -> str:
+    ) -> str | tuple[str, ...]:
         """
         Get NEMO model domain and grid properties.
 
@@ -509,10 +508,10 @@ class NEMODataTree(xr.DataTree):
 
         Returns
         -------
-        tuple[str]
+        str | tuple[str, ...]
             NEMO model domain and grid properties.
         """
-        if (grid is None) & (dom is not None):
+        if (grid is None) and (dom is not None):
             dom_prefix = "" if dom == "." else f"{dom}_"
             dom_suffix = "" if dom == "." else f"{dom}"
             return dom_prefix, dom_suffix
@@ -533,7 +532,7 @@ class NEMODataTree(xr.DataTree):
             else:
                 return grid_suffix
 
-    def _get_grid_paths(self, dom: str) -> str:
+    def _get_grid_paths(self, dom: str) -> dict[str, str]:
         """
         Get paths to NEMO model grids in a given domain.
 
@@ -552,7 +551,7 @@ class NEMODataTree(xr.DataTree):
 
         if dom == ".":
             grid_paths = [
-                path for path in grid_paths if ("_" not in path) & ("grid" in path)
+                path for path in grid_paths if ("_" not in path) and ("grid" in path)
             ]
         else:
             grid_paths = [path for path in grid_paths if dom in path]
@@ -561,7 +560,7 @@ class NEMODataTree(xr.DataTree):
 
         return d_paths
 
-    def _get_ijk_names(self, dom: str | None = None, grid: str | None = None) -> str:
+    def _get_ijk_names(self, dom: str | None = None, grid: str | None = None) -> dict[str, str]:
         """
         Get (i, j, k) grid index names for given NEMO model domain.
 
@@ -623,7 +622,7 @@ class NEMODataTree(xr.DataTree):
             "k": f"e3{grid_suffix}",
         }
         try:
-            weights_list = [self[f"{grid}/{weights_dict[dim]}"].masked.data for dim in dims]
+            weights_list = [self[f"{grid}"][weights_dict[dim]] for dim in dims]
         except KeyError as e:
             raise KeyError(
                 f"weights missing for dimensions {dims} of NEMO model grid {grid}"
@@ -1007,7 +1006,7 @@ class NEMODataTree(xr.DataTree):
         da_j = self[f"{gridV}/{var_j}"].masked.data
 
         # -- Collect mask -- #
-        if (f"{dom_prefix}depthu" in da_i.coords) & (
+        if (f"{dom_prefix}depthu" in da_i.coords) and (
             f"{dom_prefix}depthv" in da_j.coords
         ):
             # 3-dimensional tmask:
@@ -1120,7 +1119,7 @@ class NEMODataTree(xr.DataTree):
         da_j = self[f"{gridV}/{var_j}"].masked.data
 
         # -- Collect mask -- #
-        if (f"{dom_prefix}depthu" in da_i.coords) & (
+        if (f"{dom_prefix}depthu" in da_i.coords) and (
             f"{dom_prefix}depthv" in da_j.coords
         ):
             # 3-dimensional fmask
@@ -1754,141 +1753,53 @@ class NEMODataTree(xr.DataTree):
         --------
         extract_section
         """
-        # -- Validate input -- #
+        # -- Validate Input -- #
         if not isinstance(mask, xr.DataArray):
-            raise ValueError("mask must be an xarray DataArray")
+            raise TypeError("mask must be an xarray DataArray")
         if not isinstance(dom, str):
-            raise ValueError(
+            raise TypeError(
                 "dom must be a string specifying prefix of a NEMO domain (e.g., '.', '1', '2', etc.)."
             )
         if uv_vars is None:
             uv_vars = ["uo", "vo"]
         else:
             if not isinstance(uv_vars, list) or len(uv_vars) != 2:
-                raise ValueError(
+                raise TypeError(
                     "uv_vars must be a list of velocity variables to extract (e.g., ['uo', 'vo'])."
                 )
 
         # -- Get NEMO model grid properties -- #
-        dom_prefix, dom_suffix = self._get_properties(dom=dom)
-        grid_paths = self._get_grid_paths(dom=dom)
-        gridT, gridU, gridV = (
-            grid_paths["gridT"],
-            grid_paths["gridU"],
-            grid_paths["gridV"],
-        )
-        ijk_names = self._get_ijk_names(dom=dom)
-        k_name = ijk_names["k"]
+        _, dom_suffix = self._get_properties(dom=dom)
 
         # -- Extract mask boundary -- #
         if f"i{dom_suffix}" not in mask.dims or f"j{dom_suffix}" not in mask.dims:
             raise ValueError(
-                f"mask must have dimensions f'i{dom_suffix}' and 'j{dom_suffix}'"
+                f"mask must have dimensions 'i{dom_suffix}' and 'j{dom_suffix}'"
             )
         i_bdy, j_bdy, flux_type, flux_dir = get_mask_boundary(mask)
 
         # -- Construct boundary dataset -- #
-        t_name = [dim for dim in self[gridU].dims if "time" in dim][0]
-
-        ds = xr.Dataset(
-            data_vars={
-                "i_bdy": (["bdy"], i_bdy[::-1]),
-                "j_bdy": (["bdy"], j_bdy[::-1]),
-                "flux_type": (["bdy"], flux_type[::-1]),
-                "flux_dir": (["bdy"], flux_dir[::-1]),
-            },
-            coords={
-                t_name: self[gridU][t_name].values,
-                k_name: self[gridU][k_name].values,
-                "bdy": np.arange(len(i_bdy)),
-            },
+        # Neglecting final indices -> duplicate of the first indices:
+        ds_bdy = create_boundary_dataset(
+            nemo=self,
+            dom=dom,
+            i_bdy=i_bdy[:-1],
+            j_bdy=j_bdy[:-1],
+            flux_type=flux_type[:-1],
+            flux_dir=flux_dir[:-1],
         )
 
-        # Add velocities normal to boundary:
-        if uv_vars[0] not in self[gridU].data_vars:
-            raise KeyError(f"variable '{uv_vars[0]}' not found in grid '{gridU}'.")
-        if uv_vars[1] not in self[gridV].data_vars:
-            raise KeyError(f"variable '{uv_vars[1]}' not found in grid '{gridV}'.")
-
-        ubdy_mask = ds["flux_type"] == "U"
-        vbdy_mask = ds["flux_type"] == "V"
-
-        dim_sizes = [
-            self[gridU][t_name].size,
-            self[gridU][k_name].size,
-            ds["bdy"].size,
-        ]
-
-        ds["velocity"] = xr.DataArray(
-            data=dask.array.zeros(dim_sizes), dims=[t_name, k_name, "bdy"]
-        )
-        ds["velocity"][:, :, ubdy_mask] = (
-            self[f"{gridU}/{uv_vars[0]}"].masked.data.sel(
-                i=ds["i_bdy"][ubdy_mask], j=ds["j_bdy"][ubdy_mask]
-            )
-            * ds["flux_dir"][ubdy_mask]
-        )
-        ds["velocity"][:, :, vbdy_mask] = (
-            self[f"{gridV}/{uv_vars[1]}"].masked.data.sel(
-                i=ds["i_bdy"][vbdy_mask], j=ds["j_bdy"][vbdy_mask]
-            )
-            * ds["flux_dir"][vbdy_mask]
+        # -- Update boundary dataset with extracted section data -- #
+        ds_bdy = update_boundary_dataset(
+            ds_bdy=ds_bdy,
+            nemo=self,
+            dom=dom,
+            sec_indexes=None,
+            uv_vars=uv_vars,
+            vars=vars,
         )
 
-        ds = ds.assign_coords(
-            {
-                f"{dom_prefix}glamb": (["bdy"], np.zeros(ds["bdy"].size)),
-                f"{dom_prefix}gphib": (["bdy"], np.zeros(ds["bdy"].size)),
-                f"{dom_prefix}depthb": ((k_name, "bdy"), np.zeros(dim_sizes[1:])),
-            }
-        )
-
-        ds[f"{dom_prefix}glamb"][ubdy_mask] = self[gridU][f"{dom_prefix}glamu"].sel(
-            i=ds["i_bdy"][ubdy_mask], j=ds["j_bdy"][ubdy_mask]
-        )
-        ds[f"{dom_prefix}glamb"][vbdy_mask] = self[gridV][f"{dom_prefix}glamv"].sel(
-            i=ds["i_bdy"][vbdy_mask], j=ds["j_bdy"][vbdy_mask]
-        )
-
-        ds[f"{dom_prefix}gphib"][ubdy_mask] = self[gridU][f"{dom_prefix}gphiu"].sel(
-            i=ds["i_bdy"][ubdy_mask], j=ds["j_bdy"][ubdy_mask]
-        )
-        ds[f"{dom_prefix}gphib"][vbdy_mask] = self[gridV][f"{dom_prefix}gphiv"].sel(
-            i=ds["i_bdy"][vbdy_mask], j=ds["j_bdy"][vbdy_mask]
-        )
-        ds[f"{dom_prefix}depthb"][:, ubdy_mask] = self[gridU][f"{dom_prefix}depthu"]
-        ds[f"{dom_prefix}depthb"][:, vbdy_mask] = self[gridV][f"{dom_prefix}depthv"]
-
-        if vars is not None:
-            # Add scalar variables along the boundary:
-            for var in vars:
-                if var in self[gridT].data_vars:
-                    ds[var] = xr.DataArray(
-                        data=dask.array.zeros(dim_sizes),
-                        dims=[t_name, k_name, "bdy"],
-                    )
-                else:
-                    raise KeyError(f"variable {var} not found in grid '{gridT}'.")
-
-                # Linearly interpolate scalar variables onto NEMO model U/V grid points:
-                ds[var][:, :, ubdy_mask] = 0.5 * (
-                    self[f"{gridT}/{var}"].masked.data.sel(
-                        i=ds["i_bdy"][ubdy_mask] - 0.5, j=ds["j_bdy"][ubdy_mask]
-                    )
-                    + self[f"{gridT}/{var}"].masked.data.sel(
-                        i=ds["i_bdy"][ubdy_mask] + 0.5, j=ds["j_bdy"][ubdy_mask]
-                    )
-                )
-                ds[var][:, :, vbdy_mask] = 0.5 * (
-                    self[f"{gridT}/{var}"].masked.data.sel(
-                        i=ds["i_bdy"][vbdy_mask], j=ds["j_bdy"][vbdy_mask] - 0.5
-                    )
-                    + self[f"{gridT}/{var}"].masked.data.sel(
-                        i=ds["i_bdy"][vbdy_mask], j=ds["j_bdy"][vbdy_mask] + 0.5
-                    )
-                )
-
-        return ds
+        return ds_bdy
 
     def extract_section(
         self,
@@ -1938,20 +1849,20 @@ class NEMODataTree(xr.DataTree):
         --------
         extract_mask_boundary
         """
-        # -- Validate input -- #
+        # -- Validate Input -- #
         if not isinstance(lon_section, np.ndarray):
             raise TypeError("lon_section must be a numpy array.")
         if not isinstance(lat_section, np.ndarray):
             raise TypeError("lat_section must be a numpy array.")
         if not isinstance(dom, str):
-            raise ValueError(
+            raise TypeError(
                 "dom must be a string specifying prefix of a NEMO domain (e.g., '.', '1', '2', etc.)."
             )
         if uv_vars is None:
             uv_vars = ["uo", "vo"]
         else:
             if not isinstance(uv_vars, list) or len(uv_vars) != 2:
-                raise ValueError(
+                raise TypeError(
                     "uv_vars must be a list of velocity variables to extract (e.g., ['uo', 'vo'])."
                 )
 
@@ -1981,10 +1892,13 @@ class NEMODataTree(xr.DataTree):
         )
 
         # -- Get indexes of hydrographic section along mask boundary -- #
+        dom_prefix, _ = self._get_properties(dom=dom)
         sec_indexes = get_section_indexes(
             lon_section=lon_section,
             lat_section=lat_section,
-            ds_bdy=ds_bdy,
+            gphib=ds_bdy[f"{dom_prefix}gphib"].values,
+            glamb=ds_bdy[f"{dom_prefix}glamb"].values,
+            bdy=ds_bdy["bdy"].values,
         )
 
         # -- Update boundary dataset with extracted section data -- #

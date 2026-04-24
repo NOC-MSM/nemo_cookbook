@@ -17,6 +17,7 @@ import warnings
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Self
 
+import dask
 import numpy as np
 import xarray as xr
 
@@ -97,20 +98,20 @@ class NEMODataArray:
                 f"{self._grid} not found in available NEMODataTree grids {grid_keys}."
             )
 
-        # Dimension must exist & values must be within NEMODataTree dimension values:
+        # Dimension must exist & sizes must be less than or equal to NEMODataTree dimensions:
         if not all(dim in list(self._tree[self._grid].dims) for dim in self._da.dims):
             raise ValueError(f"DataArray dimensions {self._da.dims} not all in NEMO model '{self._grid}' dimensions {self._tree[self._grid].dims}.")
 
-        if not all((self._da[dim].min() >= self._tree[self._grid][dim].min()) & (self._da[dim].max() <= self._tree[self._grid][dim].max()) for dim in self._da.dims):
-            raise ValueError(f"DataArray dimension values {self._da.dims} not all within NEMO model '{self._grid}' dimension values {self._tree[self._grid].dims}.")
+        if not all(self._da.sizes[d] <= self._tree[self._grid].sizes[d] for d in self._da.dims):
+            raise ValueError(f"DataArray dimension sizes {self._da.dims} not all less than or equal to NEMO model '{self._grid}' dimension sizes {self._tree[self._grid].dims}.")
 
-        # Core coordinates (glam, gphi, depth, time_counter) must exist & values must be within NEMODataTree coordinate values:
+        # Core coordinates (glam, gphi, depth, time_counter) must exist & sizes must be less than or equal to NEMODataTree coordinates:
         core_coords = [coord for coord in self._da.coords if "glam" in coord or "gphi" in coord or "depth" in coord or "time_counter" in coord]
         if not all(dim in list(self._tree[self._grid].coords) for dim in core_coords):
             raise ValueError(f"DataArray coordinates {core_coords} not all in NEMO model '{self._grid}' coordinates {self._tree[self._grid].coords}.")
 
-        if not all((self._da[coord].min() >= self._tree[self._grid].coords[coord].min()) & (self._da[coord].max() <= self._tree[self._grid].coords[coord].max()) for coord in core_coords):
-            raise ValueError(f"DataArray coordinate values {core_coords} not all within NEMO model '{self._grid}' coordinate values {self._tree[self._grid].coords}.")
+        if not all(self._da[coord].sizes[d] <= self._tree[self._grid].coords[coord].sizes[d] for coord in core_coords for d in self._da[coord].dims):
+            raise ValueError(f"DataArray coordinate sizes {core_coords} not all less than or equal to NEMO model '{self._grid}' coordinate sizes {self._tree[self._grid].coords}.")
 
         # -- Assign NEMO domain number, grid path and grid type -- #
         dom, dom_prefix, dom_suffix, grid_suffix = self._tree._get_properties(grid=self._grid, infer_dom=True)
@@ -179,7 +180,7 @@ class NEMODataArray:
         if (self._da.ndim == 1) and (self.t_name in self._da.dims):
             raise ValueError("land-sea mask does not exist for variables without spatial dimensions.")
         else:
-            if (f"{self._dom_prefix}depth{self._grid_suffix}" in self._da.coords) & (self.k_name in self._da.dims):
+            if (f"{self._dom_prefix}depth{self._grid_suffix}" in self._da.coords) and (self.k_name in self._da.dims):
                 # 3-dimensional land-sea mask:
                 mask_name = f"{self._grid_suffix}mask"
             else:
@@ -264,8 +265,8 @@ class NEMODataArray:
             mask = (self.mask & mask)
 
         # -- Apply mask & return NEMODataArray -- #
-        if drop:
-            warnings.warn(message="Indexing with a boolean dask array is not allowed. Mask will be computed first using .compute(). This may result in high memory usage for large masks.",
+        if drop and isinstance(mask.data, dask.array.Array):
+            warnings.warn(message="Indexing with a boolean dask array is not allowed. Mask will be materialised first using .load(). This may result in high memory usage for large masks.",
                           category=RuntimeWarning,
                           stacklevel=2
                           )
@@ -324,13 +325,18 @@ class NEMODataArray:
                 if other.coords[dim].size != self.data.coords[dim].size:
                     d_dims[dim] = other.coords[dim].data
 
-        result = self.data.sel(d_dims)
+        # Indexing only required if dimensions modified:
+        if len(d_dims) > 0:
+            result = self.data.sel(d_dims)
+            return self._wrap(result)
+        # Otherwise return original NEMODataArray:
+        else:
+            return self
 
-        return self._wrap(result)
-    
     def weighted_mean(
         self,
         dims : list,
+        mask: xr.DataArray | None = None,
         skipna : bool | None = None
     ) -> Self:
         """
@@ -340,6 +346,9 @@ class NEMODataArray:
         ----------
         dims : list
             Dimensions over which to apply weighted mean (e.g., ['i', 'j']).
+        mask: xr.DataArray, optional
+            Boolean mask identifying NEMO model grid points to be included (1)
+            or neglected (0) from integration.
         skipna : bool | None
             If True, skip missing values (as marked by NaN).
             By default, only skips missing values for float dtypes.
@@ -363,14 +372,22 @@ class NEMODataArray:
         # -- Validate Input -- #
         if not isinstance(dims, list):
             raise TypeError("dims must be specified as a list.")
+        if mask is not None:
+            if not isinstance(mask, xr.DataArray):
+                raise TypeError("mask must be an xarray.DataArray.")
+            if any(dim not in self.dims for dim in mask.dims):
+                raise ValueError(
+                    f"mask must have dimensions subset from {self.dims}."
+                )
         if skipna is not None:
             if not isinstance(skipna, bool):
                 raise TypeError("skipna must be specified as a boolean or None.")
 
         # -- Calculate weighted mean & return NEMODataArray -- #
+        da = self.apply_mask(mask=mask).data
         weight_dims = [dim.replace(self._dom_suffix, "") for dim in dims]
         weights = self._tree._get_weights(grid=self._grid, dims=weight_dims)
-        result = self.weighted(weights).mean(dim=dims, skipna=skipna)
+        result = da.weighted(weights).mean(dim=dims, skipna=skipna)
         result.name = f"wmean_{'_'.join(dims)}({self.name})"
 
         return self._wrap(result)
@@ -393,7 +410,9 @@ class NEMODataArray:
         Returns
         -------
         NEMODataArray
-            Discrete difference of variable defined on a NEMO model grid.
+            Discrete difference of variable defined on a new NEMO model grid. For example, the
+            discrete difference along the i-dimension of a scalar variable defined on a T-grid
+            returns a NEMODataArray defined on the U-grid. 
 
         Examples
         --------
@@ -593,9 +612,9 @@ class NEMODataArray:
         # Define path to derivative NEMO model grid:
         new_grid = f"{self._grid.replace(self._grid[-1], new_grid_suffix.upper())}"
 
-        # Collect & mask derivative grid scale factors (e.g., e1u, e3t etc.):
+        # Collect derivative grid scale factors (e.g., e1u, e3t etc.):
         try:
-            weights = self._tree[f"{new_grid}/{new_grid_weights}"].masked
+            weights = self._tree[new_grid][new_grid_weights]
         except KeyError as e:
             raise KeyError(
                 f"NEMO model grid: '{new_grid}' does not contain grid scale factor '{new_grid_weights}' required to calculate derivatives along the {dim}-dimension."
@@ -607,10 +626,10 @@ class NEMODataArray:
         # Calculate derivative (i.e., diff(var) / e{1/2/3}{t/u/v/w}):
         if dim in [self.k_name]:
             # Vertical derivative [k increasing downward]:
-            result = - da.data / weights.data
+            result = - da.data / weights
         else:
             # Horizontal derivative [i/j increasing eastward/northward]:
-            result = da.data / weights.data
+            result = da.data / weights
 
         # -- Update DataArray properties & return NEMODataArray -- #
         result.name = f"d({self.name})/d{dim}"
@@ -669,7 +688,7 @@ class NEMODataArray:
         --------
         depth_integral
         """
-        # -- Validate input -- #
+        # -- Validate Input -- #
         if cum_dims is not None:
             for dim in cum_dims:
                 if dim not in dims:
@@ -689,11 +708,7 @@ class NEMODataArray:
                 )
 
         # -- Collect variable, weights & mask -- #
-        da = (
-            self.masked.data.where(mask)
-            if mask is not None
-            else self.masked.data
-            )
+        da = self.apply_mask(mask=mask).data
         weights = self._tree._get_weights(grid=self._grid, dims=dims)
 
         # -- Perform integration -- #
@@ -753,7 +768,7 @@ class NEMODataArray:
         --------
         integral
         """
-        # -- Validate input -- #
+        # -- Validate Input -- #
         if (not isinstance(limits, tuple)) | (len(limits) != 2):
             raise TypeError(
                 "depth limits of integration should be given by a tuple of the form (depth_min, depth_max)"
@@ -853,7 +868,7 @@ class NEMODataArray:
         )
 
         # -- Apply masks & calculate statistic -- #
-        da = self.masked.data.where(mask_poly)
+        da = self.apply_mask(mask=mask_poly).data
 
         match statistic:
             case "mean":
@@ -1027,7 +1042,7 @@ class NEMODataArray:
         --------
         transform_to
         """
-        # -- Validate input -- #
+        # -- Validate Input -- #
         if e3_new.dims != ("k_new",) or (e3_new.ndim != 1):
             raise ValueError(
                 "e3_new must be a 1-dimensional xarray.DataArray with dimension 'k_new'."
@@ -1036,9 +1051,12 @@ class NEMODataArray:
         # -- Define input variables -- #
         var_in = self.masked.data
         e3_in = self.metrics["e3"].masked.data
-        if e3_new.sum(dim="k_new") < var_in[f"depth{self._grid_suffix}"].max(dim=self.k_name):
+
+        # Ensure total depth of new vertical grid >= total depth of NEMO model vertical grid:
+        depth_max = self._tree[self._grid][f"{self._dom_prefix}depth{self._grid_suffix}"].max(self.k_name)
+        if e3_new.sum(dim="k_new") < depth_max:
             raise ValueError(
-                f"e3_new must sum to at least the maximum depth ({var_in[f'depth{self._grid_suffix}'].max(dim=self.k_name).item()} m) of the original vertical grid."
+                f"e3_new must sum to at least the maximum depth ({depth_max.item()} m) of the original vertical grid."
             )
 
         # -- Transform variable to target vertical grid -- #

@@ -63,7 +63,7 @@ class TestNEMODataArrayInit:
         with pytest.raises(KeyError, match=re.escape("gridX not found in available NEMODataTree grids")):
             NEMODataArray(da=da, tree=nemo, grid="gridX")
 
-    def test_da_name_error(self, example_global_nemodatatree):
+    def test_da_dims_name_error(self, example_global_nemodatatree):
         nemo = example_global_nemodatatree
         # DataArray with dimensions not found in NEMO model grid:
         da_error = xr.DataArray(
@@ -77,16 +77,17 @@ class TestNEMODataArrayInit:
         nemo = example_global_nemodatatree
         # DataArray with dimension sizes exceeding NEMO model grid:
         da_error = nemo["gridT"]["tos_con"].copy()
-        da_error['j'] = np.arange(5, 15, dtype=int)
-        with pytest.raises(ValueError, match=re.escape("not all within NEMO model 'gridT' dimension values")):
+        da_error = da_error.pad(pad_width={"i": (0, 5)})
+        with pytest.raises(ValueError, match=re.escape("not all less than or equal to NEMO model 'gridT' dimension sizes")):
             NEMODataArray(da=da_error, tree=nemo, grid="gridT")
 
-    def test_da_dim_values_error(self, example_global_nemodatatree):
+    def test_da_coords_name_error(self, example_global_nemodatatree):
         nemo = example_global_nemodatatree
+        # DataArray with coordinates not found in NEMO model grid:
         da_error = nemo["gridT"]["tos_con"].copy()
-        da_error = da_error.assign_coords(gphit=da_error["gphit"] + 100)
-        # DataArray with coordinate values outside of NEMO model grid coordinates:
-        with pytest.raises(ValueError, match=re.escape("not all within NEMO model 'gridT' coordinate values")):
+        da_error = da_error.assign_coords(glam=(["j", "i"], np.ones((10, 10))))
+
+        with pytest.raises(ValueError, match=re.escape("not all in NEMO model 'gridT' coordinates")):
             NEMODataArray(da=da_error, tree=nemo, grid="gridT")
 
     @pytest.mark.parametrize("dom_type", ["global", "regional"])

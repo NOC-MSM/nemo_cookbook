@@ -24,7 +24,6 @@ dependencies = [
   "dask>=2025.7.0",
   "flox>=0.10.6",
   "fsspec>=2025.3.2",
-  "gsw>=3.6.20",
   "matplotlib",
   "numbagg>=0.8",
   "numba>=0.62",
@@ -43,7 +42,7 @@ dependencies = [
 
 complete = ["nemo_cookbook[parallel,interactive]"]
 parallel = ["dask[complete]"]
-interactive = ["jupyter>=1.1.1", "notebook>=7.4.1", "ipykernel>=6.29.5", "pyarrow>=21.0.0", "cartopy>=0.23", "nc-time-axis"]
+interactive = ["jupyter>=1.1.1", "notebook>=7.4.1", "ipykernel>=6.29.5", "pyarrow>=21.0.0", "cartopy>=0.23", "nc-time-axis", "gsw>=3.6.20",]
 tests = ["pytest", "pytest-mock"]
 docs = ["mkdocs-material", "mkdocs-glightbox", "mkdocs-jupyter", "mkdocstrings", "mkdocstrings-python"]
 
@@ -60,6 +59,9 @@ include = ["nemo_cookbook*"]
 
 [tool.setuptools.package-data]
 nemo_cookbook = ["registry.txt"]
+
+[tool.setuptools_scm]
+fallback_version = "9999"
 
 [tool.ruff]
 line-length = 88
