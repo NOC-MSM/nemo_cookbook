@@ -27,13 +27,14 @@ if TYPE_CHECKING:
 from nemo_cookbook.integrate import compute_depth_integral
 from nemo_cookbook.interpolate import interpolate_grid
 from nemo_cookbook.transform import transform_vertical_coords
+from nemo_cookbook.validation import validate_nemo_dataarray
 
 _NEMO_DIFF_MAP = {
     # -- NEMO Arakawa C-grid Finite Difference Mapping -- #
     # (input_grid_suffix, diff_dim): (output_grid_suffix, output_hgrid_suffix, output_scale_factor)
     ("T", "i"): ("u", "u", "e1u"),
     ("T", "j"): ("v", "v", "e2v"),
-    ("T", "k"): ("w", "t", "e3w"),
+    ("T", "k"): ("w", "w", "e3w"),
     ("U", "i"): ("t", "t", "e1t"),
     ("U", "j"): ("f", "f", "e2f"),
     ("U", "k"): ("uw", "u", "e3uw"),
@@ -92,26 +93,7 @@ class NEMODataArray:
             self._grid = grid
 
         # -- Validate DataArray compatibility -- #
-        grid_keys = list(dict(self._tree.subtree_with_keys).keys())
-        if self._grid not in grid_keys:
-            raise KeyError(
-                f"{self._grid} not found in available NEMODataTree grids {grid_keys}."
-            )
-
-        # Dimension must exist & sizes must be less than or equal to NEMODataTree dimensions:
-        if not all(dim in list(self._tree[self._grid].dims) for dim in self._da.dims):
-            raise ValueError(f"DataArray dimensions {self._da.dims} not all in NEMO model '{self._grid}' dimensions {self._tree[self._grid].dims}.")
-
-        if not all(self._da.sizes[d] <= self._tree[self._grid].sizes[d] for d in self._da.dims):
-            raise ValueError(f"DataArray dimension sizes {self._da.dims} not all less than or equal to NEMO model '{self._grid}' dimension sizes {self._tree[self._grid].dims}.")
-
-        # Core coordinates (glam, gphi, depth, time_counter) must exist & sizes must be less than or equal to NEMODataTree coordinates:
-        core_coords = [coord for coord in self._da.coords if "glam" in coord or "gphi" in coord or "depth" in coord or "time_counter" in coord]
-        if not all(dim in list(self._tree[self._grid].coords) for dim in core_coords):
-            raise ValueError(f"DataArray coordinates {core_coords} not all in NEMO model '{self._grid}' coordinates {self._tree[self._grid].coords}.")
-
-        if not all(self._da[coord].sizes[d] <= self._tree[self._grid].coords[coord].sizes[d] for coord in core_coords for d in self._da[coord].dims):
-            raise ValueError(f"DataArray coordinate sizes {core_coords} not all less than or equal to NEMO model '{self._grid}' coordinate sizes {self._tree[self._grid].coords}.")
+        validate_nemo_dataarray(da=self._da, grid=self._grid, tree=self._tree)
 
         # -- Assign NEMO domain number, grid path and grid type -- #
         dom, dom_prefix, dom_suffix, grid_suffix = self._tree._get_properties(grid=self._grid, infer_dom=True)
