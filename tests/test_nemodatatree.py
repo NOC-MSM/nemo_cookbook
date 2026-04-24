@@ -222,7 +222,7 @@ class TestNEMODataTreeUtils():
         # -- Create NEMODataTree instance -- #
         nemo = NEMODataTree()
         # Assign grid node without validation:
-        nemo.__setitem__(key='gridT', value=xr.Dataset(), validate=False)
+        nemo.__setitem__(key='gridT', value=xr.Dataset(), strict=False)
         # -- Verify grid properties -- #
         result = nemo._get_properties(grid="gridT", infer_dom=infer_dom)
         if infer_dom:
@@ -238,8 +238,8 @@ class TestNEMODataTreeUtils():
         # -- Create NEMODataTree instance -- #
         nemo = NEMODataTree()
         # Assign grid nodes without validation:
-        nemo.__setitem__(key='gridT', value=xr.Dataset(), validate=False)
-        nemo.__setitem__(key='gridT/1_gridT', value=xr.Dataset(), validate=False)
+        nemo.__setitem__(key='gridT', value=xr.Dataset(), strict=False)
+        nemo.__setitem__(key='gridT/1_gridT', value=xr.Dataset(), strict=False)
         # -- Verify grid node paths -- #
         result = nemo._get_grid_paths(dom=dom)
         assert isinstance(result, dict)
@@ -267,7 +267,7 @@ class TestNEMODataTreeUtils():
         # -- Create NEMODataTree instance -- #
         nemo = NEMODataTree()
         # Assign grid nodes without validation:
-        nemo.__setitem__(key=grid, value=xr.Dataset(), validate=False)
+        nemo.__setitem__(key=grid, value=xr.Dataset(), strict=False)
         # -- Verify ijk names -- #
         result = nemo._get_ijk_names(grid=grid)
         assert isinstance(result, dict)
@@ -282,7 +282,7 @@ class TestNEMODataTreeUtils():
         # -- Create NEMODataTree instance -- #
         nemo = NEMODataTree()
         # Assign grid nodes without validation:
-        nemo.__setitem__(key="gridT", value=xr.Dataset(), validate=False)
+        nemo.__setitem__(key="gridT", value=xr.Dataset(), strict=False)
         # -- Verify ValueError -- #
         expected_str = "dims must be a list containing one or more of the following dimensions: ['i', 'j', 'k']."
         with pytest.raises(ValueError, match=re.escape(expected_str)):
@@ -293,7 +293,7 @@ class TestNEMODataTreeUtils():
         nemo = NEMODataTree()
         grid = "gridT"
         # Assign grid nodes without validation:
-        nemo.__setitem__(key=grid, value=xr.Dataset(), validate=False)
+        nemo.__setitem__(key=grid, value=xr.Dataset(), strict=False)
         # -- Verify KeyError -- #
         dims = ["i"]
         expected_str = f"weights missing for dimensions {dims} of NEMO model grid {grid}"
