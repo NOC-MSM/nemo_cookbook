@@ -719,6 +719,86 @@ class TestNEMODataArrayTransformVerticalGrid:
         assert result["deptht_new"].shape == (10,)
 
 
+class TestNEMODataArrayToXesmf:
+    """
+    Test NEMODataArray.to_xesmf() Input Validation and Behavior.
+    """
+    @pytest.mark.parametrize("mask_error", [[1,0,1], np.array([1, 0, 1]), "mask", None])
+    def test_mask_error(self, mask_error, example_global_nemodatatree):
+        nemo = example_global_nemodatatree
+        nda = nemo["gridT/tos_con"]
+        with pytest.raises(ValueError, match="mask must be specified as a boolean. Default is True."):
+            nda.to_xesmf(mask=mask_error)
+
+    @pytest.mark.parametrize("grid_path", ["gridU/e1u", "gridV/e1v", "gridF/e1f", "gridW/e1w"])
+    def test_grid_error(self, grid_path, example_global_nemodatatree):
+        nemo = example_global_nemodatatree
+        nda = nemo[grid_path]
+        with pytest.raises(ValueError, match=re.escape("`to_xesmf()` accessor only supports variables defined on a NEMO model T-grid." \
+            "Use `interp_to(to='T')` to linearly interpolate variables onto the T-grid first.")):
+            nda.to_xesmf()
+
+    @pytest.mark.parametrize("dom_type", ["global", "regional"])
+    def test_dataset_properties(
+        self, dom_type, example_global_nemodatatree, example_regional_nemodatatree
+    ):
+        nemo = _get_nemodatatree(dom_type, example_global_nemodatatree, example_regional_nemodatatree)
+        nda = nemo["gridT/tos_con"]
+        # Test to_xesmf() returns an xarray.Dataset with expected variables and coordinates.
+        result = nda.to_xesmf(mask=True)
+
+        # Coordinates:
+        assert isinstance(result, xr.Dataset)
+        assert "lon" in result.coords
+        assert "lat" in result.coords
+        assert "lon_b" in result.coords
+        assert "lat_b" in result.coords
+        assert all(coord in result['lon_b'].coords for coord in ["j_b", "i_b"])
+        assert all(coord in result['lat_b'].coords for coord in ["j_b", "i_b"])
+        # Variables:
+        assert "tos_con" in result.data_vars
+        assert "mask" in result.data_vars
+
+    @pytest.mark.parametrize("dom_type", ["global", "regional"])
+    def test_coord_sizes(
+        self, dom_type, example_global_nemodatatree, example_regional_nemodatatree
+    ):
+        nemo = _get_nemodatatree(dom_type, example_global_nemodatatree, example_regional_nemodatatree)
+        nda = nemo["gridT/tos_con"]
+        # Test to_xesmf() returns an xarray.Dataset with expected coordinate sizes.
+        result = nda.to_xesmf(mask=True)
+
+        # Size of longitudes of grid cell corners (lon_b) > longitudes of grid cell centers (lon):
+        assert result['lon_b'].shape[0] == result['lon'].shape[0] + 1
+        assert result['lon_b'].shape[1] == result['lon'].shape[1] + 1
+        # Size of latitudes of grid cell corners (lat_b) > latitudes of grid cell centers (lat):
+        assert result['lat_b'].shape[0] == result['lat'].shape[0] + 1
+        assert result['lat_b'].shape[1] == result['lat'].shape[1] + 1
+        # Size of variables after clipping:
+        if dom_type == "global":
+            assert result["tos_con"].shape == (3, 9, 10)
+            assert result["mask"].shape == (9, 10)
+        else:
+            assert result["tos_con"].shape == (3, 9, 9)
+            assert result["mask"].shape == (9, 9)
+
+    def test_subset_coord_sizes(self, example_global_nemodatatree):
+        nemo = example_global_nemodatatree
+        nda = nemo["gridT/tos_con"].isel(i=slice(1, None))
+        # Test to_xesmf() returns an xarray.Dataset with expected coordinate sizes.
+        result = nda.to_xesmf(mask=True)
+
+        # Size of longitudes of grid cell corners (lon_b) > longitudes of grid cell centers (lon):
+        assert result['lon_b'].shape[0] == result['lon'].shape[0] + 1
+        assert result['lon_b'].shape[1] == result['lon'].shape[1] + 1
+        # Size of latitudes of grid cell corners (lat_b) > latitudes of grid cell centers (lat):
+        assert result['lat_b'].shape[0] == result['lat'].shape[0] + 1
+        assert result['lat_b'].shape[1] == result['lat'].shape[1] + 1 
+
+        # Size of variables after clipping:
+        assert result["tos_con"].shape == (3, 9, 8)
+        assert result["mask"].shape == (9, 8)
+
 class TestNEMODataArrayReductions:
     """
     Test wrapped reduction methods delegating to xr.DataArray and returning NEMODataArray.
