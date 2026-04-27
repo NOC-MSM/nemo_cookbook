@@ -64,6 +64,7 @@ nc-time-axis = "*"
 notebook = "*"
 pyarrow = "*"
 gsw = "*"
+xesmf = ">=0.8.7,<0.10"
 
 [environments]
 default = { solve-group = "default" }
