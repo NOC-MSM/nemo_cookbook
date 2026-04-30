@@ -76,13 +76,19 @@ This knowledge enables reproducible grid-aware computation. For example, a `NEMO
 
 ### **Installation**
 
-Users are recommended to installing **NEMO Cookbook** into a new virtual environment via GitHub:
+Users are recommended to install the latest release of **NEMO Cookbook** into a new virtual environment using pip:
+
+```{bash}
+pip install nemo_cookbook
+```
+
+Alternatively, users can install **NEMO Cookbook** (including the latest commits) via GitHub:
 
 ```{bash}
 pip install git+https://github.com/NOC-MSM/nemo_cookbook.git
 ```
 
-Alternatively, users can clone the latest version of the nemo_cookbook repository using Git:
+Users and contributors can also clone the latest version of the **NEMO Cookbook** repository using Git:
 ```{bash}
 git clone git@github.com:NOC-MSM/nemo_cookbook.git
 ```
