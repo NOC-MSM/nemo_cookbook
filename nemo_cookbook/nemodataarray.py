@@ -783,7 +783,7 @@ class NEMODataArray:
 
         # -- Define integral variable DataArray -- #
         dim_list = [dim for dim in [self.t_name, "k_new", self.j_name, self.i_name] if (dim is not None) and (dim in result.dims)]
-        result = result.transpose(*dim_list).squeeze()
+        result = result.transpose(*dim_list).squeeze(dim="k_new")
         result.name = f"integral_z({self.name})"
 
         # -- Apply land-sea mask & return NEMODataArray -- #
@@ -979,7 +979,7 @@ class NEMODataArray:
 
         # Reorder dimensions (time_counter, [k], j, i):
         var_dims = [dim for dim in [self.t_name, self.k_name, self.j_name, self.i_name] if (dim is not None) and (dim in result.dims)]
-        result = result.transpose(*var_dims).squeeze()
+        result = result.transpose(*var_dims)
 
         # Normalise by target grid cell weights for flux variables:
         if self._grid_suffix.upper() in ["U", "V"]:
@@ -1057,10 +1057,10 @@ class NEMODataArray:
 
         # -- Construct transformed variable Dataset -- #
         var_dims = [dim for dim in [self.t_name, "k_new", self.j_name, self.i_name] if (dim is not None) and (dim in var_out.dims)]
-        var_out = var_out.transpose(*var_dims).squeeze()
+        var_out = var_out.transpose(*var_dims)
     
         e3_dims = [dim for dim in [self.t_name, "k_new", self.j_name, self.i_name] if (dim is not None) and (dim in e3_out.dims)]
-        e3_out = e3_out.transpose(*e3_dims).squeeze()
+        e3_out = e3_out.transpose(*e3_dims)
 
         result = xr.Dataset(
             data_vars={self.name: var_out, f"e3{self._grid_suffix}_new": e3_out},

@@ -536,6 +536,20 @@ class TestNEMODataArrayDepthIntegral:
         assert result.data.shape == (3, 4, 4)
         assert ("time_counter" in result.dims) and ("i" in result.dims) and ("j" in result.dims)
 
+    @pytest.mark.parametrize("dom_type", ["global", "regional"])
+    def test_single_ts_depth_integral_preserves_dims(
+        self, dom_type, example_global_nemodatatree, example_regional_nemodatatree
+    ):
+        # Test depth integral of variable with size(time_counter) = 1 preserves core dimensions from input:
+        nemo = _get_nemodatatree(dom_type, example_global_nemodatatree, example_regional_nemodatatree)
+        # Select single time-step & retain time_counter dimension:
+        nda = nemo["gridT/thetao_con"].sel(time_counter=slice('2000-01-01', '2000-01-30'))
+        result = nda.depth_integral(limits=(0, 100))
+        # Core dimensions:
+        assert ("time_counter" in result.dims) and ("j" in result.dims) and ("i" in result.dims)
+        # Computation dimension k_new should not be added:
+        assert ("k_new" not in result.dims)
+
 
 class TestNEMODataArrayMaskedStatistic:
     """
@@ -633,6 +647,17 @@ class TestNEMODataArrayInterpTo:
         result = nda.interp_to(to="U")
         assert ("time_counter" in result.dims) and ("j" in result.dims) and ("i" in result.dims) and ("k" in result.dims)
 
+    @pytest.mark.parametrize("dom_type", ["global", "regional"])
+    def test_single_ts_interp_to_preserves_dims(
+        self, dom_type, example_global_nemodatatree, example_regional_nemodatatree
+    ):
+        # Test transformed variable with size(time_counter) = 1 has same dimensions as the input:
+        nemo = _get_nemodatatree(dom_type, example_global_nemodatatree, example_regional_nemodatatree)
+        # Select single time-step & retain time_counter dimension:
+        nda = nemo["gridT/thetao_con"].sel(time_counter=slice('2000-01-01', '2000-01-30'))
+        result = nda.interp_to(to="U")
+        assert ("time_counter" in result.dims) and ("j" in result.dims) and ("i" in result.dims) and ("k" in result.dims)
+
 class TestNEMODataArrayTransformVerticalGrid:
     """
     Test NEMODataArray.transform_vertical_grid() Input Validation and Behavior.
@@ -717,6 +742,19 @@ class TestNEMODataArrayTransformVerticalGrid:
         assert result["thetao_con"].shape == (10,)
         assert result["e3t_new"].shape == (10,)
         assert result["deptht_new"].shape == (10,)
+
+    @pytest.mark.parametrize("dom_type", ["global", "regional"])
+    def test_single_ts_transform_vertical_grid_preserves_dims(
+        self, dom_type, example_global_nemodatatree, example_regional_nemodatatree
+    ):
+        # Test transformed variable with size(time_counter) = 1 preserves core dimensions from input:
+        nemo = _get_nemodatatree(dom_type, example_global_nemodatatree, example_regional_nemodatatree)
+        # Select single time-step & retain time_counter dimension:
+        nda = nemo["gridT/thetao_con"].sel(time_counter=slice('2000-01-01', '2000-01-30'))
+        e3_new = xr.DataArray(np.ones(10) * 30.0, dims=["k_new"])
+        result = nda.transform_vertical_grid(e3_new=e3_new)
+        # Dimensions:
+        assert ("time_counter" in result.dims) and ("j" in result.dims) and ("i" in result.dims) and ("k_new" in result.dims)
 
 
 class TestNEMODataArrayToXesmf:
