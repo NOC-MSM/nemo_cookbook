@@ -87,6 +87,7 @@ nav:
       - Surface-Forced Water Mass Transformation: recipe_sfwmt_sigma0.ipynb
       - Extracting Hydrographic Sections: recipe_extract_osnap.ipynb
       - Vertical Coordinate Transformation: recipe_transform_vertical_coords.ipynb
+      - Regridding using xESMF: recipe_xesmf.ipynb
   - API Reference: reference.md
   - Contributing: contributing.md
   - Release Notes: release_notes.md

@@ -399,3 +399,28 @@ There are some important points to remember when transforming variables onto new
 - Currently, `e3_new` must be a 1-dimensional `xarray.DataArray` with dimension 'k_new'.
 
 - The output `xarray.Dataset` will contain multi-dimensional `xarray.DataArrays` for both the vertically remapped variable `var(time_counter, k_new, j, i)` and the vertical grid cell thicknesses `e3t_new(time_counter, k_new, j, i)` (updated to explicitly account for partial grid cells above the seafloor).
+
+### Export Variable to an xESMF Dataset
+
+To access a variable stored in a `NEMODataArray` as an [**xESMF**](https://xesmf.readthedocs.io/en/stable/index.html) compatible `xarray.Dataset` to perform regridding, we can use the `.to_xesmf()` method.
+
+For example, to access the sea surface temperature variable `tos_con` defined on scalar **T**-points in a NEMO model parent domain:
+
+```python
+ds_tos_con = nemo["gridT/tos_con"].to_xesmf()
+```
+
+The resulting `xarray.Dataset` includes the following coordinate variables as expected by [**xESMF**](https://xesmf.readthedocs.io/en/stable/index.html):
+
+* `lon` - longitude of T-grid cell centers .
+* `lat` - latitude of T-grid cell centers.
+* `lon_b` - longitude of T-grid cell corners (lower left F-grid points).
+* `lat_b` - longitude of T-grid cell corners (lower left F-grid points).
+
+By default, `to_xesmf()` also returns a 2-dimensional land-sea `mask` to support masked regridding to ensure source land grid cells do not contribute to target ocean grid cells. Following ESMF convention, the `mask` varible is defined `ocean = 1` and `land = 0` consistent with NEMO land-sea masks.
+
+Note, the `to_xesmf()` accessor only supports variables defined on scalar **T**-points currently.
+
+For more information on regridding NEMO outputs using [**xESMF**](https://xesmf.readthedocs.io/en/stable/index.html), visit the **Regridding using xESMF** recipe on the [Recipes] page.
+
+[Recipes]: recipes.md#summary

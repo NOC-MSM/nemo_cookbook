@@ -24,6 +24,7 @@ import xarray as xr
 if TYPE_CHECKING:
     # Avoid circular import at runtime:
     from nemo_cookbook.nemodatatree import NEMODataTree
+from nemo_cookbook.accessors import create_xesmf_dataset
 from nemo_cookbook.integrate import compute_depth_integral
 from nemo_cookbook.interpolate import interpolate_grid
 from nemo_cookbook.transform import transform_vertical_coords
@@ -1070,6 +1071,62 @@ class NEMODataArray:
 
         return result
 
+    def to_xesmf(
+            self, mask: bool = True
+        ) -> xr.Dataset:
+        """
+        Create an xESMF-compatible dataset from a variable stored in a NEMODataArray
+        with the following properties:
+
+        - lon (longitudes of grid cell centers)
+        - lat (latitudes of grid cell centers)
+        - lon_b (longitudes of grid cell boundaries)
+        - lat_b (latitudes of grid cell boundaries)
+        - mask (boolean land-sea mask identifying valid grid cells) [ Optional ]
+
+        Only NEMODataArrays defined on NEMO model T-grids are currently supported
+        for transformation to xESMF-compatible datasets.
+
+        Users can use interp_to(to='T') to linearly interpolate NEMO variables defined
+        on neighbouring U/V/F-grids to T-grids prior to creating an xESMF-compatible
+        dataset.
+
+        Parameters
+        ----------
+        mask : bool, optional
+            Whether to include the land-sea mask in the resulting dataset.
+            Default is True.
+
+        Returns
+        -------
+        xr.Dataset
+            Dataset containing variable and associated geographical coordinates
+            formatted for use with xESMF.
+
+        Examples
+        --------
+        Create an xESMF-compatible dataset from the conservative temperature variable
+        `thetao_con` defined on a NEMO model parent domain T-grid:
+
+        >>> nemo['gridT/thetao_con'].to_xesmf(mask=True)
+
+        See Also
+        --------
+        interp_to
+        """
+        # -- Validate Input -- #
+        if not isinstance(mask, bool):
+            raise ValueError("mask must be specified as a boolean. Default is True.")
+        if self._grid_suffix.upper() != "T":
+            raise ValueError("`to_xesmf()` accessor only supports variables defined on a NEMO model T-grid." \
+            "Use `interp_to(to='T')` to linearly interpolate variables onto the T-grid first."
+            )
+        
+        # -- Create xESMF-compatible dataset -- #
+        ds = create_xesmf_dataset(nda=self, mask=mask)
+        
+        return ds
+
     # ----------------
     # Binary Operators 
     # ----------------
@@ -1140,6 +1197,20 @@ class NEMODataArray:
                 # Otherwise, return unwrapped xarray.DataArray:
                 return result 
         return result
+
+    def __setitem__(self, key, value):
+        """
+        Delegate item assignment to xarray.DataArray.
+        """
+        self._da[key] = self._unwrap(value)
+    
+    def __getitem__(self, key):
+        """
+        Delegate indexing to xarray.DataArray and attempt to return
+        result as NEMODataArray.
+        """
+        result = self._da[key]
+        return self._conditional_wrap(result)
 
     def __getattr__(self, name: str) -> Any:
         """
