@@ -70,6 +70,16 @@ There are several ways to explore our available Recipes:
 
     [![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/NOC-MSM/nemo_cookbook/blob/main/recipes/recipe_sfwmt_sigma0.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/NOC-MSM/nemo_cookbook/blob/main/recipes/recipe_sfwmt_sigma0.ipynb)
 
+-   __Sea Ice Diagnostics__
+
+    ---
+
+    Arctic Ocean sea ice area and sea ice extent.
+
+    [:octicons-arrow-right-24: View in Docs](https://noc-msm.github.io/nemo_cookbook/recipe_sea_ice)
+
+    [![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/NOC-MSM/nemo_cookbook/blob/main/recipes/recipe_sea_ice.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/NOC-MSM/nemo_cookbook/blob/main/recipes/recipe_sea_ice.ipynb)
+
 -   __Masked Statistics__
 
     ---
@@ -120,6 +130,16 @@ There are several ways to explore our available Recipes:
 
     [![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/NOC-MSM/nemo_cookbook/blob/main/recipes/recipe_extract_osnap.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/NOC-MSM/nemo_cookbook/blob/main/recipes/recipe_extract_osnap.ipynb)
 
+-   __Extracting Variables along the Boundary of Masked Regions__
+
+    ---
+
+    Extracting scalar and vector variables along the boundary of the Barent Sea.
+
+    [:octicons-arrow-right-24: View in Docs](https://noc-msm.github.io/nemo_cookbook/recipe_extract_mask_boundary)
+
+    [![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/NOC-MSM/nemo_cookbook/blob/main/recipes/recipe_extract_mask_boundary.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/NOC-MSM/nemo_cookbook/blob/main/recipes/recipe_extract_mask_boundary.ipynb)
+
 -   __Regridding using xESMF__
 
     ---
@@ -140,9 +160,11 @@ There are several ways to explore our available Recipes:
 
 2. Ocean heat content & mixed layer heat content. 
 
-3. Sea ice diagnostics.
+3. Vorticity diagnostics.
 
-4. Vorticity diagnostics.
+4. Eddy kinetic energy.
+
+5. Geostrophic velocities from sea surface height.
 
 ### Contributing New Recipes...
 ---
