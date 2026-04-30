@@ -87,6 +87,7 @@ nav:
       - Volume Census in T-S Space: recipe_volume_census.ipynb
       - Surface-Forced Water Mass Transformation: recipe_sfwmt_sigma0.ipynb
       - Extracting Hydrographic Sections: recipe_extract_osnap.ipynb
+      - Extracting Variables along Mask Boundaries: recipe_extract_mask_boundary.ipynb
       - Vertical Coordinate Transformation: recipe_transform_vertical_coords.ipynb
       - Regridding using xESMF: recipe_xesmf.ipynb
   - API Reference: reference.md
