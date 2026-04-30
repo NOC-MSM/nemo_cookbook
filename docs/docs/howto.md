@@ -410,12 +410,17 @@ For example, to access the sea surface temperature variable `tos_con` defined on
 ds_tos_con = nemo["gridT/tos_con"].to_xesmf()
 ```
 
-The resulting `xarray.Dataset` includes the following coordinate variables as expected by [**xESMF**](https://xesmf.readthedocs.io/en/stable/index.html).
+The resulting `xarray.Dataset` includes the following coordinate variables as expected by [**xESMF**](https://xesmf.readthedocs.io/en/stable/index.html):
+
 * `lon` - longitude of T-grid cell centers .
 * `lat` - latitude of T-grid cell centers.
 * `lon_b` - longitude of T-grid cell corners (lower left F-grid points).
 * `lat_b` - longitude of T-grid cell corners (lower left F-grid points).
 
-By default, `to_xesmf()` also returns a 2-dimensional land-sea mask (`mask`) to support masked regridding to ensure source land grid cells do not contribute to target grid cells. Following ESMF convention, the `mask` varible is defined `ocean = 1` and `land = 0` consistent with NEMO land-sea masks.
+By default, `to_xesmf()` also returns a 2-dimensional land-sea `mask` to support masked regridding to ensure source land grid cells do not contribute to target ocean grid cells. Following ESMF convention, the `mask` varible is defined `ocean = 1` and `land = 0` consistent with NEMO land-sea masks.
 
-Note, the `to_xesmf()` accessor only supports variables `tos_con` defined on scalar **T**-points currently.
+Note, the `to_xesmf()` accessor only supports variables defined on scalar **T**-points currently.
+
+For more information on regridding NEMO outputs using [**xESMF**](https://xesmf.readthedocs.io/en/stable/index.html), visit the **Regridding using xESMF** recipe on the [Recipes] page.
+
+[Recipes]: recipes.md#summary
