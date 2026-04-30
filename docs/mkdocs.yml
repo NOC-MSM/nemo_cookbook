@@ -83,6 +83,7 @@ nav:
       - Barotropic Stream Functions: recipe_barotropic_sf.ipynb
       - Ocean Heat Content: recipe_heat_content.ipynb
       - Regional Masked Statistics: recipe_masked_stats.ipynb
+      - Sea Ice Diagnostics: recipe_sea_ice.ipynb
       - Volume Census in T-S Space: recipe_volume_census.ipynb
       - Surface-Forced Water Mass Transformation: recipe_sfwmt_sigma0.ipynb
       - Extracting Hydrographic Sections: recipe_extract_osnap.ipynb
