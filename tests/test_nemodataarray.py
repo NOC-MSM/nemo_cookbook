@@ -96,6 +96,48 @@ class TestNEMODataArrayInit:
         nda = nemo["gridT/tos_con"]
         assert isinstance(nda, NEMODataArray)
 
+class TestNEMODataArrayFromXESMF:
+    """
+    Test NEMODataArray.from_xesmf() Input Validation and Functionality.
+    """
+    @pytest.mark.parametrize("da_error", [np.ones((3, 5, 10, 10)), 10, "data", None, [1, 2, 3]])
+    def test_da_type_error(self, da_error, example_global_nemodatatree):
+        nemo = example_global_nemodatatree
+        # Invalid da type (not xarray.DataArray):
+        with pytest.raises(TypeError, match="da must be specified as an xarray.DataArray."):
+            NEMODataArray.from_xesmf(da=da_error, tree=nemo, grid="gridT")
+
+    @pytest.mark.parametrize("tree_error", [42, "tree", None, xr.Dataset()])
+    def test_tree_type_error(self, tree_error, example_global_nemodatatree):
+        nemo = example_global_nemodatatree
+        da = nemo["gridT"]["tos_con"]
+        # Invalid tree type (not NEMODataTree):
+        with pytest.raises(TypeError, match="tree must be specified as a NEMODataTree."):
+            NEMODataArray.from_xesmf(da=da, tree=tree_error, grid="gridT")
+
+    @pytest.mark.parametrize("grid_error", [1, None, ["gridT"], ("gridT",)])
+    def test_grid_type_error(self, grid_error, example_global_nemodatatree):
+        nemo = example_global_nemodatatree
+        da = nemo["gridT"]["tos_con"]
+        # Invalid grid type (not a string):
+        with pytest.raises(TypeError, match="grid must be specified as a string."):
+            NEMODataArray.from_xesmf(da=da, tree=nemo, grid=grid_error)
+
+    @pytest.mark.parametrize("dom_type", ["global", "regional"])
+    def test_from_xesmf_returns_nemodataarray(self, dom_type, example_global_nemodatatree, example_regional_nemodatatree):
+        nemo = _get_nemodatatree(dom_type, example_global_nemodatatree, example_regional_nemodatatree)
+        # Export NEMO variable to xESMF-compatible DataSet:
+        ds_xesmf = nemo["gridT/tos_con"].to_xesmf(mask=True)
+        nda = NEMODataArray.from_xesmf(da=ds_xesmf['tos_con'], tree=nemo, grid="gridT")
+        assert isinstance(nda, NEMODataArray)
+
+    @pytest.mark.parametrize("dom_type", ["global", "regional"])
+    def test_from_xesmf_preserves_data(self, dom_type, example_global_nemodatatree, example_regional_nemodatatree):
+        nemo = _get_nemodatatree(dom_type, example_global_nemodatatree, example_regional_nemodatatree)
+        # Export NEMO variable to xESMF-compatible DataSet:
+        ds_xesmf = nemo["gridT/tos_con"].to_xesmf(mask=True)
+        nda = NEMODataArray.from_xesmf(da=ds_xesmf['tos_con'], tree=nemo, grid="gridT")
+        assert np.array_equal(nda.data, ds_xesmf['tos_con'].data, equal_nan=True)
 
 class TestNEMODataArrayProperties:
     """

@@ -423,4 +423,16 @@ Note, the `to_xesmf()` accessor only supports variables defined on scalar **T**-
 
 For more information on regridding NEMO outputs using [**xESMF**](https://xesmf.readthedocs.io/en/stable/index.html), visit the **Regridding using xESMF** recipe on the [Recipes] page.
 
+### Create a NEMODataArray using an xESMF Dataset
+
+To create a `NEMODataArray` from a variable stored in an [**xESMF**](https://xesmf.readthedocs.io/en/stable/index.html) compatible `xarray.Dataset` following regridding, we can use the `.from_xesmf()` method.
+
+For example, to create a `NEMODataArray` called `tos_obs` from sea surface temperature observations regridded to scalar **T**-points in a NEMO model parent domain using **xESMF**:
+
+```python
+nemo["gridT/tos_obs"] = NEMODataArray.from_xesmf(da=ds_xesmf["tos_obs"], tree=nemo, grid="gridT")
+```
+
+The resulting `NEMODataArray` can now be used for grid-aware computation and for performing model validation.
+
 [Recipes]: recipes.md#summary

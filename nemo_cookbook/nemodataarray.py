@@ -114,6 +114,53 @@ class NEMODataArray:
         t_list = [dim for dim in self._da.coords if "time" in dim]
         self.t_name = t_list[0] if len(t_list) != 0 else None
 
+    # ------------
+    # Constructors
+    # ------------
+    @classmethod
+    def from_xesmf(
+        cls,
+        da: xr.DataArray,
+        tree: NEMODataTree,
+        grid: str
+    ) -> Self:
+        """
+        Convert xESMF-compatible DataArray into a NEMODataArray.
+
+        Parameters
+        ----------
+        da : xr.DataArray
+            xESMF-compatible DataArray to convert to NEMODataArray.
+        tree : NEMODataTree
+            NEMODataTree to associate with the NEMODataArray.
+        grid : str
+            Path to NEMO model grid to which the variable belongs
+            (e.g., 'gridT').
+
+        Returns
+        -------
+        NEMODataArray
+            NEMODataArray containing data from xESMF-compatible DataArray.
+        """
+        # -- Validate Inputs -- #
+        if not isinstance(da, xr.DataArray):
+            raise TypeError("da must be specified as an xarray.DataArray.")
+
+        if not isinstance(tree, xr.DataTree):
+            raise TypeError("tree must be specified as a NEMODataTree.")
+
+        if not isinstance(grid, str):
+            raise TypeError("grid must be specified as a string.")
+
+        # -- Get NEMO model grid properties -- #
+        _, dom_prefix, _, grid_suffix = tree._get_properties(grid=grid, infer_dom=True)
+
+        # -- Transform xESMF coords to NEMO model coords -- #
+        da_nemo = da.rename({"lon": f"{dom_prefix}glam{grid_suffix}",
+                             "lat": f"{dom_prefix}gphi{grid_suffix}"
+                             })
+
+        return cls(da=da_nemo, tree=tree, grid=grid)
 
     # -----------
     # Properties 
