@@ -145,6 +145,7 @@ def _check_grid_dims(ds: xr.Dataset, grid: str) -> None:
     """
     # -- NEMO model domain -- #
     if grid == "domain":
+        ds = ds.squeeze()
         core_dims = ["nav_lev", "y", "x"]
         if not all([True if dim in core_dims else False for dim in ds.dims]):
             raise KeyError(
@@ -345,11 +346,8 @@ def _add_domain_vars(
         }
     """
     if "domain" in d_grids:
-        domain = d_grids["domain"].squeeze()
-        # Drop all empty coordinates following squeeze:
-        domain = domain.drop_vars(
-            [coord for coord in domain.coords if domain[coord].size == 1]
-        )
+        # Remove singleton dimensions from domain dataset:
+        domain = d_grids["domain"].squeeze(drop=True)
     else:
         raise KeyError("missing 'domain' key in grid datasets dictionary.")
 
@@ -362,7 +360,8 @@ def _add_domain_vars(
     # Define vertical grid indices:
     ka = xr.DataArray(np.arange(domain["nav_lev"].size), dims="nav_lev")
 
-    # T-grid:
+    # -- T-grid -- #
+    # Grid scale factors and coordinates:
     try:
         d_grids["gridT"]["e1t"] = domain["e1t"]
         d_grids["gridT"]["e2t"] = domain["e2t"]
@@ -375,6 +374,7 @@ def _add_domain_vars(
             "missing required T-grid variable in domain dataset"
         ) from e
 
+    # Land-sea masks:
     if read_mask:
         d_grids["gridT"]["tmask"] = read_dom_mask(ka=ka, ds_domain=domain, cd_nat="T")
         d_grids["gridT"]["tmaskutil"] = read_dom_maskutil(ds_domain=domain, cd_nat="T")
@@ -391,9 +391,22 @@ def _add_domain_vars(
         d_grids["gridT"]["tmaskutil"] = d_grids["gridT"]["tmask"][0, :, :].squeeze(
             drop=True
         )
+
+    # Reference vertical scale factors and water column heights:
+    if "e3t_0" in domain.data_vars:
+        if not key_linssh:
+            # Add reference vertical scale factors:
+            d_grids["gridT"]["e3t_0"] = domain["e3t_0"]
+        # Add reference water column heights:
+        d_grids["gridT"]["ht_0"] = (domain["e3t_0"]
+                                    .where(cond=d_grids["gridT"]["tmask"])
+                                    .sum(dim="nav_lev")
+                                    )
+    # Attributes:
     d_grids["gridT"] = d_grids["gridT"].assign_attrs(nftype=nftype, iperio=iperio)
 
-    # U-grid:
+    # -- U-grid -- #
+    # Grid scale factors and coordinates:
     try:
         d_grids["gridU"]["e1u"] = domain["e1u"]
         d_grids["gridU"]["e2u"] = domain["e2u"]
@@ -406,6 +419,7 @@ def _add_domain_vars(
             "missing required U-grid variable in domain dataset"
         ) from e
 
+    # Land-sea masks:
     if read_mask:
         d_grids["gridU"]["umask"] = read_dom_mask(ka=ka, ds_domain=domain, cd_nat="U")
         d_grids["gridU"]["umaskutil"] = read_dom_maskutil(ds_domain=domain, cd_nat="U")
@@ -422,9 +436,22 @@ def _add_domain_vars(
         d_grids["gridU"]["umaskutil"] = d_grids["gridU"]["umask"][0, :, :].squeeze(
             drop=True
         )
+
+    # Reference vertical scale factors and water column heights:
+    if "e3u_0" in domain.data_vars:
+        if not key_linssh:
+            # Add reference vertical scale factors:
+            d_grids["gridU"]["e3u_0"] = domain["e3u_0"]
+        # Add reference water column heights:
+        d_grids["gridU"]["hu_0"] = (domain["e3u_0"]
+                                    .where(cond=d_grids["gridU"]["umask"])
+                                    .sum(dim="nav_lev")
+                                    )
+    # Attributes:
     d_grids["gridU"] = d_grids["gridU"].assign_attrs(nftype=nftype, iperio=iperio)
 
-    # V-grid:
+    # -- V-grid -- #
+    # Grid scale factors and coordinates:
     try:
         d_grids["gridV"]["e1v"] = domain["e1v"]
         d_grids["gridV"]["e2v"] = domain["e2v"]
@@ -437,6 +464,7 @@ def _add_domain_vars(
             "missing required V-grid variable in domain dataset"
         ) from e
 
+    # Land-sea masks:
     if read_mask:
         d_grids["gridV"]["vmask"] = read_dom_mask(ka=ka, ds_domain=domain, cd_nat="V")
         d_grids["gridV"]["vmaskutil"] = read_dom_maskutil(ds_domain=domain, cd_nat="V")
@@ -453,9 +481,22 @@ def _add_domain_vars(
         d_grids["gridV"]["vmaskutil"] = d_grids["gridV"]["vmask"][0, :, :].squeeze(
             drop=True
         )
+
+    # Reference vertical scale factors and water column heights:
+    if "e3v_0" in domain.data_vars:
+        if not key_linssh:
+            # Add reference vertical scale factors:
+            d_grids["gridV"]["e3v_0"] = domain["e3v_0"]
+        # Add reference water column heights:
+        d_grids["gridV"]["hv_0"] = (domain["e3v_0"]
+                                    .where(cond=d_grids["gridV"]["vmask"])
+                                    .sum(dim="nav_lev")
+                                    )
+    # Attributes:
     d_grids["gridV"] = d_grids["gridV"].assign_attrs(nftype=nftype, iperio=iperio)
 
-    # W-grid:
+    # -- W-grid --#
+    # Grid scale factors and coordinates:
     try:
         d_grids["gridW"]["e1w"] = domain["e1t"]
         d_grids["gridW"]["e2w"] = domain["e2t"]
@@ -468,6 +509,7 @@ def _add_domain_vars(
             "missing required W-grid variable in domain dataset"
         ) from e
 
+    # Land-sea masks:
     if read_mask:
         d_grids["gridW"]["wmask"] = read_dom_mask(ka=ka, ds_domain=domain, cd_nat="W")
         # W-grid is horizontally co-located with T-grid -> use tmaskutil:
@@ -485,9 +527,17 @@ def _add_domain_vars(
         d_grids["gridW"]["wmaskutil"] = d_grids["gridW"]["wmask"][0, :, :].squeeze(
             drop=True
         )
+
+    # Reference vertical scale factors and water column heights:
+    if "e3w_0" in domain.data_vars:
+        if not key_linssh:
+            # Add reference vertical scale factors:
+            d_grids["gridW"]["e3w_0"] = domain["e3w_0"]
+    # Attributes:
     d_grids["gridW"] = d_grids["gridW"].assign_attrs(nftype=nftype, iperio=iperio)
 
-    # F-grid:
+    # -- F-grid -- #
+    # Grid scale factors and coordinates:
     d_grids["gridF"] = xr.Dataset()
     try:
         d_grids["gridF"]["e1f"] = domain["e1f"]
@@ -501,6 +551,7 @@ def _add_domain_vars(
             "missing required F-grid variable in domain dataset"
         ) from e
 
+    # Land-sea masks:
     if read_mask:
         d_grids["gridF"]["fmask"] = read_dom_mask(ka=ka, ds_domain=domain, cd_nat="F")
         d_grids["gridF"]["fmaskutil"] = read_dom_maskutil(ds_domain=domain, cd_nat="F")
@@ -517,6 +568,18 @@ def _add_domain_vars(
         d_grids["gridF"]["fmaskutil"] = d_grids["gridF"]["fmask"][0, :, :].squeeze(
             drop=True
         )
+
+    # Reference vertical scale factors and water column heights:
+    if "e3f_0" in domain.data_vars:
+        if not key_linssh:
+            # Add reference vertical scale factors:
+            d_grids["gridF"]["e3f_0"] = domain["e3f_0"]
+        # Add reference water column heights:
+        d_grids["gridF"]["hf_0"] = (domain["e3f_0"]
+                                    .where(cond=d_grids["gridF"]["fmask"])
+                                    .sum(dim="nav_lev")
+                                    )
+    # Attributes:
     d_grids["gridF"] = d_grids["gridF"].assign_attrs(nftype=nftype, iperio=iperio)
 
     return d_grids
