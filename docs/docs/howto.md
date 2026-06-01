@@ -45,6 +45,12 @@ This example would be applicable to the outputs of a regional NEMO model configu
 
 If all land-sea masks expected by `NEMODataTree` are included in `ds_domain`, we can also specify `read_mask=True` to read rather than calculate land-sea masks when constructing our `NEMODataTree`. This is recommended for larger NEMO model domains (e.g., eORCA12, ORCA36 etc.)
 
+The following core dimensions are required to construct a new `NEMODataTree` from `xarray.Datasets`:
+
+* **domain**: (`nav_lev`, `y`, `x`)
+
+* **grid{T/U/V/W}**: (`time_counter`, `depth{p}`, `y`, `x`), where *p* is the grid point type.
+
 ### Access NEMO Variables
 
 To access a variable stored in a given grid node of a `NEMODataTree` as an `xarray.DataArray`, we can use the following syntax:

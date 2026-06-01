@@ -184,9 +184,15 @@ This is because domain variables are assigned to their respective grid nodes dur
 
 **Dimensions & Coordinates**
 
-Typically, the netCDF files output by NEMO model simulations have dimensions (`depth{k}`, `y`, `x`), where *k* is the grid point type.
+To construct a new NEMODataTree, the following core dimensions are expected to be found in the input netCDF files or `xarray.Datasets`:
 
-During the construction of a NEMODataTree, these coordinate dimensions are transformed into the NEMO model grid indices (**i**, **j**, **k**) according to the Table included in the **NEMO Model Grid** section above. This has two important implications:
+* **domain**: (`nav_lev`, `y`, `x`)
+
+* **grid{T/U/V/W}**: (`time_counter`, `depth{p}`, `y`, `x`), where *p* is the grid point type.
+
+It is also possible to create a grid dataset using only 3-dimensional variables, in which case, the expected core dimensions are: (`time_counter`, `y`, `x`).
+
+During NEMODataTree construction, these coordinate dimensions are transformed into the NEMO model grid indices (**i**, **j**, **k**) according to the Table included in the **NEMO Model Grid** section above. This has two important implications:
 
 1. The `xarray.Datasets` stored in each grid node share the same coordinate dimension names (`i`, `j`, `k`), but are staggered according to where variables are position on the NEMO model grid.
 
