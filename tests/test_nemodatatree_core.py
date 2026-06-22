@@ -211,23 +211,23 @@ class TestClipDomain():
         assert len(set([nemo_clipped[grid].sizes["j"] for grid in grids])) == 1
 
 class TestExtractSection():
-    @pytest.mark.parametrize("lon_section", [[0, 1, 0], "glamt"])
-    def test_lon_type(self, lon_section, example_global_nemodatatree):
-        # -- Verify TypeError is raised for invalid lon_section type -- #
-        with pytest.raises(TypeError, match="lon_section must be a numpy array."):
-            example_global_nemodatatree.extract_section(lon_section=lon_section, lat_section=np.array([0, 1]), uv_vars=["uo", "vo"], vars=None, dom=".")
+    @pytest.mark.parametrize("lon", [[0, 1, 0], "glamt"])
+    def test_lon_type(self, lon, example_global_nemodatatree):
+        # -- Verify TypeError is raised for invalid lon type -- #
+        with pytest.raises(TypeError, match="lon must be a numpy array."):
+            example_global_nemodatatree.extract_section(lon=lon, lat=np.array([0, 1]), uv_vars=["uo", "vo"], vars=None, dom=".")
 
-    @pytest.mark.parametrize("lat_section", [[0, 1, 0], "gphit"])
-    def test_lat_type(self, lat_section, example_global_nemodatatree):
-        # -- Verify TypeError is raised for invalid lat_section type -- #
-        with pytest.raises(TypeError, match="lat_section must be a numpy array."):
-            example_global_nemodatatree.extract_section(lon_section=np.array([0, 1]), lat_section=lat_section, uv_vars=["uo", "vo"], vars=None, dom=".")
+    @pytest.mark.parametrize("lat", [[0, 1, 0], "gphit"])
+    def test_lat_type(self, lat, example_global_nemodatatree):
+        # -- Verify TypeError is raised for invalid lat type -- #
+        with pytest.raises(TypeError, match="lat must be a numpy array."):
+            example_global_nemodatatree.extract_section(lon=np.array([0, 1]), lat=lat, uv_vars=["uo", "vo"], vars=None, dom=".")
 
     @pytest.mark.parametrize("uv_vars", [{"u": "uo", "v": "vo"}, "uo, vo", ["uo", "vo", "wo"]])
     def test_uv_vars_values(self, uv_vars, example_global_nemodatatree):
         # -- Verify TypeError is raised for invalid uv_vars type -- #
         with pytest.raises(TypeError, match=re.escape("uv_vars must be a list of velocity variables to extract (e.g., ['uo', 'vo']).")):
-            example_global_nemodatatree.extract_section(lon_section=np.array([0, 1]), lat_section=np.array([0, 1]), uv_vars=uv_vars, vars=None, dom=".")
+            example_global_nemodatatree.extract_section(lon=np.array([0, 1]), lat=np.array([0, 1]), uv_vars=uv_vars, vars=None, dom=".")
 
     def test_extract_section(self, example_global_nemodatatree):
         # -- Define NEMODataTree based on domain type -- #
@@ -238,8 +238,8 @@ class TestExtractSection():
         lat_section = np.array([-20, 40])
         
         # -- Extract mask boundary -- #
-        ds_bdy = nemo.extract_section(lon_section=lon_section,
-                                      lat_section=lat_section,
+        ds_bdy = nemo.extract_section(lon=lon_section,
+                                      lat=lat_section,
                                       uv_vars=["uo", "vo"],
                                       vars=["thetao_con"],
                                       dom="."
@@ -341,5 +341,94 @@ class TestExtractMaskBoundary():
         assert "velocity" in ds_bdy.data_vars
         assert ds_bdy['velocity'].dims == ("time_counter", "k", "bdy")
         # Expected tracer variable:
+        assert "thetao_con" in ds_bdy.data_vars
+        assert ds_bdy['thetao_con'].dims == ("time_counter", "k", "bdy")
+
+
+class TestExtractZonalSection():
+    @pytest.mark.parametrize("lat", [[45], "45.0", np.array([45])])
+    def test_lat_type(self, lat, example_global_nemodatatree):
+        # -- Verify TypeError is raised for invalid lat type -- #
+        with pytest.raises(TypeError, match="Latitude must be a single numeric value."):
+            example_global_nemodatatree.extract_zonal_section(lat=lat, lon_min=-80.0, lon_max=10.0, u_vars=None, scalar_vars=None, dom='.')
+    @pytest.mark.parametrize("lon_min", [[-80], "-80.0", np.array([-80])])
+    def test_lon_min_type(self, lon_min, example_global_nemodatatree):
+        # -- Verify TypeError is raised for invalid lon_min type -- #
+        with pytest.raises(TypeError, match="Minimum longitude must be a single numeric value."):
+            example_global_nemodatatree.extract_zonal_section(lat=45.0, lon_min=lon_min, lon_max=10.0, u_vars=None, scalar_vars=None, dom='.')
+    @pytest.mark.parametrize("lon_max", [[10], "10.0", np.array([10])])
+    def test_lon_max_type(self, lon_max, example_global_nemodatatree):
+        # -- Verify TypeError is raised for invalid lon_max type -- #
+        with pytest.raises(TypeError, match="Maximum longitude must be a single numeric value."):
+            example_global_nemodatatree.extract_zonal_section(lat=45.0, lon_min=-80.0, lon_max=lon_max, u_vars=None, scalar_vars=None, dom='.')
+    @pytest.mark.parametrize("u_vars", [{"u": "uo"}, "uo", ("uo", "vo")])
+    def test_u_vars_type(self, u_vars, example_global_nemodatatree):
+        # -- Verify TypeError is raised for invalid u_vars type -- #
+        with pytest.raises(TypeError, match="u_vars must be a list of variable names."):
+            example_global_nemodatatree.extract_zonal_section(lat=45.0, lon_min=-80.0, lon_max=10.0, u_vars=u_vars, scalar_vars=None, dom='.')
+    @pytest.mark.parametrize("scalar_vars", [{"thetao": "thetao"}, "thetao", ("thetao", "so")])
+    def test_scalar_vars_type(self, scalar_vars, example_global_nemodatatree):
+        # -- Verify TypeError is raised for invalid scalar_vars type -- #
+        with pytest.raises(TypeError, match="scalar_vars must be a list of variable names."):
+            example_global_nemodatatree.extract_zonal_section(lat=45.0, lon_min=-80.0, lon_max=10.0, u_vars=None, scalar_vars=scalar_vars, dom='.')
+    @pytest.mark.parametrize("dom", [1, 0.5, ["."], {"dom": "."}])
+    def test_dom_type(self, dom, example_global_nemodatatree):
+        # -- Verify TypeError is raised for invalid dom type -- #
+        with pytest.raises(TypeError, match="dom must be a string."):
+            example_global_nemodatatree.extract_zonal_section(lat=45.0, lon_min=-80.0, lon_max=10.0, u_vars=None, scalar_vars=None, dom=dom)
+    def test_latitude_error(self, example_regional_nemodatatree):
+        # -- Verify ValueError is raised when specified latitude is outside of NEMO domain -- #
+        with pytest.raises(ValueError, match="Latitude of zonal section is out of bounds of the grid latitude range"):
+            example_regional_nemodatatree.extract_zonal_section(lat=55, lon_min=-80.0, lon_max=10.0, u_vars=None, scalar_vars=None, dom='.')
+    @pytest.mark.parametrize("dom_type", ["global", "regional"])
+    def test_extract_zonal_section(self, dom_type, example_global_nemodatatree, example_regional_nemodatatree):
+        # -- Select NEMODataTree based on domain type -- #
+        match dom_type:
+            case "regional":
+                nemo = example_regional_nemodatatree
+                lat = -30
+                lon_min, lon_max = 30, 50
+                bdy_size_expected = 4
+                i_bdy_expected = [2, 3, 4, 5]
+                j_bdy_expected = [5.5, 5.5, 5.5, 5.5]
+            case "global":
+                nemo = example_global_nemodatatree
+                lat = 55.0
+                lon_min, lon_max = -80.0, 10.0
+                bdy_size_expected = 3
+                i_bdy_expected = [4, 5, 6]
+                j_bdy_expected = [8.5, 8.5, 8.5]
+            case _:
+                raise ValueError("dom_type must be 'global' or 'regional'")
+        
+        # -- Extract zonal section -- #
+        ds_bdy = nemo.extract_zonal_section(lat=lat,
+                                            lon_min=lon_min,
+                                            lon_max=lon_max,
+                                            u_vars=None,
+                                            scalar_vars=['thetao_con'],
+                                            dom='.'
+                                            )
+
+        # -- Verify section properties -- #
+        # Expect sect to consist of <bdy_size_expected> V-grid points:
+        assert ds_bdy['bdy'].size == bdy_size_expected
+        # Expected section coordinates:
+        for coord in ["gphib", "glamb", "depthb"]:
+            assert coord in ds_bdy.coords
+        # Expected section variables:
+        for var in ["i_bdy", "j_bdy", "e1b", "e3b", "bmask", "bmaskutil"]:
+             assert var in ds_bdy.data_vars
+        # Expected coordinates:
+        assert ds_bdy['i_bdy'].values.tolist() == i_bdy_expected
+        assert ds_bdy["j_bdy"].values.tolist() == j_bdy_expected
+
+        # -- Verify longitudes are within specified bounds -- #
+        assert ds_bdy["glamb"].min().values.item() >= lon_min
+        assert ds_bdy["glamb"].max().values.item() <= lon_max
+
+        # -- Verify section variables -- #
+        assert "vo" in ds_bdy.data_vars
+        assert ds_bdy['vo'].dims == ("time_counter", "k", "bdy")
         assert "thetao_con" in ds_bdy.data_vars
         assert ds_bdy['thetao_con'].dims == ("time_counter", "k", "bdy")

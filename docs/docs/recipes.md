@@ -120,7 +120,7 @@ There are several ways to explore our available Recipes:
 
     [![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/NOC-MSM/nemo_cookbook/blob/main/recipes/recipe_transform_vertical_coords.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/NOC-MSM/nemo_cookbook/blob/main/recipes/recipe_transform_vertical_coords.ipynb)
 
--   __Extracting Hydrographic Sections__
+-   __Extracting Piecewise Hydrographic Sections__
 
     ---
 
@@ -129,6 +129,16 @@ There are several ways to explore our available Recipes:
     [:octicons-arrow-right-24: View in Docs](https://noc-msm.github.io/nemo_cookbook/recipe_extract_osnap)
 
     [![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/NOC-MSM/nemo_cookbook/blob/main/recipes/recipe_extract_osnap.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/NOC-MSM/nemo_cookbook/blob/main/recipes/recipe_extract_osnap.ipynb)
+
+-   __Extracting Zonal Hydrographic Sections__
+
+    ---
+
+    Extracting volume transports and properties along the RAPID-MOCHA array.
+
+    [:octicons-arrow-right-24: View in Docs](https://noc-msm.github.io/nemo_cookbook/recipe_extract_rapid)
+
+    [![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/NOC-MSM/nemo_cookbook/blob/main/recipes/recipe_extract_rapid.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/NOC-MSM/nemo_cookbook/blob/main/recipes/recipe_extract_rapid.ipynb)
 
 -   __Extracting Variables along the Boundary of Masked Regions__
 
