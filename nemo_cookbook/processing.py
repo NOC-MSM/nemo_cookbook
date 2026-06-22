@@ -214,7 +214,7 @@ def _check_grid_datasets(d: dict[str, xr.Dataset]) -> dict[str, xr.Dataset]:
 
     # Combining sea ice and scalar variables both stored on T-grid:
     if ("gridT" in d.keys()) and ("icemod" in d.keys()):
-        d["gridT"] = xr.merge([d["icemod"], d["gridT"]], compat="no_conflicts")
+        d["gridT"] = xr.merge([d["gridT"], d["icemod"]], compat="override", join="override")
 
     return d
 
@@ -285,7 +285,7 @@ def _open_grid_datasets(
         d_data.update(
             {
                 "gridT": xr.merge(
-                    [d_data["icemod"], d_data["gridT"]], compat="no_conflicts"
+                    [d_data["gridT"], d_data["icemod"]], compat="override", join="override"
                 )
             }
         )
