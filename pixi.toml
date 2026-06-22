@@ -66,8 +66,13 @@ pyarrow = "*"
 gsw = "*"
 xesmf = ">=0.8.7,<0.10"
 
+[feature.release.pypi-dependencies]
+build = ">=1.5.0, <2"
+twine = ">=6.2.0, <7"
+
 [environments]
 default = { solve-group = "default" }
 test = { features = ["test"], solve-group = "default" }
 docs = { features = ["docs"], solve-group = "default" }
+release = { features = ["release"], solve-group = "default" }
 dev = { features = ["dev"], solve-group = "default" }
