@@ -1,5 +1,47 @@
 # What's New
 
+## v2026.04.b1 - 30th April 2026
+
+### New Features
+
+* **Introduction of `from_icechunk()` and `from_zarr()` constructors  for `NEMODataTree`:**
+     * Enables users to open a `NEMODataTree` from an `xarray.DataTree` stored in a hierarchical Zarr store or Icechunk store where each group contains one NEMO model grid node dataset.
+     * Definition of `NEMODataTree` grid nodes is now validated to ensure expected coordinates, dimensions, land-sea masks and grid cell scale factors are included.
+
+* **Addition of `to_xesmf()` accessor for`NEMODataArray` enabling users to export a NEMO model variable to an xESMF-compatible `xarray.Dataset`.**
+
+### New Recipes
+
+* **Three additional NEMO Cookbook Recipes:**
+   1. Regridding using xESMF- `recipe_xesmf.ipynb`
+   2. Sea Ice Diagnostics - `recipe_sea_ice.ipynb`
+   3. Extracting mask boundaries - `recipe_extract_mask_boundary.ipynb`
+
+### Breaking Changes
+
+* **`read_mask=True` expects `t/u/v/fmaksutil` 2-dimensional land-sea unique point masks must be included in the input domain_cfg dataset, otherwise use `read_mask=False`**
+
+### Bug Fixes
+
+* **Fix `.extract_mask_boundary()` and `extract.py` to support nested NEMO model domains where coordinates are not `glamb`, `gphib`**
+* **Improved performance of `NEMODataArray` validation and `set_like()` methods.
+
+### Documentation
+
+* **Update How To... guide to include `to_xesmf` usage to produce xESMF-compatible `xarray.Datasets` from `NEMODataArrays`.**
+* **Added Marimo and Google Colab notebook previews of all existing NEMO Cookbook recipes, including adding badges to table of recipes in docs.**
+
+### Pull Requests
+* 16 refactor improve performance of nemodataarray methods by @oj-tooth in https://github.com/NOC-MSM/nemo_cookbook/pull/23
+* 19 add marimo notebook support for recipes by @oj-tooth in https://github.com/NOC-MSM/nemo_cookbook/pull/24
+* 17 feature add from icechunk nemodatatree constructor by @oj-tooth in https://github.com/NOC-MSM/nemo_cookbook/pull/25
+* 22 feature add accessor to support xesmf regridding by @oj-tooth in https://github.com/NOC-MSM/nemo_cookbook/pull/26
+* 20 add new nemo cookbook recipes by @oj-tooth in https://github.com/NOC-MSM/nemo_cookbook/pull/27
+
+
+**Full Changelog**: https://github.com/NOC-MSM/nemo_cookbook/compare/v2026.03.0b1...v2026.04.0b1
+
+
 ## v2026.03.b1 - 30th March 2026
 
 ### New Features
