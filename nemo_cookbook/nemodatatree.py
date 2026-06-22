@@ -1847,7 +1847,14 @@ class NEMODataTree(xr.DataTree):
         dom: str = ".",
     ) -> xr.Dataset:
         """
-        Extract the boundary of a masked region defined on a NEMO model grid.
+        Extract the piecewise boundary of a masked region defined on a NEMO model grid.
+
+        The boundary of the region represents the staggered set of NEMO U- and V-grid
+        cell faces which form a continous section upon which normal velocities are
+        defined. 
+
+        Scalar variables defined on the NEMO model T-grid are linearly interpolated
+        onto the appropriate U/V-grid cell face.
 
         Parameters
         ----------
@@ -1934,20 +1941,27 @@ class NEMODataTree(xr.DataTree):
 
     def extract_section(
         self,
-        lon_section: np.ndarray,
-        lat_section: np.ndarray,
+        lon: np.ndarray,
+        lat: np.ndarray,
         uv_vars: list | None = None,
         vars: list | None = None,
         dom: str = ".",
     ) -> xr.Dataset:
         """
-        Extract hydrographic section from a NEMO model domain.
+        Extract a piecewise hydrographic section from a NEMODataTree.
+
+        Hydrographic section represents the staggered set of NEMO U-
+        and V-grid cell faces which form a continous section upon which
+        normal velocities are defined. 
+
+        Scalar variables defined on the NEMO model T-grid are linearly
+        interpolated onto the appropriate U/V-grid cell face.
 
         Parameters
         ----------
-        lon_section : np.ndarray
+        lon : np.ndarray
             Longitudes defining the section polygon.
-        lat_section : np.ndarray
+        lat : np.ndarray
             Latitudes defining the section polygon.
         uv_vars : list, optional
             Names of velocity variables to extract along the boundary.
@@ -1961,7 +1975,7 @@ class NEMODataTree(xr.DataTree):
         Returns
         -------
         xr.Dataset
-            Dataset containing hydrographic section extracted from NEMO model grid.
+            Dataset containing hydrographic section extracted from a NEMODataTree.
 
         Examples
         --------
@@ -1969,8 +1983,8 @@ class NEMODataTree(xr.DataTree):
         North Atlantic (OSNAP) array defined by `lon_osnap` and `lat_osnap` coordinates in the
         NEMO parent domain:
 
-        >>> nemo.extract_section(lon_section=lon_osnap,
-        ...                      lat_section=lat_osnap,
+        >>> nemo.extract_section(lon=lon_osnap,
+        ...                      lat=lat_osnap,
         ...                      uv_vars=["uo", "vo"],
         ...                      vars=["sigma0"],
         ...                      dom=".",
@@ -1981,10 +1995,10 @@ class NEMODataTree(xr.DataTree):
         extract_mask_boundary
         """
         # -- Validate Input -- #
-        if not isinstance(lon_section, np.ndarray):
-            raise TypeError("lon_section must be a numpy array.")
-        if not isinstance(lat_section, np.ndarray):
-            raise TypeError("lat_section must be a numpy array.")
+        if not isinstance(lon, np.ndarray):
+            raise TypeError("lon must be a numpy array.")
+        if not isinstance(lat, np.ndarray):
+            raise TypeError("lat must be a numpy array.")
         if not isinstance(dom, str):
             raise TypeError(
                 "dom must be a string specifying prefix of a NEMO domain (e.g., '.', '1', '2', etc.)."
@@ -2002,8 +2016,8 @@ class NEMODataTree(xr.DataTree):
 
         # -- Define hydrographic section using polygon -- #
         lon_poly, lat_poly = create_section_polygon(
-            lon_sec=lon_section,
-            lat_sec=lat_section,
+            lon_sec=lon,
+            lat_sec=lat,
         )
 
         mask = self.mask_with_polygon(
@@ -2025,8 +2039,8 @@ class NEMODataTree(xr.DataTree):
         # -- Get indexes of hydrographic section along mask boundary -- #
         dom_prefix, _ = self._get_properties(dom=dom)
         sec_indexes = get_section_indexes(
-            lon_section=lon_section,
-            lat_section=lat_section,
+            lon_section=lon,
+            lat_section=lat,
             gphib=ds_bdy[f"{dom_prefix}gphib"].values,
             glamb=ds_bdy[f"{dom_prefix}glamb"].values,
             bdy=ds_bdy["bdy"].values,
@@ -2041,6 +2055,174 @@ class NEMODataTree(xr.DataTree):
             uv_vars=uv_vars,
             vars=vars,
         )
+
+        return ds_bdy
+
+    def extract_zonal_section(
+        self,
+        lat: int | float,
+        lon_min: int | float,
+        lon_max: int | float,
+        u_vars: list[str] | None = None,
+        scalar_vars: list[str] | None = None,
+        dom: str = '.',
+    ) -> xr.Dataset:
+        """
+        Extract an approximately zonal section at a chosen latitude from a NEMODataTree.
+
+        Hydrographic section will be located at the constant j-coordinate whose average
+        latitude (following selection between lon_min and lon_max) is closest to the given
+        latitude.
+
+        Hydrographic section will be defined on the NEMO model V-grid
+        
+        Scalar variables defined on the NEMO model T-grid and vector variables defined on
+        the NEMO model U-grid are linearly interpolated onto the V-grid.
+
+        Parameters:
+        -----------
+        lat : int | float
+            Latitude of zonal section.
+        lon_min : int | float
+            Minimum longitude of zonal section.
+        lon_max : int | float
+            Maximum longitude of zonal section.
+        u_vars : list[str], optional
+            List of NEMO U-grid variables to extract along
+            zonal section.
+        scalar_vars : list[str], optional
+            List of scalar variable names to extract along
+            zonal section.
+        dom : str
+            Prefix of NEMO domain in the DataTree (e.g., '1', '2', '3', etc.).
+            Default is '.' for the parent domain.
+
+        Returns:
+        --------
+        xr.Dataset
+            Dataset containing zonal hydrographic section extracted from a NEMODataTree.
+
+        Examples
+        --------
+        Extract meridional velocities, conservative temperature and zonal wind stress along the RAPID-MOCHA array located
+        at 26.5N in the NEMO parent domain:
+
+        >>> nemo.extract_zonal_section(lat=26.5,
+        ...                            lon_min=-81,
+        ...                            lon_max=10,
+        ...                            u_vars=["tauuo"],
+        ...                            scalar_vars=["thetao_con"],
+        ...                            dom=".",
+        ...                            )
+        See Also
+        --------
+        extract_section
+        """
+        # -- Validate Inputs -- #
+        if not isinstance(lat, (int, float)):
+            raise TypeError("Latitude must be a single numeric value.")
+        if not isinstance(lon_min, (int, float)):
+            raise TypeError("Minimum longitude must be a single numeric value.")
+        if not isinstance(lon_max, (int, float)):
+            raise TypeError("Maximum longitude must be a single numeric value.")
+        if u_vars is not None and not isinstance(u_vars, list):
+            raise TypeError("u_vars must be a list of variable names.")
+        if scalar_vars is not None and not isinstance(scalar_vars, list):
+            raise TypeError("scalar_vars must be a list of variable names.")
+        if not isinstance(dom, str):
+            raise TypeError(
+                "dom must be a string specifying prefix of a NEMO domain (e.g., '.', '1', '2', etc.)."
+            )
+
+        # -- Get NEMO model grid properties -- #
+        grid_paths = self._get_grid_paths(dom=dom)
+        dom_prefix, _ = self._get_properties(dom=dom)
+        ijk_names = self._get_ijk_names(dom=dom)
+        i_name, j_name = ijk_names["i"], ijk_names["j"]
+
+        # -- Validate latitude within latitude bounds of NEMODataTree -- #
+        lat_min_grid = self[grid_paths["gridV"]][f"{dom_prefix}gphiv"].min().values.item()
+        lat_max_grid = self[grid_paths["gridV"]][f"{dom_prefix}gphiv"].max().values.item()
+        if (lat < lat_min_grid) or (lat > lat_max_grid):
+            raise ValueError(f"Latitude of zonal section is out of bounds of the grid latitude range ({lat_min_grid}, {lat_max_grid}).")
+
+        # -- Add geographical indexing to V-grid -- #
+        nemo_geo = self.add_geoindex(grid=grid_paths["gridV"])
+
+        # -- Determine (i, j) indices of zonal section endpoints -- #
+        nemo_start = nemo_geo[grid_paths["gridV"]].dataset.sel(gphiv=lat, glamv=lon_min, method='nearest')
+        i_start = nemo_start[i_name].values.item()
+        j_start = nemo_start[j_name].values.item()
+        nemo_end = nemo_geo[grid_paths["gridV"]].dataset.sel(gphiv=lat, glamv=lon_max, method='nearest')
+        i_end = nemo_end[i_name].values.item()
+        j_end = nemo_end[j_name].values.item()
+
+        # Define j-index of zonal section:
+        if j_start == j_end:
+            j_sec = j_start
+        else:
+            j_list = np.arange(min([j_start, j_end]), max([j_start, j_end]) + 1)
+            j_lats = []
+            for j in j_list:
+                j_lats.append(nemo_geo[grid_paths['gridV']]["gphiv"]
+                              .sel({i_name: slice(i_start, i_end), j_name: j})
+                              .mean(dim=i_name).values.item()
+                              )
+            # Select j-index of zonal section closest to specified latitude:
+            j_sec = j_list[np.argmin(np.abs(np.array(j_lats) - lat))]
+
+        # Define i-indices of zonal section:
+        i_sec = [i_start, i_end]
+
+        # -- Extract zonal section at specified latitude -- #
+        nemo_geo = nemo_geo.isel({i_name: slice(i_sec[0]-1, i_sec[1]+1),
+                                  j_name: slice(int(j_sec)-1, int(j_sec)+1)
+                                  })
+        # Transform scalar T-grid variables to V-point grid:
+        if scalar_vars is not None:
+            for var in scalar_vars:
+                nemo_geo[grid_paths["gridV"]][var] = nemo_geo[f"gridT/{var}"].interp_to(to='V')
+        # Transform U-grid variables to V-point grid:
+        if u_vars is not None:
+            for var in u_vars:
+                nemo_geo[grid_paths["gridV"]][var] = nemo_geo[f"gridU/{var}"].interp_to(to='V')
+
+        # Extract zonal section & update dimensions & coordinate variables:
+        ds_bdy = nemo_geo[grid_paths["gridV"]].dataset.sel({i_name: slice(i_sec[0], i_sec[1]),
+                                                            j_name: j_sec
+                                                            })
+        ds_bdy = (ds_bdy
+                  .rename_vars({"glamv": f"{dom_prefix}glamb",
+                                "gphiv": f"{dom_prefix}gphib",
+                                "depthv": f"{dom_prefix}depthb",
+                                "vmask": "bmask",
+                                "vmaskutil": "bmaskutil",
+                                "e1v": "e1b",
+                                "e2v": "e2b",
+                                "e3v": "e3b",
+                                })
+                  .rename_dims({i_name: "bdy"})
+                  )
+
+        if ("e3v_0" in ds_bdy.data_vars) and ("hv_0" in ds_bdy.data_vars):
+            ds_bdy = ds_bdy.rename_vars({"e3v_0": "e3b_0",
+                                         "hv_0": "hb_0"
+                                         })
+
+        # Add (i_bdy, j_bdy) indices of zonal section:
+        ds_bdy["i_bdy"] = xr.DataArray(data=np.arange(i_sec[0], i_sec[1]+1), dims=["bdy"])
+        ds_bdy["j_bdy"] = xr.DataArray(data=np.repeat(j_sec, ds_bdy["bdy"].size), dims=["bdy"])
+
+        # Apply land-sea masks to all variables:
+        for var in ds_bdy.data_vars:
+            if ds_bdy[var].dims == ("time_counter", "k", "bdy"):
+                ds_bdy[var] = ds_bdy[var].where(ds_bdy["bmask"])
+            elif ds_bdy[var].dims == ("time_counter", "bdy"):
+                ds_bdy[var] = ds_bdy[var].where(ds_bdy["bmaskutil"])
+
+        # Drop invalid global attributes from dataset:
+        ds_bdy.attrs.pop("iperio", None)
+        ds_bdy.attrs.pop("nftype", None)
 
         return ds_bdy
 
