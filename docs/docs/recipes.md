@@ -166,9 +166,9 @@ There are several ways to explore our available Recipes:
 
     Creating NEMODataTrees using CMORISED NEMO model outputs & calculating time-evolving vertical grid scale factors.
 
-    [:octicons-arrow-right-24: View in Docs](https://noc-msm.github.io/nemo_cookbook/recipe_cmip)
+    [:octicons-arrow-right-24: View in Docs](https://noc-msm.github.io/nemo_cookbook/recipe_cmip6)
 
-    [![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/NOC-MSM/nemo_cookbook/blob/main/recipes/recipe_cmip.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/NOC-MSM/nemo_cookbook/blob/main/recipes/recipe_cmip.ipynb)
+    [![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/NOC-MSM/nemo_cookbook/blob/main/recipes/recipe_cmip6.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/NOC-MSM/nemo_cookbook/blob/main/recipes/recipe_cmip6.ipynb)
 
 </div>
 
