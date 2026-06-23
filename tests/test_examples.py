@@ -77,6 +77,23 @@ class TestNEMODataTreeExamples():
         # Close files associated with NEMODataTree:
         nemo.close()
 
+    def test_orca2_vco_ref_nemodatatree(self, example_ORCA2_vco_ref_nemodatatree):
+        # -- Create example vco_ref NEMODataTree from AGRIF_DEMO configuration -- #
+        nemo = example_ORCA2_vco_ref_nemodatatree
+
+        # -- Verify grid nodes, scale factors & coordinates -- #
+        assert isinstance(nemo, xr.DataTree)
+        nodes = [entry[0] for entry in list(nemo.subtree_with_keys)]
+        for node in ['gridT', 'gridU', 'gridV', 'gridF']:
+            assert node in nodes
+            grid_suffix = node[-1].lower()
+            assert f"e3{grid_suffix}_0" in nemo[node].data_vars
+            assert f"h{grid_suffix}_0" in nemo[node].data_vars
+
+        # -- Tear down -- #
+        # Close files associated with NEMODataTree:
+        nemo.close()
+
 
     def test_amm12_nemodatatree(self, example_AMM12_nemodatatree):
         # -- Create example NEMODataTree for AMM12 configuration -- #
