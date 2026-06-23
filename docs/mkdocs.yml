@@ -91,6 +91,7 @@ nav:
       - Extracting Variables along Mask Boundaries: recipe_extract_mask_boundary.ipynb
       - Vertical Coordinate Transformation: recipe_transform_vertical_coords.ipynb
       - Regridding using xESMF: recipe_xesmf.ipynb
+      - Working with CMIP Data: recipe_cmip6.ipynb
   - API Reference: reference.md
   - Contributing: contributing.md
   - Release Notes: release_notes.md
