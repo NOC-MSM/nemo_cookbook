@@ -297,9 +297,11 @@ def _open_grid_datasets(
 def _add_domain_vars(
     d_grids: dict[str, xr.Dataset],
     key_linssh: bool = False,
+    vco_ref: bool = False,
     iperio: bool = False,
     nftype: str | None = None,
     read_mask: bool = False,
+    maskcs: bool = False,
 ) -> dict[str, xr.Dataset]:
     """
     Append domain & mask variables to each grid dataset
@@ -322,6 +324,10 @@ def _add_domain_vars(
         (e3t_0, e3u_0, e3v_0, e3w_0). If False, vertical coordinates are time-dependent and must be included
         in grid datasets. Default is False.
 
+    vco_ref: bool = False
+        If True, add reference vertical scale factors and compute reference water column heights from domain files.
+        Default is False.
+
     iperio: bool = False
         Zonal periodicity of the domain.
 
@@ -332,6 +338,9 @@ def _add_domain_vars(
     read_mask : bool = False
         If True, read NEMO model land/sea mask from domain files. Default is False, meaning masks are computed
         from top_level and bottom_level domain variables.
+
+    maskcs : bool = False
+        If True, all closed seas are masked using mask_opensea variables from domain files. Default is False.
 
     Returns
     -------
@@ -348,12 +357,19 @@ def _add_domain_vars(
     if "domain" in d_grids:
         # Remove singleton dimensions from domain dataset:
         domain = d_grids["domain"].squeeze(drop=True)
+        # Drop legacy domain coordinates to prevent broadcasting conflicts:
+        for coord in ("nav_lon", "nav_lat", "nav_lev", "y", "x"):
+            if coord in domain:
+                domain = domain.drop_vars(coord)
     else:
         raise KeyError("missing 'domain' key in grid datasets dictionary.")
 
     # Determine if closed seas should be masked:
-    if "mask_opensea" in domain.data_vars:
-        mask_opensea = domain["mask_opensea"]
+    if maskcs:
+        if "mask_opensea" in domain.data_vars:
+            mask_opensea = domain["mask_opensea"]
+        else:
+            raise KeyError("missing required 'mask_opensea' variable in domain dataset.")
     else:
         mask_opensea = None
 
@@ -376,8 +392,11 @@ def _add_domain_vars(
 
     # Land-sea masks:
     if read_mask:
-        d_grids["gridT"]["tmask"] = read_dom_mask(ka=ka, ds_domain=domain, cd_nat="T")
-        d_grids["gridT"]["tmaskutil"] = read_dom_maskutil(ds_domain=domain, cd_nat="T")
+        d_grids["gridT"]["tmask"] = read_dom_mask(ka=ka, ds_domain=domain, cd_nat="T", mask_opensea=mask_opensea)
+        if "tmaskutil" in domain.data_vars:
+            d_grids["gridT"]["tmaskutil"] = read_dom_maskutil(ds_domain=domain, cd_nat="T", mask_opensea=mask_opensea)
+        else:
+            d_grids["gridT"]["tmaskutil"] = d_grids["gridT"]["tmask"].isel(nav_lev=0).squeeze(drop=True)
     else:
         d_grids["gridT"]["tmask"] = create_dom_mask(
             ka=ka,
@@ -388,12 +407,12 @@ def _add_domain_vars(
             iperio=iperio,
             mask_opensea=mask_opensea,
         )
-        d_grids["gridT"]["tmaskutil"] = d_grids["gridT"]["tmask"][0, :, :].squeeze(
+        d_grids["gridT"]["tmaskutil"] = d_grids["gridT"]["tmask"].isel(nav_lev=0).squeeze(
             drop=True
         )
 
     # Reference vertical scale factors and water column heights:
-    if "e3t_0" in domain.data_vars:
+    if vco_ref and ("e3t_0" in domain.data_vars):
         if not key_linssh:
             # Add reference vertical scale factors:
             d_grids["gridT"]["e3t_0"] = domain["e3t_0"]
@@ -421,8 +440,11 @@ def _add_domain_vars(
 
     # Land-sea masks:
     if read_mask:
-        d_grids["gridU"]["umask"] = read_dom_mask(ka=ka, ds_domain=domain, cd_nat="U")
-        d_grids["gridU"]["umaskutil"] = read_dom_maskutil(ds_domain=domain, cd_nat="U")
+        d_grids["gridU"]["umask"] = read_dom_mask(ka=ka, ds_domain=domain, cd_nat="U", mask_opensea=mask_opensea)
+        if "umaskutil" in domain.data_vars:
+            d_grids["gridU"]["umaskutil"] = read_dom_maskutil(ds_domain=domain, cd_nat="U", mask_opensea=mask_opensea)
+        else:
+            d_grids["gridU"]["umaskutil"] = d_grids["gridU"]["umask"].isel(nav_lev=0).squeeze(drop=True)
     else:
         d_grids["gridU"]["umask"] = create_dom_mask(
             ka=ka,
@@ -433,12 +455,10 @@ def _add_domain_vars(
             iperio=iperio,
             mask_opensea=mask_opensea,
         )
-        d_grids["gridU"]["umaskutil"] = d_grids["gridU"]["umask"][0, :, :].squeeze(
-            drop=True
-        )
+        d_grids["gridU"]["umaskutil"] = d_grids["gridU"]["umask"].isel(nav_lev=0).squeeze(drop=True)
 
     # Reference vertical scale factors and water column heights:
-    if "e3u_0" in domain.data_vars:
+    if vco_ref and ("e3u_0" in domain.data_vars):
         if not key_linssh:
             # Add reference vertical scale factors:
             d_grids["gridU"]["e3u_0"] = domain["e3u_0"]
@@ -466,8 +486,11 @@ def _add_domain_vars(
 
     # Land-sea masks:
     if read_mask:
-        d_grids["gridV"]["vmask"] = read_dom_mask(ka=ka, ds_domain=domain, cd_nat="V")
-        d_grids["gridV"]["vmaskutil"] = read_dom_maskutil(ds_domain=domain, cd_nat="V")
+        d_grids["gridV"]["vmask"] = read_dom_mask(ka=ka, ds_domain=domain, cd_nat="V", mask_opensea=mask_opensea)
+        if "vmaskutil" in domain.data_vars:
+            d_grids["gridV"]["vmaskutil"] = read_dom_maskutil(ds_domain=domain, cd_nat="V", mask_opensea=mask_opensea)
+        else:
+            d_grids["gridV"]["vmaskutil"] = d_grids["gridV"]["vmask"].isel(nav_lev=0).squeeze(drop=True)
     else:
         d_grids["gridV"]["vmask"] = create_dom_mask(
             ka=ka,
@@ -478,12 +501,10 @@ def _add_domain_vars(
             iperio=iperio,
             mask_opensea=mask_opensea,
         )
-        d_grids["gridV"]["vmaskutil"] = d_grids["gridV"]["vmask"][0, :, :].squeeze(
-            drop=True
-        )
+        d_grids["gridV"]["vmaskutil"] = d_grids["gridV"]["vmask"].isel(nav_lev=0).squeeze(drop=True)
 
     # Reference vertical scale factors and water column heights:
-    if "e3v_0" in domain.data_vars:
+    if vco_ref and ("e3v_0" in domain.data_vars):
         if not key_linssh:
             # Add reference vertical scale factors:
             d_grids["gridV"]["e3v_0"] = domain["e3v_0"]
@@ -511,9 +532,12 @@ def _add_domain_vars(
 
     # Land-sea masks:
     if read_mask:
-        d_grids["gridW"]["wmask"] = read_dom_mask(ka=ka, ds_domain=domain, cd_nat="W")
-        # W-grid is horizontally co-located with T-grid -> use tmaskutil:
-        d_grids["gridW"]["wmaskutil"] = read_dom_maskutil(ds_domain=domain, cd_nat="T")
+        d_grids["gridW"]["wmask"] = read_dom_mask(ka=ka, ds_domain=domain, cd_nat="W", mask_opensea=mask_opensea)
+        if "wmaskutil" in domain.data_vars:
+            # W-grid is horizontally co-located with T-grid -> use tmaskutil:
+            d_grids["gridW"]["wmaskutil"] = read_dom_maskutil(ds_domain=domain, cd_nat="T", mask_opensea=mask_opensea)
+        else:
+            d_grids["gridW"]["wmaskutil"] = d_grids["gridW"]["wmask"].isel(nav_lev=0).squeeze(drop=True)
     else:
         d_grids["gridW"]["wmask"] = create_dom_mask(
             ka=ka,
@@ -524,12 +548,10 @@ def _add_domain_vars(
             iperio=iperio,
             mask_opensea=mask_opensea,
         )
-        d_grids["gridW"]["wmaskutil"] = d_grids["gridW"]["wmask"][0, :, :].squeeze(
-            drop=True
-        )
+        d_grids["gridW"]["wmaskutil"] = d_grids["gridW"]["wmask"].isel(nav_lev=0).squeeze(drop=True)
 
     # Reference vertical scale factors and water column heights:
-    if "e3w_0" in domain.data_vars:
+    if vco_ref and ("e3w_0" in domain.data_vars):
         if not key_linssh:
             # Add reference vertical scale factors:
             d_grids["gridW"]["e3w_0"] = domain["e3w_0"]
@@ -553,8 +575,11 @@ def _add_domain_vars(
 
     # Land-sea masks:
     if read_mask:
-        d_grids["gridF"]["fmask"] = read_dom_mask(ka=ka, ds_domain=domain, cd_nat="F")
-        d_grids["gridF"]["fmaskutil"] = read_dom_maskutil(ds_domain=domain, cd_nat="F")
+        d_grids["gridF"]["fmask"] = read_dom_mask(ka=ka, ds_domain=domain, cd_nat="F", mask_opensea=mask_opensea)
+        if "fmaskutil" in domain.data_vars:
+            d_grids["gridF"]["fmaskutil"] = read_dom_maskutil(ds_domain=domain, cd_nat="F", mask_opensea=mask_opensea)
+        else:
+            d_grids["gridF"]["fmaskutil"] = d_grids["gridF"]["fmask"].isel(nav_lev=0).squeeze(drop=True)
     else:
         d_grids["gridF"]["fmask"] = create_dom_mask(
             ka=ka,
@@ -565,12 +590,10 @@ def _add_domain_vars(
             iperio=iperio,
             mask_opensea=mask_opensea,
         )
-        d_grids["gridF"]["fmaskutil"] = d_grids["gridF"]["fmask"][0, :, :].squeeze(
-            drop=True
-        )
+        d_grids["gridF"]["fmaskutil"] = d_grids["gridF"]["fmask"].isel(nav_lev=0).squeeze(drop=True)
 
     # Reference vertical scale factors and water column heights:
-    if "e3f_0" in domain.data_vars:
+    if vco_ref and ("e3f_0" in domain.data_vars):
         if not key_linssh:
             # Add reference vertical scale factors:
             d_grids["gridF"]["e3f_0"] = domain["e3f_0"]
@@ -701,7 +724,9 @@ def _process_parent(
     iperio: bool = False,
     nftype: str | None = None,
     read_mask: bool = False,
+    maskcs: bool = False,
     key_linssh: bool = False,
+    vco_ref: bool = False,
     open_kwargs: dict[str, any] | None = None,
 ) -> dict[str, xr.Dataset]:
     """
@@ -739,16 +764,23 @@ def _process_parent(
 
     read_mask : bool = False
         If True, read NEMO model land/sea mask from domain files. Default is False, meaning masks are computed
-        from top_level and bottom_level domain variables.
+        from top_level and bottom_level domain variables. Default is False.
+
+    maskcs : bool = False
+        If True, all closed seas are masked using mask_opensea variables from domain files. Default is False.
 
     key_linssh: bool = False
         Linear free-surface approximation. If True, vertical coordinates are time-independent and given by
         (e3t_0, e3u_0, e3v_0, e3w_0). If False, vertical coordinates are time-dependent and must be included
         in grid datasets. Default is False.
 
+    vco_ref: bool = False
+        If True, add reference vertical scale factors and compute reference water column heights from domain files.
+        Default is False.
+
     open_kwargs: dict[str, any], optional
         Additional keyword arguments to pass to xarray.open_dataset or xarray.open_mfdataset when opening
-        parent grid files.
+        parent grid files. Default is None.
 
     Returns
     -------
@@ -783,7 +815,8 @@ def _process_parent(
 
     # Add domain variables to each grid dataset:
     d_grids = _add_domain_vars(
-        d_grids=d_grids, key_linssh=key_linssh, iperio=iperio, nftype=nftype, read_mask=read_mask
+        d_grids=d_grids, key_linssh=key_linssh, iperio=iperio, nftype=nftype,
+        read_mask=read_mask, maskcs=maskcs, vco_ref=vco_ref
     )
 
     # Process T / U / V / W / F grids:
@@ -826,8 +859,10 @@ def _process_child(
     label: int,
     parent_label: int,
     read_mask: bool = False,
+    maskcs: bool = False,
     nbghost_child: int = _DEFAULT_NBGHOST_CHILD,
     key_linssh: bool = False,
+    vco_ref: bool = False,
     open_kwargs: dict[str, any] | None = None,
 ) -> dict[str, xr.Dataset]:
     """
@@ -877,7 +912,10 @@ def _process_child(
 
     read_mask : bool = False
         If True, read NEMO model land/sea mask from domain files. Default is False, meaning masks are computed
-        from top_level and bottom_level domain variables.
+        from top_level and bottom_level domain variables. Default is False.
+
+    maskcs : bool = False
+        If True, all closed seas are masked using mask_opensea variables from domain files. Default is False.
 
     nbghost_child : int = _DEFAULT_NBGHOST_CHILD
         Number of ghost cells to remove from the western/southern boundaries of the (grand)child domain.
@@ -888,9 +926,13 @@ def _process_child(
         (e3t_0, e3u_0, e3v_0, e3w_0). If False, vertical coordinates are time-dependent and must be included
         in grid datasets. Default is False.
 
+    vco_ref: bool = False
+        If True, add reference vertical scale factors and compute reference water column heights from domain files.
+        Default is False.
+
     open_kwargs: dict[str, any], optional
         Additional keyword arguments to pass to xarray.open_dataset or xarray.open_mfdataset when opening
-        (grand)child grid files.
+        (grand)child grid files. Default is None.
 
     Returns
     -------
@@ -933,7 +975,8 @@ def _process_child(
 
     # Add child domain variables to each grid:
     d_grids = _add_domain_vars(
-        d_grids=d_grids, key_linssh=key_linssh, iperio=d_nests["iperio"], nftype=None, read_mask=read_mask
+        d_grids=d_grids, key_linssh=key_linssh, iperio=d_nests["iperio"], nftype=None,
+        read_mask=read_mask, maskcs=maskcs, vco_ref=vco_ref
     )
 
     # Get child domain indices excluding ghost cells:
@@ -1010,8 +1053,10 @@ def create_datatree_dict(
     iperio: bool = False,
     nftype: str | None = None,
     read_mask: bool = False,
+    maskcs: bool = False,
     nbghost_child: int = _DEFAULT_NBGHOST_CHILD,
     key_linssh: bool = False,
+    vco_ref: bool = False,
     open_kwargs: dict[str, any] | None = None,
 ) -> dict[str, xr.Dataset]:
     """
@@ -1034,15 +1079,20 @@ def create_datatree_dict(
         Type of north fold lateral boundary condition to apply to parent domain. Options are 'T' for T-point
         pivot or 'F' for F-point pivot. By default, no north fold lateral boundary condition is applied (None).
     read_mask : bool = False
-        If True, read NEMO model land/sea mask from domain files. Default is False, meaning masks are computed from top_level and bottom_level domain variables.
+        If True, read NEMO model land/sea mask from domain files. Default is False, meaning masks are computed from top_level and bottom_level
+        domain variables. Default is False.
+    maskcs: bool = False
+        If True, all closed seas are masked using mask_opensea variables from domain files. Default is False.
     nbghost_child : int = _DEFAULT_NBGHOST_CHILD
         Number of ghost cells to remove from the western/southern boundaries of the (grand)child domain. Default is 4 (`_DEFAULT_NBGHOST_CHILD`).
     key_linssh: bool = False
         Linear free-surface approximation. If True, vertical coordinates are time-independent and given by (e3t_0, e3u_0, e3v_0, e3w_0). If False, vertical
         coordinates are time-dependent and must be included in grid datasets. Default is False.
+    vco_ref: bool = False
+        If True, add reference vertical scale factors and compute reference water column heights from domain files. Default is False.
     open_kwargs : dict[str, any], optional
         Additional keyword arguments passed to `xarray.open_dataset` or `xarray.open_mfdataset` when
-        opening NEMO grid files.
+        opening NEMO grid files. Default is None.
 
     Returns
     -------
@@ -1058,8 +1108,10 @@ def create_datatree_dict(
         d_parent=d_parent,
         iperio=iperio,
         read_mask=read_mask,
+        maskcs=maskcs,
         nftype=nftype,
         key_linssh=key_linssh,
+        vco_ref=vco_ref,
         open_kwargs=open_kwargs,
     )
 
@@ -1084,8 +1136,10 @@ def create_datatree_dict(
                     label=int(key),
                     parent_label=None,
                     read_mask=read_mask,
+                    maskcs=maskcs,
                     nbghost_child=nbghost_child,
                     key_linssh=key_linssh,
+                    vco_ref=vco_ref,
                     open_kwargs=open_kwargs,
                 )
             )
@@ -1115,8 +1169,10 @@ def create_datatree_dict(
                     label=int(key),
                     parent_label=int(d_nests["parent"]),
                     read_mask=read_mask,
+                    maskcs=maskcs,
                     nbghost_child=nbghost_child,
                     key_linssh=key_linssh,
+                    vco_ref=vco_ref,
                     open_kwargs=open_kwargs,
                 )
             )

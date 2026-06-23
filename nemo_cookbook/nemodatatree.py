@@ -24,13 +24,10 @@ from nemo_cookbook.extract import (
     get_section_indexes,
     update_boundary_dataset,
 )
-from nemo_cookbook.integrate import compute_depth_integral
-from nemo_cookbook.interpolate import interpolate_grid
 from nemo_cookbook.masks import create_polygon_mask, get_mask_boundary
 from nemo_cookbook.nemodataarray import NEMODataArray
 from nemo_cookbook.processing import create_datatree_dict
 from nemo_cookbook.stats import compute_binned_statistic
-from nemo_cookbook.transform import transform_vertical_coords
 from nemo_cookbook.utils import deprecated
 from nemo_cookbook.validation import validate_nemo_grid_node
 
@@ -73,7 +70,9 @@ class NEMODataTree(xr.DataTree):
         iperio: bool = False,
         nftype: str | None = None,
         read_mask: bool = False,
+        maskcs: bool = False,
         key_linssh: bool = False,
+        vco_ref: bool = False,
         nbghost_child: int = 4,
         **open_kwargs: dict[str, any],
     ) -> Self:
@@ -134,11 +133,18 @@ class NEMODataTree(xr.DataTree):
             pivot. By default, no north fold lateral boundary condition is applied (None).
 
         read_mask: bool = False
-            If True, read NEMO model land/sea mask from domain files. Default is False, meaning masks are computed from top_level and bottom_level domain variables.
+            If True, read NEMO model land/sea mask from domain files. Default is False, meaning masks are computed from top_level and
+            bottom_level domain variables. Default is False.
+
+        maskcs: bool = False
+            If True, all closed seas are masked using mask_opensea variables from domain files. Default is False.
 
         key_linssh: bool = False
             Linear free-surface approximation. If True, vertical coordinates are time-independent and given by (e3t_0, e3u_0, e3v_0, e3w_0) in domain_cfg.
             If False, vertical coordinates are time-dependent and must be specified in NEMO model grid datasets. Default is False.
+
+        vco_ref: bool = False
+            If True, add reference vertical scale factors and compute reference water column heights from domain files. Default is False.
 
         nbghost_child : int = 4
             Number of ghost cells to remove from the western/southern boundaries of the (grand)child domains. Default is 4.
@@ -187,9 +193,13 @@ class NEMODataTree(xr.DataTree):
                 "north fold type (`nftype`) of parent domain must be 'T' (T-pivot fold), 'F' (F-pivot fold), or None."
             )
         if not isinstance(read_mask, bool):
-            raise TypeError("`read_mask` must be a boolean.")
+            raise TypeError("reading land-sea masks from domain_cfg (`read_mask`) must be a boolean.")
+        if not isinstance(maskcs, bool):
+            raise TypeError("masking of closed seas (`maskcs`) must be a boolean.")
         if not isinstance(key_linssh, bool):
             raise TypeError("linear free-surface approximation (`key_linssh`) must be a boolean.")
+        if not isinstance(vco_ref, bool):
+            raise TypeError("reference vertical coordinates (`vco_ref`) must be a boolean.")
         if not isinstance(nbghost_child, int):
             raise TypeError(
                 "number of ghost cells along the western/southern boundaries (`nbghost_child`) must be an integer."
@@ -228,8 +238,10 @@ class NEMODataTree(xr.DataTree):
             iperio=iperio,
             nftype=nftype,
             read_mask=read_mask,
+            maskcs=maskcs,
             nbghost_child=nbghost_child,
             key_linssh=key_linssh,
+            vco_ref=vco_ref,
             open_kwargs=dict(**open_kwargs),
         )
 
@@ -248,6 +260,8 @@ class NEMODataTree(xr.DataTree):
         nftype: str | None = None,
         read_mask: bool = False,
         key_linssh: bool = False,
+        vco_ref: bool = False,
+        maskcs: bool = False,
         nbghost_child: int = 4,
     ) -> Self:
         """
@@ -291,11 +305,18 @@ class NEMODataTree(xr.DataTree):
             pivot. By default, no north fold lateral boundary condition is applied (None).
 
         read_mask: bool = False
-            If True, read NEMO model land/sea mask from domain files. Default is False, meaning masks are computed from top_level and bottom_level domain variables.
+            If True, read NEMO model land/sea mask from domain files. Default is False, meaning masks are computed from top_level and bottom_level
+            domain variables. Default is False.
+
+        maskcs: bool = False
+            If True, all closed seas are masked using mask_opensea variables from domain files. Default is False.
 
         key_linssh: bool = False
             Linear free-surface approximation. If True, vertical coordinates are time-independent and given by (e3t_0, e3u_0, e3v_0, e3w_0) in domain_cfg.
             If False, vertical coordinates are time-dependent and must be specified in NEMO model grid datasets. Default is False.
+
+        vco_ref: bool = False
+            If True, add reference vertical scale factors and compute reference water column heights from domain files. Default is False.
 
         nbghost_child : int = 4
             Number of ghost cells to remove from the western/southern boundaries of the (grand)child domains. Default is 4.
@@ -338,9 +359,13 @@ class NEMODataTree(xr.DataTree):
                 "north fold type (`nftype`) of parent domain must be 'T' (T-pivot fold), 'F' (F-pivot fold), or None."
             )
         if not isinstance(read_mask, bool):
-            raise TypeError("`read_mask` must be a boolean.")
+            raise TypeError("reading land-sea masks from domain_cfg (`read_mask`) must be a boolean.")
+        if not isinstance(maskcs, bool):
+            raise TypeError("masking of closed seas (`maskcs`) must be a boolean.")
         if not isinstance(key_linssh, bool):
             raise TypeError("linear free-surface approximation (`key_linssh`) must be a boolean.")
+        if not isinstance(vco_ref, bool):
+            raise TypeError("reference vertical coordinates (`vco_ref`) must be a boolean.")
         if not isinstance(nbghost_child, int):
             raise TypeError(
                 "number of ghost cells along the western/southern boundaries (`nbghost_child`) must be an integer."
@@ -377,7 +402,9 @@ class NEMODataTree(xr.DataTree):
             iperio=iperio,
             nftype=nftype,
             read_mask=read_mask,
+            maskcs=maskcs,
             key_linssh=key_linssh,
+            vco_ref=vco_ref,
             nbghost_child=nbghost_child,
         )
 
