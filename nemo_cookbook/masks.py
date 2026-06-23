@@ -22,6 +22,7 @@ def read_dom_mask(
     ka: xr.DataArray,
     ds_domain: xr.Dataset,
     cd_nat: str,
+    mask_opensea: xr.DataArray = None,
 ) -> xr.DataArray:
     """
     Read land/ocean mask arrays at tracer points, horizontal velocity
@@ -40,6 +41,9 @@ def read_dom_mask(
     cd_nat : str
         Nature of array grid-points to read land/sea mask for.
         Options are 'T', 'W', 'U', 'V' or 'F'.
+    mask_opensea : xr.DataArray, optional
+        All closed seas are masked using mask_opensea, by default
+        no masking is applied.
 
     Returns
     -------
@@ -66,12 +70,17 @@ def read_dom_mask(
     # Update coordinates to use zero-based indexing:
     mask = mask.assign_coords({"nav_lev": ka, "y": mask["y"], "x": mask["x"]})
 
+    if mask_opensea is not None:
+        # Apply open-sea mask to mask closed seas:
+        mask = mask.where(mask_opensea)
+
     return mask
 
 
 def read_dom_maskutil(
     ds_domain: xr.Dataset,
     cd_nat: str,
+    mask_opensea: xr.DataArray = None,
 ) -> xr.DataArray:
     """
     Read land/ocean mask arrays at tracer points, horizontal velocity
@@ -87,6 +96,9 @@ def read_dom_maskutil(
     cd_nat : str
         Nature of array grid-points to read land/sea mask for.
         Options are 'T', 'W', 'U', 'V' or 'F'.
+    mask_opensea : xr.DataArray, optional
+        All closed seas are masked using mask_opensea, by default
+        no masking is applied.
 
     Returns
     -------
@@ -108,6 +120,10 @@ def read_dom_maskutil(
 
     # Update coordinates to use zero-based indexing:
     mask = mask.assign_coords({"y": mask["y"], "x": mask["x"]})
+
+    if mask_opensea is not None:
+        # Apply open-sea mask to mask closed seas:
+        mask = mask.where(mask_opensea)
 
     return mask
 
