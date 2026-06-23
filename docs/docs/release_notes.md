@@ -1,5 +1,50 @@
 # What's New
 
+## v2026.06.01 - 23rd June 2026
+
+### New Features
+
+* **Added `extract_zonal_section()` method to `NEMODataTree`:**
+     * Enables users to extract an approximately zonal section at a chosen latitude from a NEMODataTree.
+     * Hydrographic section will be located at the constant j-coordinate whose average latitude (following selection between lon_min and lon_max) is closest to the given latitude.
+
+* **Added `from_xesmf()` accessor for`NEMODataArray` enabling users to import an xESMF-compatible `xarray.Dataset` to a NEMO model variable.**
+
+* **Add reference vertical scale factors `e3{t/u/v/w}_0` and water column heights `h{t/u/v/w}_0` to `NEMODataTree` construction.**
+
+### New Recipes
+
+* **Two additional NEMO Cookbook Recipes:**
+   1. Extracting Zonal Hydrographic Sections - `recipe_extract_rapid.ipynb`
+   2. Working with CMORISED NEMO ocean model outputs - `recipe_cmip6.ipynb`
+
+### Breaking Changes
+
+* **`extract_section()` expected parameters `lon`, `lat` renamed to `lon_section`, `lat_section`.**
+
+### Bug Fixes
+
+* **Fix interp_to(), depth_integral() and transform_vertical_grid() to preserve core dimensions when size(time_counter)=1  - @robertsmalcolm**
+* **Update `_check_grid_dims()` to handle singleton dims in domain_cfg**
+* **Update `processing.py` to improve performance of merging NEMO gridT and icemod datasets - @atb299**
+
+### Documentation
+
+* **Added required core dimensions for `NEMODataTree` constructors to User Guide & How To... Guide.**
+* **Added two new NEMO Cookbook recipes to documentation.**
+
+### Pull Requests
+
+* 29 [feature] add from_xesmf method by @oj-tooth in https://github.com/NOC-MSM/nemo_cookbook/pull/30
+* 32 feature add extract zonal section method to nemodatatree by @oj-tooth in https://github.com/NOC-MSM/nemo_cookbook/pull/33
+* 34 feature add cmorised nemodatatree recipe by @oj-tooth in https://github.com/NOC-MSM/nemo_cookbook/pull/35
+
+
+**Full Changelog**: https://github.com/NOC-MSM/nemo_cookbook/compare/v2026.04.0b1...v2026.06.01
+
+
+# What's New
+
 ## v2026.04.b1 - 30th April 2026
 
 ### New Features
