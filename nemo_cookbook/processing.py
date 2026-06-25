@@ -10,6 +10,7 @@ Ollie Tooth (oliver.tooth@noc.ac.uk)
 """
 
 import glob
+import warnings
 
 import numpy as np
 import xarray as xr
@@ -531,7 +532,7 @@ def _add_domain_vars(
         ) from e
 
     # Land-sea masks:
-    if read_mask:
+    if read_mask & ("wmask" in domain.data_vars):
         d_grids["gridW"]["wmask"] = read_dom_mask(ka=ka, ds_domain=domain, cd_nat="W", mask_opensea=mask_opensea)
         if "wmaskutil" in domain.data_vars:
             # W-grid is horizontally co-located with T-grid -> use tmaskutil:
@@ -539,6 +540,12 @@ def _add_domain_vars(
         else:
             d_grids["gridW"]["wmaskutil"] = d_grids["gridW"]["wmask"].isel(nav_lev=0).squeeze(drop=True)
     else:
+        if read_mask:
+            warnings.warn(
+                "wmask not found in domain dataset. Creating wmask from top_level and bottom_level variables.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
         d_grids["gridW"]["wmask"] = create_dom_mask(
             ka=ka,
             top_level=domain["top_level"],
