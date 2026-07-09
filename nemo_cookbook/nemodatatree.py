@@ -443,7 +443,8 @@ class NEMODataTree(xr.DataTree):
             Type of north fold lateral boundary condition to apply. Options are 'T' for T-point pivot or 'F' for F-point
 
         open_kwargs : dict[str, Any], optional
-            Additional keyword arguments to pass to `xarray.open_datatree`. Default is None.
+            Additional keyword arguments to pass to `xarray.open_datatree`.
+            Default is None.
 
         **session_kwargs : dict[str, Any], optional
             Additional keyword arguments to pass to Icechunk `repo.readonly_session`.
@@ -478,7 +479,7 @@ class NEMODataTree(xr.DataTree):
 
         # -- Create NEMODataTree from Icechunk repository -- #:
         session = repo.readonly_session(**session_kwargs)
-        datatree = xr.open_datatree(session.store, engine="zarr", **(open_kwargs or {}))
+        datatree = xr.open_datatree(session.store, engine="zarr", **(open_kwargs or {"chunks": {}}))
         nemo = super().from_dict(datatree.to_dict())
 
         # -- Update NEMODataTree properties -- #
@@ -520,6 +521,7 @@ class NEMODataTree(xr.DataTree):
 
         **open_kwargs : dict[str, Any], optional
             Additional keyword arguments to pass to `xarray.open_datatree`.
+            Default is None.
 
         Returns
         -------
@@ -550,7 +552,7 @@ class NEMODataTree(xr.DataTree):
             )
 
         # -- Create NEMODataTree from Zarr store -- #:
-        datatree = xr.open_datatree(store, engine="zarr", **(open_kwargs or {}))
+        datatree = xr.open_datatree(store, engine="zarr", **(open_kwargs or {"chunks": {}}))
         nemo = super().from_dict(datatree.to_dict())
 
         # -- Update NEMODataTree properties -- #
