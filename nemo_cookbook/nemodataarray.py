@@ -23,6 +23,7 @@ import dask
 import matplotlib.pyplot as plt
 import numpy as np
 import xarray as xr
+from xarray.core import nputils
 
 if TYPE_CHECKING:
     # Avoid circular import at runtime:
@@ -308,6 +309,73 @@ class NEMODataArray:
         result = self._da.where(mask, drop=drop)
 
         return self._wrap(result)
+        
+    def clip(
+        self,
+        bbox: tuple[float | int, float | int, float | int, float | int],
+    ) -> Self:
+        """
+        Clip variable defined on a NEMO model grid to specified
+        longitude and latitude range.
+
+        Parameters
+        ----------
+        bbox : tuple
+            Bounding box in the form (lon_min, lon_max, lat_min, lat_max).
+
+        Returns
+        -------
+        NEMODataArray
+            Variable defined on a NEMO model grid clipped to bounding box.
+
+        Examples
+        --------
+        Clip sea surface temperature `tos_con` defined on T-points in a NEMO
+        model parent domain in the bounding box (-40°E, 10°E, 35°N, 60°N):
+
+        >>> nemo['gridT/tos_con'].clip(bbox=(-40, 10, 35, 60))
+
+        See Also
+        --------
+        sel_like
+        """
+        # -- Validate Inputs -- #
+        if not isinstance(bbox, tuple) or len(bbox) != 4:
+            raise ValueError(
+                "bounding box must be a tuple (lon_min, lon_max, lat_min, lat_max)."
+            )
+
+        # -- Clip data to bounding box & return NEMODataArray -- #
+        # Define longitude & latitude coordinates of NEMO model grid:
+        glam = self[f"{self._dom_prefix}glam{self._grid_suffix}"]
+        gphi = self[f"{self._dom_prefix}gphi{self._grid_suffix}"]
+
+        # Define bbox mask:
+        mask = (
+            (glam >= bbox[0])
+            & (glam <= bbox[1])
+            & (gphi >= bbox[2])
+            & (gphi <= bbox[3])
+            )
+
+        # Find rows/columns containing at least one valid grid point:
+        rows = mask.any(dim=self.i_name)
+        cols = mask.any(dim=self.j_name)
+        j_idx = np.where(rows.compute())[0]
+        i_idx = np.where(cols.compute())[0]
+
+        if len(j_idx) == 0 or len(i_idx) == 0:
+            raise ValueError(f"No {self._grid[-1]}-grid points found inside specified bbox.")
+
+        # Subset NEMODataArray data within bounding box:
+        result = (self
+                  .where(mask, drop=False)
+                  .isel({self.j_name: slice(j_idx.min(), j_idx.max() + 1),
+                         self.i_name: slice(i_idx.min(), i_idx.max() + 1),
+                         })
+                 )
+
+        return result
     
     def sel_like(
         self,
@@ -1368,6 +1436,33 @@ class NEMODataArray:
         return self._binary_op(other, operator.truediv)
     def __rtruediv__(self, other: Self | xr.DataArray | int | float) -> Self:
         return self._rbinary_op(other, operator.truediv)
+    
+    def __and__(self, other: Self | xr.DataArray) -> Self:
+        return self._binary_op(other, operator.and_)
+
+    def __xor__(self, other: Self | xr.DataArray) -> Self:
+        return self._binary_op(other, operator.xor)
+
+    def __or__(self, other: Self | xr.DataArray) -> Self:
+        return self._binary_op(other, operator.or_)
+    
+    def __lt__(self, other: Self | xr.DataArray | int | float) -> Self:
+        return self._binary_op(other, operator.lt)
+
+    def __le__(self, other: Self | xr.DataArray | int | float) -> Self:
+        return self._binary_op(other, operator.le)
+
+    def __gt__(self, other: Self | xr.DataArray | int | float) -> Self:
+        return self._binary_op(other, operator.gt)
+
+    def __ge__(self, other: Self | xr.DataArray | int | float) -> Self:
+        return self._binary_op(other, operator.ge)
+
+    def __eq__(self, other: Self | xr.DataArray) -> Self:
+        return self._binary_op(other, nputils.array_eq)
+
+    def __ne__(self, other: Self | xr.DataArray) -> Self:
+        return self._binary_op(other, nputils.array_ne)
     
     # ----------------
     # Utility Methods 

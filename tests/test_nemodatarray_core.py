@@ -75,6 +75,45 @@ class TestNEMODataArrayApplyMask:
         assert result.data.equals(expected)
 
 
+class TestNEMODataArrayClip():
+    @pytest.mark.parametrize("bbox", [[0, 1, 0, 2], (0, 1), "0 1 2 3"])
+    def test_bbox_type(self, bbox, example_global_nemodatatree):
+        # -- Verify ValueError is raised for invalid bbox -- #
+        nemo = example_global_nemodatatree
+        with pytest.raises(ValueError, match=re.escape("bounding box must be a tuple (lon_min, lon_max, lat_min, lat_max).")):
+            nemo["gridT/tos_con"].clip(bbox=bbox)
+
+    @pytest.mark.parametrize("dom_type", ["global", "regional"])
+    def test_clip(self, dom_type, example_global_nemodatatree, example_regional_nemodatatree):
+        # -- Select NEMODataTree based on domain type -- #
+        match dom_type:
+            case "regional":
+                nemo = example_regional_nemodatatree
+                bbox = (40, 62, -50, -32)
+            case "global":
+                nemo = example_global_nemodatatree
+                bbox = (-45, 60, -25, 30)
+            case _:
+                raise ValueError("dom_type must be 'global' or 'regional'")
+
+        # -- Clip NEMODataArray-- #
+        nda_clipped = nemo["gridT/tos_con"].clip(bbox=bbox)
+
+        # -- Validate Clipped NEMODataArray -- #
+        # Expect NEMODataArray is returned:
+        assert isinstance(nda_clipped, NEMODataArray)
+
+        # Expect clipped grid dims sizes to be <= original NEMO model grid:
+        assert nda_clipped.sizes["i"] <= nemo["gridT/tos_con"].sizes["i"]
+        assert nda_clipped.sizes["j"] <= nemo["gridT/tos_con"].sizes["j"]
+
+        # Expect all grid coordinates to be within bounding box:
+        assert nda_clipped["glamt"].min() >= bbox[0]
+        assert nda_clipped["glamt"].max() <= bbox[1]
+        assert nda_clipped["gphit"].min() >= bbox[2]
+        assert nda_clipped["gphit"].max() <= bbox[3]
+
+
 class TestNEMODataArraySelLike:
     """
     Test NEMODataArray.sel_like() Input Validation and Behaviour.
