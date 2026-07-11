@@ -1136,6 +1136,7 @@ class NEMODataArray:
         add_gridlines: bool = True,
         transform: ccrs.Projection | None = None,
         cbar_kwargs: dict | None = None,
+        clabel_kwargs: dict | None = None,
         pcolormesh_kwargs: dict | None = None,
     ) -> plt.collections.QuadMesh:
         """
@@ -1171,6 +1172,8 @@ class NEMODataArray:
             Cartopy projected coordinate system to use to transform the data. Default is ccrs.PlateCarree.
         cbar_kwargs : dict, optional
             Additional keyword arguments to pass to matplotlib.pyplot.colorbar.
+        clabel_kwargs : dict, optional
+            Additional keyword arguments to pass to Colorbar.set_label.
         pcolormesh_kwargs : dict, optional
             Additional keyword arguments to pass to the matplotlib.pyplot.pcolormesh.
 
@@ -1253,18 +1256,19 @@ class NEMODataArray:
 
         # -- Add colorbar -- #
         cbar_defaults = {"orientation": "horizontal",
-                            "pad": 0.05,
-                            "shrink": 0.5,
-                            }
-
+                         "pad": 0.05,
+                         "shrink": 0.5,
+                         }
         if cbar_kwargs:
             cbar_defaults.update(cbar_kwargs)
+        cb = plt.colorbar(mesh, ax=ax, **cbar_defaults)
 
-        cb = plt.colorbar(mesh,
-                            ax=ax,
-                            **cbar_defaults,
-                            )
-        cb.set_label(self.attrs.get("long_name", self.name or ""))
+        clabel_defaults = {"label": self.attrs.get("long_name", self.name or ""),
+                           "fontsize": 10,
+                           }
+        if clabel_kwargs:
+            clabel_defaults.update(clabel_kwargs)
+        cb.set_label(**clabel_defaults)
 
         return mesh
 
