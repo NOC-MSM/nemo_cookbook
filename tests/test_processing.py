@@ -56,10 +56,10 @@ def create_child_dataset():
 
 
 @pytest.mark.parametrize("grid", ['gridT', 'gridU', 'gridV', 'gridW', 'gridF'])
-def test_add_parent_indices(create_child_dataset, grid):
+def test_add_child_parent_indices(create_child_dataset, grid):
     # -- Create example child dataset -- #
     ds = create_child_dataset(grid=grid)
-    ds_out = processing._add_parent_indices(ds=ds, grid=grid, label='2')
+    ds_out = processing._add_parent_indices(ds=ds, grid=grid, parent="/", label='2')
     # -- Verify type -- #
     assert isinstance(ds_out, xr.Dataset)
     # -- Verify coords -- #
@@ -78,6 +78,30 @@ def test_add_parent_indices(create_child_dataset, grid):
     elif 'gridF' in grid:
         assert all(ds_out['i_i2'] % 1 == 0.5)
         assert all(ds_out['j_j2'] % 1 == 0.5)
+
+@pytest.mark.parametrize("grid", ['gridT', 'gridU', 'gridV', 'gridW', 'gridF'])
+def test_add_grandchild_parent_indices(create_child_dataset, grid):
+    # -- Create example grandchild dataset -- #
+    ds = create_child_dataset(grid=grid)
+    ds_out = processing._add_parent_indices(ds=ds, grid=grid, parent="1", label='2')
+    # -- Verify type -- #
+    assert isinstance(ds_out, xr.Dataset)
+    # -- Verify coords -- #
+    assert 'i1_i2' in ds_out.coords
+    assert 'j1_j2' in ds_out.coords
+    # -- Verify coord values -- #
+    if ('gridT' in grid) or ('gridW' in grid):
+        assert all(ds_out['i1_i2'] % 1 == 0)
+        assert all(ds_out['j1_j2'] % 1 == 0)
+    elif 'gridU' in grid:
+        assert all(ds_out['i1_i2'] % 1 == 0.5)
+        assert all(ds_out['j1_j2'] % 1 == 0)
+    elif 'gridV' in grid:
+        assert all(ds_out['i1_i2'] % 1 == 0)
+        assert all(ds_out['j1_j2'] % 1 == 0.5)
+    elif 'gridF' in grid:
+        assert all(ds_out['i1_i2'] % 1 == 0.5)
+        assert all(ds_out['j1_j2'] % 1 == 0.5)
 
 
 def test_get_child_indices():

@@ -57,8 +57,14 @@ class TestNEMODataTreePaths():
     @pytest.mark.parametrize("read_mask", ["False", 0])
     def test_read_mask_errors(self, read_mask):
         # -- Verify TypeError -- #
-        with pytest.raises(TypeError, match=re.escape("`read_mask` must be a boolean.")):
+        with pytest.raises(TypeError, match=re.escape("reading land-sea masks from domain_cfg (`read_mask`) must be a boolean.")):
             NEMODataTree.from_paths(paths={}, read_mask=read_mask)
+
+    @pytest.mark.parametrize("maskcs", ["False", 0])
+    def test_maskcs_errors(self, maskcs):
+        # -- Verify TypeError -- #
+        with pytest.raises(TypeError, match=re.escape("masking of closed seas (`maskcs`) must be a boolean.")):
+            NEMODataTree.from_paths(paths={}, maskcs=maskcs)
 
     @pytest.mark.parametrize("key_linssh", ["False", 0])
     def test_key_linssh_errors(self, key_linssh):
@@ -66,6 +72,12 @@ class TestNEMODataTreePaths():
         expected_str = "linear free-surface approximation (`key_linssh`) must be a boolean."
         with pytest.raises(TypeError, match=re.escape(expected_str)):
             NEMODataTree.from_paths(paths={}, key_linssh=key_linssh)
+
+    @pytest.mark.parametrize("vco_ref", ["False", 0])
+    def test_vco_ref_errors(self, vco_ref):
+        # -- Verify TypeError -- #
+        with pytest.raises(TypeError, match=re.escape("reference vertical coordinates (`vco_ref`) must be a boolean.")):
+            NEMODataTree.from_paths(paths={}, vco_ref=vco_ref)
 
     @pytest.mark.parametrize("nbghost_child", ["1", 1.5, None])
     def test_nbghost_child_errors(self, nbghost_child):
@@ -145,8 +157,14 @@ class TestNEMODataTreeDatasets():
     @pytest.mark.parametrize("read_mask", ["False", 0])
     def test_read_mask_errors(self, read_mask):
         # -- Verify TypeError -- #
-        with pytest.raises(TypeError, match=re.escape("`read_mask` must be a boolean.")):
+        with pytest.raises(TypeError, match=re.escape("reading land-sea masks from domain_cfg (`read_mask`) must be a boolean.")):
             NEMODataTree.from_datasets(datasets={}, read_mask=read_mask)
+
+    @pytest.mark.parametrize("maskcs", ["False", 0])
+    def test_maskcs_errors(self, maskcs):
+        # -- Verify TypeError -- #
+        with pytest.raises(TypeError, match=re.escape("masking of closed seas (`maskcs`) must be a boolean.")):
+            NEMODataTree.from_datasets(datasets={}, maskcs=maskcs)
 
     @pytest.mark.parametrize("key_linssh", ["False", 0])
     def test_key_linssh_errors(self, key_linssh):
@@ -154,6 +172,13 @@ class TestNEMODataTreeDatasets():
         expected_str = "linear free-surface approximation (`key_linssh`) must be a boolean."
         with pytest.raises(TypeError, match=re.escape(expected_str)):
             NEMODataTree.from_datasets(datasets={}, key_linssh=key_linssh)
+
+    @pytest.mark.parametrize("vco_ref", ["False", 0])
+    def test_vco_ref_errors(self, vco_ref):
+        # -- Verify TypeError -- #
+        expected_str = "reference vertical coordinates (`vco_ref`) must be a boolean."
+        with pytest.raises(TypeError, match=re.escape(expected_str)):
+            NEMODataTree.from_paths(paths={}, vco_ref=vco_ref)
 
     @pytest.mark.parametrize("nbghost_child", ["1", 1.5, None])
     def test_nbghost_child_errors(self, nbghost_child):
@@ -193,6 +218,14 @@ class TestNEMODataTreeDatasets():
         # -- Verify output type -- #
         result = NEMODataTree.from_datasets(datasets=datasets)
         assert isinstance(result, NEMODataTree) & isinstance(result, xr.DataTree)
+
+    def test_missing_maskcs(self):
+        # -- Create example paths dict -- #
+        paths = {'parent': {'domain': xr.Dataset()}}
+        # -- Verify KeyError -- #
+        expected_str = "missing required 'mask_opensea' variable in domain dataset."
+        with pytest.raises(KeyError, match=re.escape(expected_str)):
+            NEMODataTree.from_paths(paths=paths, maskcs=True)
 
 class TestNEMODataTreeFromIcechunk():
     def test_repo_errors(self):
