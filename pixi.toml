@@ -19,6 +19,7 @@ setuptools_scm = "*"
 python = "*"
 aiohttp = "*"
 dask = "*"
+cartopy = "*"
 flox = "*"
 fsspec = "*"
 icechunk = "*"
@@ -65,6 +66,12 @@ notebook = "*"
 pyarrow = "*"
 gsw = "*"
 xesmf = ">=0.8.7,<0.10"
+gcsfs = ">=2026.6.0,<2027"
+s3fs = ">=2026.6.0,<2027"
+xeofs = ">=3.0.4,<4"
+
+[feature.dev.pypi-dependencies]
+oceandatastore = ">=0.3.0, <0.4"
 
 [feature.release.pypi-dependencies]
 build = ">=1.5.0, <2"
