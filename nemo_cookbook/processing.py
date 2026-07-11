@@ -19,10 +19,15 @@ from .masks import create_dom_mask, read_dom_mask, read_dom_maskutil
 
 _DEFAULT_NBGHOST_CHILD = 4
 
-def _add_parent_indices(ds: xr.Dataset, grid: str, label: str) -> xr.Dataset:
+def _add_parent_indices(
+    ds: xr.Dataset,
+    grid: str,
+    parent: str,
+    label: str
+    ) -> xr.Dataset:
     """
     Add coordinates mapping parent domain (i, j) indices
-    to child domain (i_c, j_c) indices.
+    to child domain (ip_c, jp_c) indices.
 
     Parameters
     ----------
@@ -30,6 +35,8 @@ def _add_parent_indices(ds: xr.Dataset, grid: str, label: str) -> xr.Dataset:
         NEMO model grid dataset.
     grid : str
         Name of the NEMO model grid (e.g. 'gridT', 'gridU', etc.).
+    parent : str
+        Identity of the NEMO model parent domain (e.g. '/', '1', '2', etc.).
     label : str
         Label to append to grid variable names.
 
@@ -37,10 +44,13 @@ def _add_parent_indices(ds: xr.Dataset, grid: str, label: str) -> xr.Dataset:
     -------
     xr.Dataset
         NEMO model grid dataset including coordinates mapping
-        parent domain (i, j) indices to child domain (i_c, j_c)
+        parent domain (i, j) indices to child domain (ip_c, jp_c)
         indices.
     """
-    # Define parent domain (i, j) indices for each child domain (i_c, j_c) index:
+    # Define parent domain label:
+    plabel = "" if parent == "/" else parent
+
+    # Define parent domain (i, j) indices for each child domain (ip_c, jp_c) index:
     if grid in ["gridU", "gridF"]:
         i_child = np.arange(ds.attrs["imin"] + 0.5, ds.attrs["imax"] + 0.5)
     else:
@@ -50,10 +60,10 @@ def _add_parent_indices(ds: xr.Dataset, grid: str, label: str) -> xr.Dataset:
         dims=[f"i{label}"],
         coords={f"i{label}": ds[f"i{label}"]},
     )
-    ds[f"i_i{label}"] = i_ic
-    ds[f"i_i{label}"] = ds[f"i_i{label}"].assign_attrs(
-        name=f"i_i{label}",
-        long_name=f"parent domain i indices of child domain i{label} indices",
+    ds[f"i{plabel}_i{label}"] = i_ic
+    ds[f"i{plabel}_i{label}"] = ds[f"i{plabel}_i{label}"].assign_attrs(
+        name=f"i{plabel}_i{label}",
+        long_name=f"i{plabel} indices of child domain i{label} indices",
     )
 
     if grid in ["gridV", "gridF"]:
@@ -65,14 +75,16 @@ def _add_parent_indices(ds: xr.Dataset, grid: str, label: str) -> xr.Dataset:
         dims=[f"j{label}"],
         coords={f"j{label}": ds[f"j{label}"]},
     )
-    ds[f"j_j{label}"] = j_jc
-    ds[f"j_j{label}"] = ds[f"j_j{label}"].assign_attrs(
-        name=f"j_j{label}",
-        long_name=f"parent domain j indices of child domain j{label} indices",
+    ds[f"j{plabel}_j{label}"] = j_jc
+    ds[f"j{plabel}_j{label}"] = ds[f"j{plabel}_j{label}"].assign_attrs(
+        name=f"j{plabel}_j{label}",
+        long_name=f"j{plabel} indices of child domain j{label} indices",
     )
 
     ds = ds.assign_coords(
-        {f"i_i{label}": ds[f"i_i{label}"], f"j_j{label}": ds[f"j_j{label}"]}
+        {f"i{plabel}_i{label}": ds[f"i{plabel}_i{label}"],
+         f"j{plabel}_j{label}": ds[f"j{plabel}_j{label}"]
+        }
     )
 
     return ds
@@ -1026,6 +1038,7 @@ def _process_child(
                 }
             ),
             grid=grid,
+            parent=d_nests.get("parent"),
             label=label,
         )
 
