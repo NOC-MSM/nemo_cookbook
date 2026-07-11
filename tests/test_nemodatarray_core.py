@@ -11,6 +11,7 @@ Ollie Tooth (oliver.tooth@noc.ac.uk)
 """
 import re
 
+import cartopy
 import numpy as np
 import pytest
 import xarray as xr
@@ -755,6 +756,49 @@ class TestNEMODataArrayTransformVerticalGrid:
         result = nda.transform_vertical_grid(e3_new=e3_new)
         # Dimensions:
         assert ("time_counter" in result.dims) and ("j" in result.dims) and ("i" in result.dims) and ("k_new" in result.dims)
+
+
+class TestNEMODataArrayGeoplot:
+    """
+    Test NEMODataArray.geoplot() Input Validation and Behavior.
+    """
+    def test_time_counter_dimension_error(self, example_global_nemodatatree):
+        nemo = example_global_nemodatatree
+        nda = nemo["gridT/tos_con"]
+        with pytest.raises(ValueError, match=re.escape("NEMODataArray.geoplot() requires ('j', 'i') dimensions only")):
+            nda.geoplot()
+
+    def test_k_dimension_error(self, example_global_nemodatatree):
+        nemo = example_global_nemodatatree
+        nda = nemo["gridT/thetao_con"].isel(time_counter=0)
+        with pytest.raises(ValueError, match=re.escape("NEMODataArray.geoplot() requires ('j', 'i') dimensions only")):
+            nda.geoplot()
+
+    @pytest.mark.parametrize("projection_error", ["Orthographic", ["PlateCarree"], ("PlateCarree",)])
+    def test_projection_type_error(self, projection_error, example_global_nemodatatree):
+        nemo = example_global_nemodatatree
+        nda = nemo["gridT/tos_con"].isel(time_counter=0)
+        with pytest.raises(TypeError, match=re.escape("projection must be a cartopy.crs.Projection object.")):
+            nda.geoplot(projection=projection_error)
+
+    @pytest.mark.parametrize("transform_error", ["Orthographic", ["PlateCarree"], ("PlateCarree",)])
+    def test_transform_type_error(self, transform_error, example_global_nemodatatree):
+        nemo = example_global_nemodatatree
+        nda = nemo["gridT/tos_con"].isel(time_counter=0)
+        with pytest.raises(TypeError, match=re.escape("transform must be a cartopy.crs.Projection object.")):
+            nda.geoplot(transform=transform_error)
+
+    @pytest.mark.parametrize("extent_error", [[-90, 0, 0, 90], (0, 90)])
+    def test_extent_type_error(self, extent_error, example_global_nemodatatree):
+        nemo = example_global_nemodatatree
+        nda = nemo["gridT/tos_con"].isel(time_counter=0)
+        with pytest.raises(TypeError, match=re.escape("extent must be a tuple of the form (lon_min, lon_max, lat_min, lat_max).")):
+            nda.geoplot(extent=extent_error)
+
+    def test_return_type(self, example_global_nemodatatree):
+        nemo = example_global_nemodatatree
+        nda = nemo["gridT/tos_con"].isel(time_counter=0)
+        assert isinstance(nda.geoplot(), cartopy.mpl.geocollection.GeoQuadMesh)
 
 
 class TestNEMODataArrayToXesmf:
