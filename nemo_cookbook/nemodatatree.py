@@ -1361,20 +1361,38 @@ class NEMODataTree(xr.DataTree):
             )
 
         # -- Get NEMO model grid properties -- #
-        _, dom_prefix, _, grid_suffix = self._get_properties(grid=grid, infer_dom=True)
+        dom, dom_prefix, _, grid_suffix = self._get_properties(grid=grid, infer_dom=True)
+        ijk_names = self._get_ijk_names(dom=dom)
 
         # -- Clip the grid to given bounding box -- #
         # Indexing with a mask requires loading coords into memory:
-        glam = self[grid][f"{dom_prefix}glam{grid_suffix}"].load()
-        gphi = self[grid][f"{dom_prefix}gphi{grid_suffix}"].load()
+        glam = self[grid][f"{dom_prefix}glam{grid_suffix}"]
+        gphi = self[grid][f"{dom_prefix}gphi{grid_suffix}"]
 
-        grid_clipped = self[grid].dataset.where(
+        # Define bbox mask:
+        mask = (
             (glam >= bbox[0])
             & (glam <= bbox[1])
             & (gphi >= bbox[2])
-            & (gphi <= bbox[3]),
-            drop=True,
-        )
+            & (gphi <= bbox[3])
+            )
+
+        # Find rows/columns containing at least one valid grid point:
+        rows = mask.any(dim=ijk_names["i"])
+        cols = mask.any(dim=ijk_names["j"])
+        j_idx = np.where(rows.compute())[0]
+        i_idx = np.where(cols.compute())[0]
+
+        if len(j_idx) == 0 or len(i_idx) == 0:
+            raise ValueError(f"No {grid[-1]}-grid points found inside specified bbox.")
+
+        # Subset NEMO model grid to bounding box:
+        grid_clipped = (self[grid].dataset
+                        .where(mask, drop=False)
+                        .isel({ijk_names["j"]: slice(j_idx.min(), j_idx.max() + 1),
+                               ijk_names["i"]: slice(i_idx.min(), i_idx.max() + 1),
+                               })
+                        )
 
         d_dtypes = {var: self[grid][var].dtype for var in self[grid].dataset.data_vars}
         for var, dtype in d_dtypes.items():
