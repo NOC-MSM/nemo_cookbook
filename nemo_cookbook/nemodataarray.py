@@ -17,7 +17,10 @@ import warnings
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Self
 
+import cartopy.crs as ccrs
+import cartopy.feature as cfeature
 import dask
+import matplotlib.pyplot as plt
 import numpy as np
 import xarray as xr
 
@@ -1117,6 +1120,153 @@ class NEMODataArray:
         )
 
         return result
+
+    def geoplot(
+        self,
+        ax: plt.Axes | None = None,
+        projection: ccrs.Projection | None = None,
+        extent: tuple[float, float, float, float] | None = None,
+        robust: bool = False,
+        vmin: float | None = None,
+        vmax: float | None = None,
+        cmap: str | plt.Colormap | None = None,
+        figsize: tuple | None = None,
+        add_coastlines: bool = True,
+        add_land: bool = True,
+        add_gridlines: bool = True,
+        transform: ccrs.Projection | None = None,
+        cbar_kwargs: dict | None = None,
+        pcolormesh_kwargs: dict | None = None,
+    ) -> plt.collections.QuadMesh:
+        """
+        Create a geographical pseudocolor plot of a 2-dimensional NEMODataArray.
+
+        Parameters
+        ----------
+        ax : matplotlib.axes.Axes, optional
+            Axes on which to plot. Default uses the current axes. Mutually exclusive with size and figsize.
+        projection : cartopy.crs.Projection, optional
+            Cartopy projected coordinate system to use for the plot. Default is ccrs.PlateCarree.
+        extent : tuple of float, optional
+            Bounding box of the plot in the form (lon_min, lon_max, lat_min, lat_max).
+            Default is None, which uses the full extent of the data.
+        robust : bool, optional
+            If True and vmin or vmax are absent, the colormap range is computed with 2nd and 98th percentiles
+            instead of the extreme values.
+        vmin : float, optional
+            Lower value to anchor the colormap, otherwise it is inferred from the data and other keyword arguments. 
+        vmax : float, optional
+            Upper value to anchor the colormap, otherwise it is inferred from the data and other keyword arguments.
+        cmap : str or matplotlib.colors.Colormap, optional
+            Mapping from data values to color space.
+        figsize : tuple, optional
+            Tuple (width, height) of the figure in inches.
+        add_coastlines : bool, optional
+            Add coastlines to the plot. Default is True.
+        add_land : bool, optional
+            Add land to the plot. Default is True.
+        add_gridlines : bool, optional
+            Add gridlines to the plot. Default is True.
+        transform : cartopy.crs.Projection, optional
+            Cartopy projected coordinate system to use to transform the data. Default is ccrs.PlateCarree.
+        cbar_kwargs : dict, optional
+            Additional keyword arguments to pass to matplotlib.pyplot.colorbar.
+        pcolormesh_kwargs : dict, optional
+            Additional keyword arguments to pass to the matplotlib.pyplot.pcolormesh.
+
+        Returns
+        -------
+        cartopy.mpl.geocollection.GeoQuadMesh
+            GeoQuadMesh artist that the wrapped matplotlib function returns.
+        """
+        # -- Validate Inputs -- #
+        if set(self.dims) != {f"j{self._dom_suffix}", f"i{self._dom_suffix}"}:
+            raise ValueError(
+                f"NEMODataArray.geoplot() requires ('j{self._dom_suffix}', 'i{self._dom_suffix}') dimensions only, "
+                f"received {self.dims}. "
+            )
+        if projection is not None and not isinstance(projection, ccrs.Projection):
+            raise TypeError(
+                "projection must be a cartopy.crs.Projection object."
+            )
+        if transform is not None and not isinstance(transform, ccrs.Projection):
+            raise TypeError(
+                "transform must be a cartopy.crs.Projection object."
+            )
+        if extent is not None and (not isinstance(extent, tuple) or len(extent) != 4):
+            raise TypeError(
+                "extent must be a tuple of the form (lon_min, lon_max, lat_min, lat_max)."
+            )
+
+        # -- Collect coordinates and data -- #
+        glam = self.coords[f"{self._dom_prefix}glam{self._grid_suffix}"]
+        gphi = self.coords[f"{self._dom_prefix}gphi{self._grid_suffix}"]
+        data = self.masked
+
+        # -- Geographical Plotting -- #
+        if robust:
+            vmin, vmax = np.nanpercentile(data, [2, 98])
+
+        if ax is None:
+            if projection is None:
+                projection = ccrs.PlateCarree()
+
+            _, ax = plt.subplots(figsize=figsize,
+                                subplot_kw={"projection": projection},
+                                )
+
+        if transform is None:
+            transform = ccrs.PlateCarree()
+
+        if extent is not None:
+            ax.set_extent(extent, crs=transform)
+
+        if add_coastlines:
+            ax.coastlines(resolution="110m", linewidth=1)
+
+        if add_land:
+            ax.add_feature(cfeature.LAND,
+                        facecolor="0.1",
+                        edgecolor="0.1",
+                        linewidth=1,
+                        zorder=3
+                        )
+
+        if add_gridlines:
+            ax.gridlines(draw_labels=False,
+                        dms=True,
+                        x_inline=False,
+                        y_inline=False,
+                        linewidth=0.5,
+                        )
+
+        mesh = ax.pcolormesh(
+            glam,
+            gphi,
+            data,
+            transform=transform,
+            cmap=cmap,
+            vmin=vmin,
+            vmax=vmax,
+            **(pcolormesh_kwargs or {}),
+        )
+
+        # -- Add colorbar -- #
+        cbar_defaults = {"orientation": "horizontal",
+                            "pad": 0.05,
+                            "shrink": 0.5,
+                            }
+
+        if cbar_kwargs:
+            cbar_defaults.update(cbar_kwargs)
+
+        cb = plt.colorbar(mesh,
+                            ax=ax,
+                            **cbar_defaults,
+                            )
+        cb.set_label(self.attrs.get("long_name", self.name or ""))
+
+        return mesh
 
     def to_xesmf(
             self, mask: bool = True
