@@ -1,4 +1,4 @@
-# A Quickstart Guide to Common Operations with NEMODataTree
+# A Quickstart Guide to Common Operations with NEMO Cookbook
 
 In this section, we describe some of the most common `NEMODataTree` and `NEMODataArray` operations in a concise how-to guide (inspired by the excellent documentation of [**Icechunk**](https://icechunk.io/en/latest/howto/)).
 
@@ -177,6 +177,32 @@ For example, to compute the volume of each grid cell centered on a **V** grid po
 nemo.cell_volume(grid="gridV")
 ```
 
+### Plotting a NEMODataArray using Geographical Coordinates
+
+To plot a 2-dimensional slice of a `NEMODataArray` as a Catropy `GeoQuadMesh` using its longitude & latitude coordinates (i.e., `glam{t/u/v/w}(j, i)` & `gphi{t/u/v/w}(j, i)`), we can use the `.geoplot()` method.
+
+For example, to create a geographical plot of sea surface temperature:
+
+```python
+nemo["gridT/tos"].isel(time_counter=0).geoplot()
+```
+
+Similarly to `xarray.DataArray.plot`, the `.geoplot()` method allows for significant customisation of geographical plots.
+
+For example, to create a geographical plot of sea ice concentration using a North Polar Stereographic projection with a bounding box (-180°E, 180°E, 50°N, 90°N):
+
+```python
+(nemo["gridT/siconc"]
+ .isel(time_counter=0)
+ .geoplot(projection=ccrs.NorthPolarStereo(),
+          vmin=0, vmax=1,
+          extent=(-180, 180, 50, 90),
+          cmap='Blues_r',
+          clabel_kwargs={'label': 'Sea Ice Concentration [fraction of unity]'}
+          )
+ )
+```
+
 ### Indexing with Geographical Coordinates
 
 To subset variables of a given model grid using their longitude & latitude coordinates (i.e., `glam{t/u/v/w}(j, i)` & `gphi{t/u/v/w}(j, i)`), we can add these geographical variables as indexes using the `.add_geoindex()` method.
@@ -187,6 +213,18 @@ For example, to enable geographical indexing of the parent **T** grid points & s
 nemo_geo = nemo.add_geoindex(grid="gridT")
 
 nemo_geo["gridT"].dataset.sel(gphit=60, glamt=-30, method="nearest")
+```
+
+### Clip a NEMODataArray
+
+To clip a `NEMODataArray` using a geographical bounding box defined by a tuple of the form (`lon_min`, `lon_max`, `lat_min`, `lat_max`), we can use the `.clip()` method.
+
+For example, to clip the sea surface temperature variable `tos_con` defined on **T**-points in the bounding box (-40°E, 10°E, 35°N, 60°N):
+
+```python
+bbox = (-40, 10, 35, 60)
+
+nemo["gridT/tos_con"].clip(bbox=bbox)
 ```
 
 ### Clip a NEMO Model Grid
@@ -405,6 +443,82 @@ There are some important points to remember when transforming variables onto new
 - Currently, `e3_new` must be a 1-dimensional `xarray.DataArray` with dimension 'k_new'.
 
 - The output `xarray.Dataset` will contain multi-dimensional `xarray.DataArrays` for both the vertically remapped variable `var(time_counter, k_new, j, i)` and the vertical grid cell thicknesses `e3t_new(time_counter, k_new, j, i)` (updated to explicitly account for partial grid cells above the seafloor).
+
+### Extract a Zonal Section
+
+To extract an approximately zonal hydrographic section, we can use the `.extract_zonal_section()` method.
+
+For example, to extract the RAPID-MOCHA array located at 26.5°N:
+
+```python
+nemo.extract_zonal_section(lat=26.5,
+                           lon_min=-82.0,
+                           lon_max=-10.0,
+                           u_vars=["tauuo"],
+                           scalar_vars=['thetao_con', 'so_abs'],
+                           dom='.'
+                           )
+```
+
+Here, we have also provided the names of the zonal vector variables (`tauuo`) and any scalar variables (`thetao_con` and `so_abs`) to be linearly interpolated onto the **V**-grid.
+
+The resulting `xarray.Dataset` will be defined on the NEMO model **V**-grid at the constant j-coordinate whose average latitude is closest to 26.5°N and is structured analogously to a NEMO model grid node within a `NEMODataTree`, including:
+
+* Inherited NEMO Grid Dimension: `k`
+* New Along-Boundary Grid Dimension: `bdy`, such that `i_bdy(bdy)`, `j_bdy(bdy)`
+* Geographical Coordinates: `glamb` (longitude), `gphib` (latitude).
+* Horizontal Grid Scale Factors: `e1b`, `e2b`
+* Vertical Grid Scale Factors: `e3b`
+* Land-Sea Masks: `bmask`, `bmaskutil`
+
+### Extract a Piecewise Section
+
+To extract a piecewise hydrographic section, we can use the `.extract_section()` method.
+
+For example, to extract the Overturning in the Subpolar North Atlantic (OSNAP) array as a continous hydrographic section comprised of connected **U** and **V**-grid cell faces in the NEMO model parent domain:
+
+```python
+nemo.extract_section(lon_section=lon_osnap,
+                     lat_section=lat_osnap,
+                     uv_vars=["uo", "vo"],
+                     vars=["thetao_con"],
+                     dom=".",
+                     )
+```
+
+where `lon_osnap` and `lat_osnap` are the longitude and latitude coordinates defining the OSNAP section, respectively.
+
+Here, we have also provided the names of the zonal (`uo`) and meridional (`vo`) sea water velocity variables, and the scalar variable `thetao_con` to be linearly interpolated onto the **U** and **V**-grid points comprising the section.
+
+The resulting `xarray.Dataset` is structured as outlined above, but also includes a variable `flux_type` which defines the type of vector point the grid cell faces is and `flux_dir` which specifies the sign of each normal velocity component.
+
+The `velocity` variable included in the output `xarray.Dataset` therefore represents a combination of zonal (**U**) and meridional (**V**) velocities to which the appropriate `flux_dir` has **already** been applied.
+
+### Extract the Variables along the Boundary of a Masked Region
+
+To extract scalar and vector variables along the boundary of a masked region, we can use the `.extract_mask_boundary()` method.
+
+For example, to extract the velocities and sea water temperature along the boundary of the Barents Sea, we first define a regional mask using the geographical coordinates (`lon_BSea`, `lat_BSea`) of the closed polygon enclosing the Barents Sea.
+
+Next, we pass our regional mask to the `.extract_mask_boundary()` method:
+
+```python
+mask = nemo.mask_with_polygon(grid='gridT',
+                              lon_poly=lon_BSea,
+                              lat_poly=lat_BSea
+                              )
+
+
+nemo.extract_mask_boundary(mask=mask,
+                           uv_vars=["uo", "vo"],
+                           vars=["thetao_con"],
+                           dom="."
+                           )
+```
+
+Here, we define the names of the zonal and meridional velocity components as a list `uv_vars` and the names of any scalar variables defined on **T**-grid points (`vars`) that we would like to extract along the boundary.
+
+The resulting `xarray.Dataset` is structured analogously to that returned from `.extract_section()`, which is outlined above.
 
 ### Export Variable to an xESMF Dataset
 
