@@ -20,6 +20,16 @@ There are several ways to explore our available Recipes:
 
 <div class="grid cards" markdown>
 
+-   __Getting Started__
+
+    ---
+
+    Learn the basics of NEMODataTree and NEMODataArray objects.
+
+    [:octicons-arrow-right-24: View in Docs](https://noc-msm.github.io/nemo_cookbook/recipe_getting_started/)
+
+    [![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/NOC-MSM/nemo_cookbook/blob/main/recipes/recipe_getting_started.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/NOC-MSM/nemo_cookbook/blob/main/recipes/recipe_getting_started.ipynb)
+
 -   __Meridional Overturning - Tracer__
 
     ---

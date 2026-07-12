@@ -78,6 +78,7 @@ nav:
   - Recipes:
     - Summary: recipes.md
     - Recipe List:
+      - Getting Started: recipe_getting_started.ipynb
       - Meridional Overturning - Depth Space: recipe_moc_z.ipynb
       - Meridional Overturning - Tracer Space: recipe_moc_tracer.ipynb
       - Ocean Heat Transport: recipe_heat_transport.ipynb
