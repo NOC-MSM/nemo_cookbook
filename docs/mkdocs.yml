@@ -73,6 +73,7 @@ markdown_extensions:
 nav:
   - Getting started: index.md
   - User Guide: user_guide.md
+  - Examples: examples.md
   - How To...: howto.md
   - Recipes:
     - Summary: recipes.md
