@@ -1047,7 +1047,7 @@ class NEMODataArray:
         # -- Collect variable grid scale factors -- #
         if self._grid_suffix.upper() in ["U", "V"]:
             weight_dims = (
-                [self.k_name, self.j_name] if self._grid_suffix.upper() == "U" else [self.k_name, self.i_name]
+                ["k", "j"] if self._grid_suffix.upper() == "U" else ["k", "i"]
             )
             if f"{self._dom_prefix}depth{self._grid_suffix}" in self.coords:
                 # 3-D variables - weight by grid cell face area:
