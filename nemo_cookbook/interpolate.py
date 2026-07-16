@@ -51,7 +51,7 @@ def interpolate_grid(
     source_grid: str,
     target_grid: str,
     iperio: bool = False,
-    ijk_names: tuple = ("i", "j", "k"),
+    ijk_names: dict | None = None,
 ) -> xr.DataArray:
     """
     Interpolate variable onto neighbouring NEMO horizontal grid.
@@ -68,9 +68,9 @@ def interpolate_grid(
         Target grid type ('T', 'U', 'V', or 'F').
     iperio : bool, optional
         Zonal periodicity of the domain. Default is False.
-    ijk_names : tuple, optional
+    ijk_names : dict, optional
         Names of the i, j, k dimensions of NEMO source grid.
-        Default is ('i', 'j', 'k').
+        Default is None -> {"i": "i", "j": "j"}.
 
     Returns:
     --------
@@ -78,7 +78,10 @@ def interpolate_grid(
         Variable interpolated onto target grid.
     """
     # -- Get dimension names -- #
-    i_name, j_name, _ = ijk_names
+    if ijk_names is None:
+        ijk_names = {"i": "i", "j": "j"}
+    i_name = ijk_names["i"]
+    j_name = ijk_names["j"]
 
     match source_grid:
         # -- Linearly interpolate T-grid scalar variables -- #
