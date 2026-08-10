@@ -1206,6 +1206,9 @@ class NEMODataArray:
         transform: ccrs.Projection | None = None,
         cbar_kwargs: dict | None = None,
         clabel_kwargs: dict | None = None,
+        feature_kwargs: dict | None = None,
+        coastline_kwargs: dict | None = None,
+        gridline_kwargs: dict | None = None,
         pcolormesh_kwargs: dict | None = None,
     ) -> plt.collections.QuadMesh:
         """
@@ -1245,6 +1248,12 @@ class NEMODataArray:
             Additional keyword arguments to pass to matplotlib.pyplot.colorbar.
         clabel_kwargs : dict, optional
             Additional keyword arguments to pass to Colorbar.set_label.
+        feature_kwargs : dict, optional
+            Additional keyword arguments to pass to cartopy.feature.LAND.
+        coastline_kwargs : dict, optional
+            Additional keyword arguments to pass to cartopy.mpl.geoaxes.Axes.coastlines.
+        gridline_kwargs : dict, optional
+            Additional keyword arguments to pass to cartopy.mpl.geoaxes.Axes.gridlines.
         pcolormesh_kwargs : dict, optional
             Additional keyword arguments to pass to the matplotlib.pyplot.pcolormesh.
 
@@ -1296,23 +1305,24 @@ class NEMODataArray:
             ax.set_extent(extent, crs=transform)
 
         if add_coastlines:
-            ax.coastlines(resolution="110m", linewidth=1)
+            if coastline_kwargs is None:
+                coastline_kwargs = {"resolution": "110m", "linewidth": 1}
+            ax.coastlines(**coastline_kwargs)
 
         if add_land:
-            ax.add_feature(cfeature.LAND,
-                        facecolor="0.1",
-                        edgecolor="0.1",
-                        linewidth=1,
-                        zorder=3
-                        )
+            if feature_kwargs is None:
+                feature_kwargs = {"facecolor": "0.1", "edgecolor": "0.1", "linewidth": 1, "zorder": 3}
+            ax.add_feature(cfeature.LAND, **feature_kwargs)
 
         if add_gridlines:
-            ax.gridlines(draw_labels=False,
-                        dms=True,
-                        x_inline=False,
-                        y_inline=False,
-                        linewidth=0.5,
-                        )
+            if gridline_kwargs is None:
+                gridline_kwargs = {"draw_labels": False,
+                                   "dms": True,
+                                   "x_inline": False,
+                                   "y_inline": False,
+                                   "linewidth": 0.5,
+                                   }
+            ax.gridlines(**gridline_kwargs)
 
         mesh = ax.pcolormesh(
             glam,
