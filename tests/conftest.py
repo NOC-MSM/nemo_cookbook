@@ -563,7 +563,7 @@ def example_ORCA2_linssh_nemodatatree() -> NEMODataTree:
                 "icemod": filepaths["ORCA2_5d_00010101_00010110_icemod.nc"]
             }}
     # Create NEMODataTree from paths dict:
-    nemo = NEMODataTree.from_paths(paths, name="Example ORCA2", iperio=True, nftype="T", key_linssh=True)
+    nemo = NEMODataTree.from_paths(paths, name="Example ORCA2", iperio=True, nftype="T", linssh=True)
 
     return nemo
 

@@ -8,11 +8,13 @@ Author:
 Ollie Tooth (oliver.tooth@noc.ac.uk)
 """
 import re
-import pytest
-import numpy as np
-import xarray as xr
-from nemo_cookbook import processing
 from unittest.mock import MagicMock
+
+import numpy as np
+import pytest
+import xarray as xr
+
+from nemo_cookbook import processing
 
 
 @pytest.fixture
@@ -168,7 +170,7 @@ class TestCheckGridDatasets():
             "gridX": xr.Dataset(),
         }
         # -- Verify ValueError -- #
-        grid_keys = ['domain', 'gridT', 'gridU', 'gridV', 'gridW', 'icemod']
+        grid_keys = ['domain', 'gridT', 'gridU', 'gridV', 'gridW', 'gridF', 'icemod']
         expected_str = f"incompatible key in {d_example.keys()}. Expecting {grid_keys}."
         with pytest.raises(KeyError, match=re.escape(expected_str)):
             processing._check_grid_datasets(d=d_example)
@@ -193,7 +195,7 @@ class TestCheckGridDatasets():
         }
         # -- Verify missing grid types -- #
         result = processing._check_grid_datasets(d_example)
-        grid_keys = ['domain', 'gridT', 'gridU', 'gridV', 'gridW', 'icemod']
+        grid_keys = ['domain', 'gridT', 'gridU', 'gridV', 'gridW', 'gridF', 'icemod']
         assert set(result.keys()) == set(grid_keys)
         for key in grid_keys:
             assert isinstance(result[key], xr.Dataset)
@@ -237,7 +239,7 @@ class TestOpenGridDatasets():
         result = processing._open_grid_datasets(d_in=d_in)
         assert isinstance(result, dict)
         assert all(isinstance(ds, xr.Dataset) for ds in result.values())
-        assert result.keys() == {'domain', 'gridT', 'gridU', 'gridV', 'gridW'}
+        assert result.keys() == {'domain', 'gridT', 'gridU', 'gridV', 'gridW', 'gridF'}
 
     def test_grid_mfdatasets_type(self, mocker):
         mocker.patch("nemo_cookbook.processing.xr.open_dataset", return_value=xr.Dataset())
@@ -250,4 +252,4 @@ class TestOpenGridDatasets():
         result = processing._open_grid_datasets(d_in=d_in)
         assert isinstance(result, dict)
         assert all(isinstance(ds, xr.Dataset) for ds in result.values())
-        assert result.keys() == {'domain', 'gridT', 'gridU', 'gridV', 'gridW'}
+        assert result.keys() == {'domain', 'gridT', 'gridU', 'gridV', 'gridW', 'gridF'}

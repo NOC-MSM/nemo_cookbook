@@ -66,12 +66,12 @@ class TestNEMODataTreePaths():
         with pytest.raises(TypeError, match=re.escape("masking of closed seas (`maskcs`) must be a boolean.")):
             NEMODataTree.from_paths(paths={}, maskcs=maskcs)
 
-    @pytest.mark.parametrize("key_linssh", ["False", 0])
-    def test_key_linssh_errors(self, key_linssh):
+    @pytest.mark.parametrize("linssh", ["False", 0])
+    def test_linssh_errors(self, linssh):
         # -- Verify TypeError -- #
-        expected_str = "linear free-surface approximation (`key_linssh`) must be a boolean."
+        expected_str = "linear free-surface approximation (`linssh`) must be a boolean."
         with pytest.raises(TypeError, match=re.escape(expected_str)):
-            NEMODataTree.from_paths(paths={}, key_linssh=key_linssh)
+            NEMODataTree.from_paths(paths={}, linssh=linssh)
 
     @pytest.mark.parametrize("vco_ref", ["False", 0])
     def test_vco_ref_errors(self, vco_ref):
@@ -166,12 +166,12 @@ class TestNEMODataTreeDatasets():
         with pytest.raises(TypeError, match=re.escape("masking of closed seas (`maskcs`) must be a boolean.")):
             NEMODataTree.from_datasets(datasets={}, maskcs=maskcs)
 
-    @pytest.mark.parametrize("key_linssh", ["False", 0])
-    def test_key_linssh_errors(self, key_linssh):
+    @pytest.mark.parametrize("linssh", ["False", 0])
+    def test_linssh_errors(self, linssh):
         # -- Verify TypeError -- #
-        expected_str = "linear free-surface approximation (`key_linssh`) must be a boolean."
+        expected_str = "linear free-surface approximation (`linssh`) must be a boolean."
         with pytest.raises(TypeError, match=re.escape(expected_str)):
-            NEMODataTree.from_datasets(datasets={}, key_linssh=key_linssh)
+            NEMODataTree.from_datasets(datasets={}, linssh=linssh)
 
     @pytest.mark.parametrize("vco_ref", ["False", 0])
     def test_vco_ref_errors(self, vco_ref):
