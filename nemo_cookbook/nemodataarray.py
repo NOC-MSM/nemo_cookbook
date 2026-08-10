@@ -1202,9 +1202,13 @@ class NEMODataArray:
         add_coastlines: bool = True,
         add_land: bool = True,
         add_gridlines: bool = True,
+        add_colorbar: bool = True,
         transform: ccrs.Projection | None = None,
         cbar_kwargs: dict | None = None,
         clabel_kwargs: dict | None = None,
+        feature_kwargs: dict | None = None,
+        coastline_kwargs: dict | None = None,
+        gridline_kwargs: dict | None = None,
         pcolormesh_kwargs: dict | None = None,
     ) -> plt.collections.QuadMesh:
         """
@@ -1236,12 +1240,20 @@ class NEMODataArray:
             Add land to the plot. Default is True.
         add_gridlines : bool, optional
             Add gridlines to the plot. Default is True.
+        add_colorbar : bool, optional
+            Add a colorbar to the plot. Default is True.
         transform : cartopy.crs.Projection, optional
             Cartopy projected coordinate system to use to transform the data. Default is ccrs.PlateCarree.
         cbar_kwargs : dict, optional
             Additional keyword arguments to pass to matplotlib.pyplot.colorbar.
         clabel_kwargs : dict, optional
             Additional keyword arguments to pass to Colorbar.set_label.
+        feature_kwargs : dict, optional
+            Additional keyword arguments to pass to cartopy.feature.LAND.
+        coastline_kwargs : dict, optional
+            Additional keyword arguments to pass to cartopy.mpl.geoaxes.Axes.coastlines.
+        gridline_kwargs : dict, optional
+            Additional keyword arguments to pass to cartopy.mpl.geoaxes.Axes.gridlines.
         pcolormesh_kwargs : dict, optional
             Additional keyword arguments to pass to the matplotlib.pyplot.pcolormesh.
 
@@ -1293,23 +1305,24 @@ class NEMODataArray:
             ax.set_extent(extent, crs=transform)
 
         if add_coastlines:
-            ax.coastlines(resolution="110m", linewidth=1)
+            if coastline_kwargs is None:
+                coastline_kwargs = {"resolution": "110m", "linewidth": 1}
+            ax.coastlines(**coastline_kwargs)
 
         if add_land:
-            ax.add_feature(cfeature.LAND,
-                        facecolor="0.1",
-                        edgecolor="0.1",
-                        linewidth=1,
-                        zorder=3
-                        )
+            if feature_kwargs is None:
+                feature_kwargs = {"facecolor": "0.1", "edgecolor": "0.1", "linewidth": 1, "zorder": 3}
+            ax.add_feature(cfeature.LAND, **feature_kwargs)
 
         if add_gridlines:
-            ax.gridlines(draw_labels=False,
-                        dms=True,
-                        x_inline=False,
-                        y_inline=False,
-                        linewidth=0.5,
-                        )
+            if gridline_kwargs is None:
+                gridline_kwargs = {"draw_labels": False,
+                                   "dms": True,
+                                   "x_inline": False,
+                                   "y_inline": False,
+                                   "linewidth": 0.5,
+                                   }
+            ax.gridlines(**gridline_kwargs)
 
         mesh = ax.pcolormesh(
             glam,
@@ -1323,20 +1336,21 @@ class NEMODataArray:
         )
 
         # -- Add colorbar -- #
-        cbar_defaults = {"orientation": "horizontal",
-                         "pad": 0.05,
-                         "shrink": 0.5,
-                         }
-        if cbar_kwargs:
-            cbar_defaults.update(cbar_kwargs)
-        cb = plt.colorbar(mesh, ax=ax, **cbar_defaults)
+        if add_colorbar:
+            cbar_defaults = {"orientation": "horizontal",
+                            "pad": 0.05,
+                            "shrink": 0.5,
+                            }
+            if cbar_kwargs:
+                cbar_defaults.update(cbar_kwargs)
+            cb = plt.colorbar(mesh, ax=ax, **cbar_defaults)
 
-        clabel_defaults = {"label": self.attrs.get("long_name", self.name or ""),
-                           "fontsize": 10,
-                           }
-        if clabel_kwargs:
-            clabel_defaults.update(clabel_kwargs)
-        cb.set_label(**clabel_defaults)
+            clabel_defaults = {"label": self.attrs.get("long_name", self.name or ""),
+                            "fontsize": 10,
+                            }
+            if clabel_kwargs:
+                clabel_defaults.update(clabel_kwargs)
+            cb.set_label(**clabel_defaults)
 
         return mesh
 
