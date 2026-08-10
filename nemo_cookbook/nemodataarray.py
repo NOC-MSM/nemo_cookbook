@@ -1202,6 +1202,7 @@ class NEMODataArray:
         add_coastlines: bool = True,
         add_land: bool = True,
         add_gridlines: bool = True,
+        add_colorbar: bool = True,
         transform: ccrs.Projection | None = None,
         cbar_kwargs: dict | None = None,
         clabel_kwargs: dict | None = None,
@@ -1236,6 +1237,8 @@ class NEMODataArray:
             Add land to the plot. Default is True.
         add_gridlines : bool, optional
             Add gridlines to the plot. Default is True.
+        add_colorbar : bool, optional
+            Add a colorbar to the plot. Default is True.
         transform : cartopy.crs.Projection, optional
             Cartopy projected coordinate system to use to transform the data. Default is ccrs.PlateCarree.
         cbar_kwargs : dict, optional
@@ -1323,20 +1326,21 @@ class NEMODataArray:
         )
 
         # -- Add colorbar -- #
-        cbar_defaults = {"orientation": "horizontal",
-                         "pad": 0.05,
-                         "shrink": 0.5,
-                         }
-        if cbar_kwargs:
-            cbar_defaults.update(cbar_kwargs)
-        cb = plt.colorbar(mesh, ax=ax, **cbar_defaults)
+        if add_colorbar:
+            cbar_defaults = {"orientation": "horizontal",
+                            "pad": 0.05,
+                            "shrink": 0.5,
+                            }
+            if cbar_kwargs:
+                cbar_defaults.update(cbar_kwargs)
+            cb = plt.colorbar(mesh, ax=ax, **cbar_defaults)
 
-        clabel_defaults = {"label": self.attrs.get("long_name", self.name or ""),
-                           "fontsize": 10,
-                           }
-        if clabel_kwargs:
-            clabel_defaults.update(clabel_kwargs)
-        cb.set_label(**clabel_defaults)
+            clabel_defaults = {"label": self.attrs.get("long_name", self.name or ""),
+                            "fontsize": 10,
+                            }
+            if clabel_kwargs:
+                clabel_defaults.update(clabel_kwargs)
+            cb.set_label(**clabel_defaults)
 
         return mesh
 
