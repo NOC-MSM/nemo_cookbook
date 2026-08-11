@@ -1201,7 +1201,8 @@ class NEMODataArray:
         result = xr.Dataset(
             data_vars={self.name: var_out, f"e3{self._grid_suffix}_new": e3_out},
             coords={
-                f"depth{self._grid_suffix}_new": ("k_new", e3_new.cumsum(dim="k_new").data)
+                # Vertical reference (depth of cell center) coordinates of new vertical grid:
+                f"depth{self._grid_suffix}_new": ("k_new", (e3_new.cumsum(dim="k_new") - (e3_new / 2)).data),
             },
         )
 
