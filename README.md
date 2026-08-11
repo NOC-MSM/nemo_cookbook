@@ -39,7 +39,7 @@ If you already use `xarray`, NEMO Cookbook should feel immediately natural:
 * `NEMODataArray` behaves like `xarray.DataArray`.
 * All standard `xarray` operations are still available!
 
-What’s new is that these objects understand the NEMO grid, meaning  you no longer need to manually track:
+What’s new is that these objects understand the NEMO grid, meaning you no longer need to manually track:
 
 * which NEMO model grid a variable belongs to (e.g., T, U, V, F, W).
 * how variables relate across NEMO model grids.
