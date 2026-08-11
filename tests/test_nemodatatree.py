@@ -73,6 +73,17 @@ class TestNEMODataTreePaths():
         with pytest.raises(TypeError, match=re.escape(expected_str)):
             NEMODataTree.from_paths(paths={}, linssh=linssh)
 
+    @pytest.mark.parametrize("vco", [False, 0, ["1d"]])
+    def test_vco_errors(self, vco):
+        # -- Verify TypeError -- #
+        with pytest.raises(TypeError, match=re.escape("vertical reference coordinates (`vco`) must be a string.")):
+            NEMODataTree.from_paths(paths={}, vco=vco)
+
+    def test_vco_value_error(self):
+        # -- Verify ValueError -- #
+        with pytest.raises(ValueError, match=re.escape("vertical reference coordinates (`vco`) must be '1d' (1-dimensional) or '3d' (3-dimensional).")):
+            NEMODataTree.from_paths(paths={}, vco='invalid')
+
     @pytest.mark.parametrize("vco_ref", ["False", 0])
     def test_vco_ref_errors(self, vco_ref):
         # -- Verify TypeError -- #
@@ -173,12 +184,23 @@ class TestNEMODataTreeDatasets():
         with pytest.raises(TypeError, match=re.escape(expected_str)):
             NEMODataTree.from_datasets(datasets={}, linssh=linssh)
 
+    @pytest.mark.parametrize("vco", [False, 0, ["1d"]])
+    def test_vco_errors(self, vco):
+        # -- Verify TypeError -- #
+        with pytest.raises(TypeError, match=re.escape("vertical reference coordinates (`vco`) must be a string.")):
+            NEMODataTree.from_datasets(datasets={}, vco=vco)
+
+    def test_vco_value_error(self):
+        # -- Verify ValueError -- #
+        with pytest.raises(ValueError, match=re.escape("vertical reference coordinates (`vco`) must be '1d' (1-dimensional) or '3d' (3-dimensional).")):
+            NEMODataTree.from_datasets(datasets={}, vco='invalid')
+
     @pytest.mark.parametrize("vco_ref", ["False", 0])
     def test_vco_ref_errors(self, vco_ref):
         # -- Verify TypeError -- #
         expected_str = "reference vertical coordinates (`vco_ref`) must be a boolean."
         with pytest.raises(TypeError, match=re.escape(expected_str)):
-            NEMODataTree.from_paths(paths={}, vco_ref=vco_ref)
+            NEMODataTree.from_datasets(datasets={}, vco_ref=vco_ref)
 
     @pytest.mark.parametrize("nbghost_child", ["1", 1.5, None])
     def test_nbghost_child_errors(self, nbghost_child):
@@ -220,12 +242,12 @@ class TestNEMODataTreeDatasets():
         assert isinstance(result, NEMODataTree) & isinstance(result, xr.DataTree)
 
     def test_missing_maskcs(self):
-        # -- Create example paths dict -- #
-        paths = {'parent': {'domain': xr.Dataset()}}
+        # -- Create example datasets dict -- #
+        datasets = {'parent': {'domain': xr.Dataset()}}
         # -- Verify KeyError -- #
         expected_str = "missing required 'mask_opensea' variable in domain dataset."
         with pytest.raises(KeyError, match=re.escape(expected_str)):
-            NEMODataTree.from_paths(paths=paths, maskcs=True)
+            NEMODataTree.from_datasets(datasets=datasets, maskcs=True)
 
 class TestNEMODataTreeFromIcechunk():
     def test_repo_errors(self):
