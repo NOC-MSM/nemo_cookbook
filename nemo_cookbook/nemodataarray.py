@@ -882,8 +882,17 @@ class NEMODataArray:
             )
 
         # -- Define input variables -- #
-        var_in = self.masked.data
-        e3_in = self.metrics["e3"].masked.data
+        var_in = (self
+                 .masked
+                 .data
+                 .chunk({self.k_name: -1})
+                 )
+ 
+        e3_in = (self.metrics["e3"]
+                 .masked
+                 .data
+                 .chunk({self.k_name: -1})
+                 )
 
         # -- Vertically integrate w.r.t depth -- #
         result = xr.apply_ufunc(
@@ -1150,14 +1159,23 @@ class NEMODataArray:
             )
 
         # -- Define input variables -- #
-        var_in = self.masked.data
-        e3_in = self.metrics["e3"].masked.data
+        var_in = (self
+                 .masked
+                 .data
+                 .chunk({self.k_name: -1})
+                 )
+ 
+        e3_in = (self.metrics["e3"]
+                 .masked
+                 .data
+                 .chunk({self.k_name: -1})
+                 )
 
         # Ensure total depth of new vertical grid >= total depth of NEMO model vertical grid:
-        depth_max = self._tree[self._grid][f"{self._dom_prefix}depth{self._grid_suffix}"].max(self.k_name)
+        depth_max = self._tree[self._grid][f"{self._dom_prefix}depth{self._grid_suffix}"].max()
         if e3_new.sum(dim="k_new") < depth_max:
             raise ValueError(
-                f"e3_new must sum to at least the maximum depth ({depth_max.item()} m) of the original vertical grid."
+                f"e3_new must sum to at least the maximum depth ({depth_max.values.item()} m) of the original vertical grid."
             )
 
         # -- Transform variable to target vertical grid -- #
@@ -1183,7 +1201,8 @@ class NEMODataArray:
         result = xr.Dataset(
             data_vars={self.name: var_out, f"e3{self._grid_suffix}_new": e3_out},
             coords={
-                f"depth{self._grid_suffix}_new": ("k_new", e3_new.cumsum(dim="k_new").data)
+                # Vertical reference (depth of cell center) coordinates of new vertical grid:
+                f"depth{self._grid_suffix}_new": ("k_new", (e3_new.cumsum(dim="k_new") - (e3_new / 2)).data),
             },
         )
 

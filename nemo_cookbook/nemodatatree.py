@@ -71,7 +71,8 @@ class NEMODataTree(xr.DataTree):
         nftype: str | None = None,
         read_mask: bool = False,
         maskcs: bool = False,
-        key_linssh: bool = False,
+        linssh: bool = False,
+        vco: str = "1d",
         vco_ref: bool = False,
         nbghost_child: int = 4,
         **open_kwargs: dict[str, any],
@@ -139,9 +140,12 @@ class NEMODataTree(xr.DataTree):
         maskcs: bool = False
             If True, all closed seas are masked using mask_opensea variables from domain files. Default is False.
 
-        key_linssh: bool = False
+        linssh: bool = False
             Linear free-surface approximation. If True, vertical coordinates are time-independent and given by (e3t_0, e3u_0, e3v_0, e3w_0) in domain_cfg.
             If False, vertical coordinates are time-dependent and must be specified in NEMO model grid datasets. Default is False.
+
+        vco : str = "1d"
+            Vertical reference variables. Options are '1d' to use 1-dimensional vertical reference coordinates or '3d' to use 3-dimensional vertical reference coordinates (deptht, depthu, depthv, depthw, depthf). Default is '1d'.
 
         vco_ref: bool = False
             If True, add reference vertical scale factors and compute reference water column heights from domain files. Default is False.
@@ -173,7 +177,7 @@ class NEMODataTree(xr.DataTree):
 
         Create a regional `NEMODataTree` using a linear free-surface approximation from a dictionary of paths to remote netCDF files:
 
-        >>> nemo = NEMODataTree.from_paths(paths, name="My NEMO model", iperio=False, nftype=None, key_linssh=True)
+        >>> nemo = NEMODataTree.from_paths(paths, name="My NEMO model", iperio=False, nftype=None, linssh=True)
 
         See Also
         --------
@@ -196,8 +200,14 @@ class NEMODataTree(xr.DataTree):
             raise TypeError("reading land-sea masks from domain_cfg (`read_mask`) must be a boolean.")
         if not isinstance(maskcs, bool):
             raise TypeError("masking of closed seas (`maskcs`) must be a boolean.")
-        if not isinstance(key_linssh, bool):
-            raise TypeError("linear free-surface approximation (`key_linssh`) must be a boolean.")
+        if not isinstance(linssh, bool):
+            raise TypeError("linear free-surface approximation (`linssh`) must be a boolean.")
+        if not isinstance(vco, str):
+            raise TypeError("vertical reference coordinates (`vco`) must be a string.")
+        if vco not in ("1d", "3d"):
+            raise ValueError(
+                "vertical reference coordinates (`vco`) must be '1d' (1-dimensional) or '3d' (3-dimensional)."
+            )
         if not isinstance(vco_ref, bool):
             raise TypeError("reference vertical coordinates (`vco_ref`) must be a boolean.")
         if not isinstance(nbghost_child, int):
@@ -240,7 +250,8 @@ class NEMODataTree(xr.DataTree):
             read_mask=read_mask,
             maskcs=maskcs,
             nbghost_child=nbghost_child,
-            key_linssh=key_linssh,
+            linssh=linssh,
+            vco=vco,
             vco_ref=vco_ref,
             open_kwargs=dict(**open_kwargs),
         )
@@ -259,7 +270,8 @@ class NEMODataTree(xr.DataTree):
         iperio: bool = False,
         nftype: str | None = None,
         read_mask: bool = False,
-        key_linssh: bool = False,
+        linssh: bool = False,
+        vco: str = "1d",
         vco_ref: bool = False,
         maskcs: bool = False,
         nbghost_child: int = 4,
@@ -311,10 +323,13 @@ class NEMODataTree(xr.DataTree):
         maskcs: bool = False
             If True, all closed seas are masked using mask_opensea variables from domain files. Default is False.
 
-        key_linssh: bool = False
+        linssh: bool = False
             Linear free-surface approximation. If True, vertical coordinates are time-independent and given by (e3t_0, e3u_0, e3v_0, e3w_0) in domain_cfg.
             If False, vertical coordinates are time-dependent and must be specified in NEMO model grid datasets. Default is False.
 
+        vco : str = "1d"
+            Vertical reference variables. Options are '1d' to use 1-dimensional vertical reference coordinates or '3d' to use 3-dimensional vertical reference coordinates (deptht, depthu, depthv, depthw, depthf). Default is '1d'.        
+    
         vco_ref: bool = False
             If True, add reference vertical scale factors and compute reference water column heights from domain files. Default is False.
 
@@ -362,8 +377,14 @@ class NEMODataTree(xr.DataTree):
             raise TypeError("reading land-sea masks from domain_cfg (`read_mask`) must be a boolean.")
         if not isinstance(maskcs, bool):
             raise TypeError("masking of closed seas (`maskcs`) must be a boolean.")
-        if not isinstance(key_linssh, bool):
-            raise TypeError("linear free-surface approximation (`key_linssh`) must be a boolean.")
+        if not isinstance(linssh, bool):
+            raise TypeError("linear free-surface approximation (`linssh`) must be a boolean.")
+        if not isinstance(vco, str):
+            raise TypeError("vertical reference coordinates (`vco`) must be a string.")
+        if vco not in ("1d", "3d"):
+            raise ValueError(
+                "vertical reference coordinates (`vco`) must be '1d' (1-dimensional) or '3d' (3-dimensional)."
+            )
         if not isinstance(vco_ref, bool):
             raise TypeError("reference vertical coordinates (`vco_ref`) must be a boolean.")
         if not isinstance(nbghost_child, int):
@@ -403,7 +424,8 @@ class NEMODataTree(xr.DataTree):
             nftype=nftype,
             read_mask=read_mask,
             maskcs=maskcs,
-            key_linssh=key_linssh,
+            linssh=linssh,
+            vco=vco,
             vco_ref=vco_ref,
             nbghost_child=nbghost_child,
         )

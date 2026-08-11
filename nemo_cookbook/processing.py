@@ -209,7 +209,7 @@ def _check_grid_datasets(d: dict[str, xr.Dataset]) -> dict[str, xr.Dataset]:
     if "domain" not in d.keys():
         raise KeyError("missing 'domain': xarray Dataset in dictionary.")
 
-    grid_keys = ["domain", "gridT", "gridU", "gridV", "gridW", "icemod"]
+    grid_keys = ["domain", "gridT", "gridU", "gridV", "gridW", "gridF", "icemod"]
     if not all([key in grid_keys for key in d.keys()]):
         raise KeyError(f"incompatible key in {d.keys()}. Expecting {grid_keys}.")
     if not all(isinstance(val, xr.Dataset) for val in d.values()):
@@ -280,7 +280,7 @@ def _open_grid_datasets(
         raise KeyError("missing 'domain' key in paths dictionary.")
 
     # NEMO model grids datasets:
-    for key in ["gridT", "gridU", "gridV", "gridW", "icemod"]:
+    for key in ["gridT", "gridU", "gridV", "gridW", "gridF", "icemod"]:
         if key in d_in:
             try:
                 if len(glob.glob(d_in[key])) > 1:
@@ -307,9 +307,193 @@ def _open_grid_datasets(
     return d_data
 
 
+def _add_scale_factors_and_coords(
+    grid_type: str,
+    ds_grid: xr.Dataset,
+    ds_domain: xr.Dataset,
+    linssh: bool = False,
+    vco : str = "1d",
+    vco_ref: bool = False,
+) -> dict[str, xr.Dataset]:
+    """
+    Append grid cell scale factors and geographical coordinates
+    to a NEMO model grid dataset.
+
+    Parameters
+    ----------
+    grid_type : str
+        Type of NEMO model grid. Options include "t", "u", "v", "w" & "f".
+    
+    ds_grid : dict[str, xr.Dataset]
+        Dataset of NEMO model grid variables.
+
+    ds_domain: xr.Dataset
+        Dataset of NEMO model domain ancillary variables.
+
+    linssh: bool = False
+        Linear free-surface approximation. If True, vertical coordinates are time-independent and given by
+        (e3t_0, e3u_0, e3v_0, e3w_0). If False, vertical coordinates are time-dependent and must be included
+        in grid datasets. Default is False.
+
+    vco : str = "1d"
+        Vertical reference coordinates. Options are '1d' to use 1-dimensional vertical reference coordinates or '3d' to use 3-dimensional vertical reference coordinates (deptht, depthu, depthv, depthw, depthf). Default is '1d'.
+
+    vco_ref: bool = False
+        If True, add reference vertical scale factors and compute reference water column heights from domain files.
+        Default is False.
+
+    Returns
+    -------
+    xr.Dataset
+        Dataset of NEMO model grid variables with grid scale factors appended.
+
+    """
+    # -- Validate Inputs -- #
+    if grid_type not in ["t", "u", "v", "w", "f"]:
+        raise ValueError("'grid_type' must be one of: ['t', 'u', 'v', 'w', 'f']")
+
+    # Define horizontal and vertical grid types:
+    hgrid_type = "t" if grid_type == "w" else grid_type
+    vgrid_type = "w" if grid_type == "w" else "t"
+
+    # -- Append Grid Scale Factors -- #
+    try:
+        # Note: W-grid is horizontally co-located with T-grid -> use (e1t, e2t).
+        ds_grid[f"e1{grid_type}"] = ds_domain[f"e1{hgrid_type}"]
+        ds_grid[f"e2{grid_type}"] = ds_domain[f"e2{hgrid_type}"]
+        if linssh:
+            ds_grid[f"e3{grid_type}"] = ds_domain[f"e3{grid_type}_0"]
+
+        d_coords = {f"gphi{grid_type}": ds_domain[f"gphi{hgrid_type}"],
+                    f"glam{grid_type}": ds_domain[f"glam{hgrid_type}"]
+                    }
+
+        if vco == "3d":
+            # Use 3-dimensional vertical reference coords:
+            # Note: T/U/V/F grid are vertically co-located -> use (gdep_0).
+            if f"gdep{vgrid_type}_0" in ds_domain.data_vars:
+                d_coords[f"depth{grid_type}"] = ds_domain[f"gdep{vgrid_type}_0"].rename({"nav_lev": f"depth{grid_type}"})
+            else:
+                raise KeyError(
+                    f"missing required 3-dimensional vertical reference coordinate 'gdep{vgrid_type}_0' in domain dataset."
+                )
+
+        ds_grid = ds_grid.assign_coords(d_coords)
+
+    except AttributeError as e:
+        raise AttributeError(
+            f"missing required {grid_type}-grid scale factor in domain dataset"
+        ) from e
+
+    # Reference vertical scale factors and water column heights:
+    if vco_ref and (f"e3{grid_type}_0" in ds_domain.data_vars):
+        if not linssh:
+            # Add reference vertical scale factors:
+            ds_grid[f"e3{grid_type}_0"] = ds_domain[f"e3{grid_type}_0"]
+
+        # Add reference water column heights:
+        ds_grid[f"h{grid_type}_0"] = (ds_domain[f"e3{grid_type}_0"]
+                                      .where(cond=ds_grid[f"{grid_type}mask"])
+                                      .sum(dim="nav_lev")
+                                      )
+
+    return ds_grid
+
+
+def _add_land_sea_masks(
+    grid_type: str,
+    ds_grid: xr.Dataset,
+    ds_domain: xr.Dataset,
+    iperio: bool = False,
+    nftype: str | None = None,
+    read_mask: bool = False,
+    maskcs: bool = False,
+) -> dict[str, xr.Dataset]:
+    """
+    Append land-sea masks to a NEMO model grid dataset.
+
+    Parameters
+    ----------
+    grid_type : str
+        Type of NEMO model grid. Options include "t", "u", "v", "w" & "f".
+    
+    ds_grid : dict[str, xr.Dataset]
+        Dataset of NEMO model grid variables.
+
+    ds_domain: xr.Dataset
+        Dataset of NEMO model domain ancillary variables.
+
+    linssh: bool = False
+        Linear free-surface approximation. If True, vertical coordinates are time-independent and given by
+        (e3t_0, e3u_0, e3v_0, e3w_0). If False, vertical coordinates are time-dependent and must be included
+        in grid datasets. Default is False.
+
+    vco_ref: bool = False
+        If True, add reference vertical scale factors and compute reference water column heights from domain files.
+        Default is False.
+
+    Returns
+    -------
+    xr.Dataset
+        Dataset of NEMO model grid variables with grid scale factors appended.
+
+    """
+    # -- Validate Inputs -- #
+    if grid_type not in ["t", "u", "v", "w", "f"]:
+        raise ValueError("'grid_type' must be one of: ['t', 'u', 'v', 'w', 'f']")
+
+    # -- Mask Closed Seas -- #
+    if maskcs:
+        if "mask_opensea" in ds_domain.data_vars:
+            mask_opensea = ds_domain["mask_opensea"]
+        else:
+            raise KeyError("missing required 'mask_opensea' variable in domain dataset.")
+    else:
+        mask_opensea = None
+
+    # -- Append Land-Sea Masks -- #
+    # Define vertical grid indices:
+    ka = xr.DataArray(np.arange(ds_domain["nav_lev"].size), dims="nav_lev")
+
+    if read_mask & (f"{grid_type}mask" in ds_domain.data_vars):
+        # Read available 3-D mask from domain Dataset:
+        ds_grid[f"{grid_type}mask"] = read_dom_mask(ka=ka, ds_domain=ds_domain, cd_nat=grid_type.upper(), mask_opensea=mask_opensea)
+
+        if f"{grid_type}maskutil" in ds_domain.data_vars:
+            # Read available 2-D (unique point) mask from domain Dataset:
+            # Note: W-grid is horizontally co-located with T-grid -> read tmaskutil.
+            ds_grid[f"{grid_type}maskutil"] = read_dom_maskutil(ds_domain=ds_domain, cd_nat=grid_type.upper(), mask_opensea=mask_opensea)
+        else:
+            # Define 2-D (unique point) mask from 3-D mask:
+            ds_grid[f"{grid_type}maskutil"] = ds_grid[f"{grid_type}mask"].isel(nav_lev=0).squeeze(drop=True)
+    else:
+        if read_mask:
+            warnings.warn(
+                f"{grid_type}mask not found in domain dataset. Creating {grid_type}mask from top_level and bottom_level variables.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+
+        # Calculate 3-D mask from top_level and bottom_level:
+        ds_grid[f"{grid_type}mask"] = create_dom_mask(
+            ka=ka,
+            top_level=ds_domain["top_level"],
+            bottom_level=ds_domain["bottom_level"],
+            cd_nat=grid_type.upper(),
+            c_NFtype=nftype,
+            iperio=iperio,
+            mask_opensea=mask_opensea,
+        )
+        # Define 2-D (unique point) mask from 3-D mask:
+        ds_grid[f"{grid_type}maskutil"] = ds_grid[f"{grid_type}mask"].isel(nav_lev=0).squeeze(drop=True)
+
+    return ds_grid
+
+
 def _add_domain_vars(
     d_grids: dict[str, xr.Dataset],
-    key_linssh: bool = False,
+    linssh: bool = False,
+    vco: str = "1d",
     vco_ref: bool = False,
     iperio: bool = False,
     nftype: str | None = None,
@@ -332,10 +516,13 @@ def _add_domain_vars(
             'gridW': xr.Dataset
         }
         
-    key_linssh: bool = False
+    linssh: bool = False
         Linear free-surface approximation. If True, vertical coordinates are time-independent and given by
         (e3t_0, e3u_0, e3v_0, e3w_0). If False, vertical coordinates are time-dependent and must be included
         in grid datasets. Default is False.
+
+    vco : str = "1d"
+        Vertical reference coordinates. Options are '1d' to use 1-dimensional vertical reference coordinates or '3d' to use 3-dimensional vertical reference coordinates (deptht, depthu, depthv, depthw, depthf). Default is '1d'.
 
     vco_ref: bool = False
         If True, add reference vertical scale factors and compute reference water column heights from domain files.
@@ -367,6 +554,7 @@ def _add_domain_vars(
             'gridF': xr.Dataset
         }
     """
+    # -- Open Domain Dataset -- #
     if "domain" in d_grids:
         # Remove singleton dimensions from domain dataset:
         domain = d_grids["domain"].squeeze(drop=True)
@@ -377,252 +565,29 @@ def _add_domain_vars(
     else:
         raise KeyError("missing 'domain' key in grid datasets dictionary.")
 
-    # Determine if closed seas should be masked:
-    if maskcs:
-        if "mask_opensea" in domain.data_vars:
-            mask_opensea = domain["mask_opensea"]
-        else:
-            raise KeyError("missing required 'mask_opensea' variable in domain dataset.")
-    else:
-        mask_opensea = None
+    # -- Add Domain Variables -- #
+    for grid_type in ["t", "u", "v", "w", "f"]:
+        # Add land-sea masks:
+        d_grids[f"grid{grid_type.upper()}"] = _add_land_sea_masks(grid_type=grid_type,
+                                                                  ds_grid=d_grids[f"grid{grid_type.upper()}"],
+                                                                  ds_domain=domain,
+                                                                  iperio=iperio,
+                                                                  nftype=nftype,
+                                                                  read_mask=read_mask,
+                                                                  maskcs=maskcs
+                                                                  )
 
-    # Define vertical grid indices:
-    ka = xr.DataArray(np.arange(domain["nav_lev"].size), dims="nav_lev")
+        # Add grid scale factors & coordinates:
+        d_grids[f"grid{grid_type.upper()}"] = _add_scale_factors_and_coords(grid_type=grid_type,
+                                                                            ds_grid=d_grids[f"grid{grid_type.upper()}"],
+                                                                            ds_domain=domain,
+                                                                            linssh=linssh,
+                                                                            vco=vco,
+                                                                            vco_ref=vco_ref
+                                                                            )
 
-    # -- T-grid -- #
-    # Grid scale factors and coordinates:
-    try:
-        d_grids["gridT"]["e1t"] = domain["e1t"]
-        d_grids["gridT"]["e2t"] = domain["e2t"]
-        if key_linssh:
-            d_grids["gridT"]["e3t"] = domain["e3t_0"]
-        d_grids["gridT"]["gphit"] = domain["gphit"]
-        d_grids["gridT"]["glamt"] = domain["glamt"]
-    except AttributeError as e:
-        raise AttributeError(
-            "missing required T-grid variable in domain dataset"
-        ) from e
-
-    # Land-sea masks:
-    if read_mask:
-        d_grids["gridT"]["tmask"] = read_dom_mask(ka=ka, ds_domain=domain, cd_nat="T", mask_opensea=mask_opensea)
-        if "tmaskutil" in domain.data_vars:
-            d_grids["gridT"]["tmaskutil"] = read_dom_maskutil(ds_domain=domain, cd_nat="T", mask_opensea=mask_opensea)
-        else:
-            d_grids["gridT"]["tmaskutil"] = d_grids["gridT"]["tmask"].isel(nav_lev=0).squeeze(drop=True)
-    else:
-        d_grids["gridT"]["tmask"] = create_dom_mask(
-            ka=ka,
-            top_level=domain["top_level"],
-            bottom_level=domain["bottom_level"],
-            cd_nat="T",
-            c_NFtype=nftype,
-            iperio=iperio,
-            mask_opensea=mask_opensea,
-        )
-        d_grids["gridT"]["tmaskutil"] = d_grids["gridT"]["tmask"].isel(nav_lev=0).squeeze(
-            drop=True
-        )
-
-    # Reference vertical scale factors and water column heights:
-    if vco_ref and ("e3t_0" in domain.data_vars):
-        if not key_linssh:
-            # Add reference vertical scale factors:
-            d_grids["gridT"]["e3t_0"] = domain["e3t_0"]
-        # Add reference water column heights:
-        d_grids["gridT"]["ht_0"] = (domain["e3t_0"]
-                                    .where(cond=d_grids["gridT"]["tmask"])
-                                    .sum(dim="nav_lev")
-                                    )
-    # Attributes:
-    d_grids["gridT"] = d_grids["gridT"].assign_attrs(nftype=nftype, iperio=iperio)
-
-    # -- U-grid -- #
-    # Grid scale factors and coordinates:
-    try:
-        d_grids["gridU"]["e1u"] = domain["e1u"]
-        d_grids["gridU"]["e2u"] = domain["e2u"]
-        if key_linssh:
-            d_grids["gridU"]["e3u"] = domain["e3u_0"]
-        d_grids["gridU"]["gphiu"] = domain["gphiu"]
-        d_grids["gridU"]["glamu"] = domain["glamu"]
-    except AttributeError as e:
-        raise AttributeError(
-            "missing required U-grid variable in domain dataset"
-        ) from e
-
-    # Land-sea masks:
-    if read_mask:
-        d_grids["gridU"]["umask"] = read_dom_mask(ka=ka, ds_domain=domain, cd_nat="U", mask_opensea=mask_opensea)
-        if "umaskutil" in domain.data_vars:
-            d_grids["gridU"]["umaskutil"] = read_dom_maskutil(ds_domain=domain, cd_nat="U", mask_opensea=mask_opensea)
-        else:
-            d_grids["gridU"]["umaskutil"] = d_grids["gridU"]["umask"].isel(nav_lev=0).squeeze(drop=True)
-    else:
-        d_grids["gridU"]["umask"] = create_dom_mask(
-            ka=ka,
-            top_level=domain["top_level"],
-            bottom_level=domain["bottom_level"],
-            cd_nat="U",
-            c_NFtype=nftype,
-            iperio=iperio,
-            mask_opensea=mask_opensea,
-        )
-        d_grids["gridU"]["umaskutil"] = d_grids["gridU"]["umask"].isel(nav_lev=0).squeeze(drop=True)
-
-    # Reference vertical scale factors and water column heights:
-    if vco_ref and ("e3u_0" in domain.data_vars):
-        if not key_linssh:
-            # Add reference vertical scale factors:
-            d_grids["gridU"]["e3u_0"] = domain["e3u_0"]
-        # Add reference water column heights:
-        d_grids["gridU"]["hu_0"] = (domain["e3u_0"]
-                                    .where(cond=d_grids["gridU"]["umask"])
-                                    .sum(dim="nav_lev")
-                                    )
-    # Attributes:
-    d_grids["gridU"] = d_grids["gridU"].assign_attrs(nftype=nftype, iperio=iperio)
-
-    # -- V-grid -- #
-    # Grid scale factors and coordinates:
-    try:
-        d_grids["gridV"]["e1v"] = domain["e1v"]
-        d_grids["gridV"]["e2v"] = domain["e2v"]
-        if key_linssh:
-            d_grids["gridV"]["e3v"] = domain["e3v_0"]
-        d_grids["gridV"]["gphiv"] = domain["gphiv"]
-        d_grids["gridV"]["glamv"] = domain["glamv"]
-    except AttributeError as e:
-        raise AttributeError(
-            "missing required V-grid variable in domain dataset"
-        ) from e
-
-    # Land-sea masks:
-    if read_mask:
-        d_grids["gridV"]["vmask"] = read_dom_mask(ka=ka, ds_domain=domain, cd_nat="V", mask_opensea=mask_opensea)
-        if "vmaskutil" in domain.data_vars:
-            d_grids["gridV"]["vmaskutil"] = read_dom_maskutil(ds_domain=domain, cd_nat="V", mask_opensea=mask_opensea)
-        else:
-            d_grids["gridV"]["vmaskutil"] = d_grids["gridV"]["vmask"].isel(nav_lev=0).squeeze(drop=True)
-    else:
-        d_grids["gridV"]["vmask"] = create_dom_mask(
-            ka=ka,
-            top_level=domain["top_level"],
-            bottom_level=domain["bottom_level"],
-            cd_nat="V",
-            c_NFtype=nftype,
-            iperio=iperio,
-            mask_opensea=mask_opensea,
-        )
-        d_grids["gridV"]["vmaskutil"] = d_grids["gridV"]["vmask"].isel(nav_lev=0).squeeze(drop=True)
-
-    # Reference vertical scale factors and water column heights:
-    if vco_ref and ("e3v_0" in domain.data_vars):
-        if not key_linssh:
-            # Add reference vertical scale factors:
-            d_grids["gridV"]["e3v_0"] = domain["e3v_0"]
-        # Add reference water column heights:
-        d_grids["gridV"]["hv_0"] = (domain["e3v_0"]
-                                    .where(cond=d_grids["gridV"]["vmask"])
-                                    .sum(dim="nav_lev")
-                                    )
-    # Attributes:
-    d_grids["gridV"] = d_grids["gridV"].assign_attrs(nftype=nftype, iperio=iperio)
-
-    # -- W-grid --#
-    # Grid scale factors and coordinates:
-    try:
-        d_grids["gridW"]["e1w"] = domain["e1t"]
-        d_grids["gridW"]["e2w"] = domain["e2t"]
-        if key_linssh:
-            d_grids["gridW"]["e3w"] = domain["e3w_0"]
-        d_grids["gridW"]["gphiw"] = domain["gphit"]
-        d_grids["gridW"]["glamw"] = domain["glamt"]
-    except AttributeError as e:
-        raise AttributeError(
-            "missing required W-grid variable in domain dataset"
-        ) from e
-
-    # Land-sea masks:
-    if read_mask & ("wmask" in domain.data_vars):
-        d_grids["gridW"]["wmask"] = read_dom_mask(ka=ka, ds_domain=domain, cd_nat="W", mask_opensea=mask_opensea)
-        if "wmaskutil" in domain.data_vars:
-            # W-grid is horizontally co-located with T-grid -> use tmaskutil:
-            d_grids["gridW"]["wmaskutil"] = read_dom_maskutil(ds_domain=domain, cd_nat="T", mask_opensea=mask_opensea)
-        else:
-            d_grids["gridW"]["wmaskutil"] = d_grids["gridW"]["wmask"].isel(nav_lev=0).squeeze(drop=True)
-    else:
-        if read_mask:
-            warnings.warn(
-                "wmask not found in domain dataset. Creating wmask from top_level and bottom_level variables.",
-                RuntimeWarning,
-                stacklevel=2,
-            )
-        d_grids["gridW"]["wmask"] = create_dom_mask(
-            ka=ka,
-            top_level=domain["top_level"],
-            bottom_level=domain["bottom_level"],
-            cd_nat="W",
-            c_NFtype=nftype,
-            iperio=iperio,
-            mask_opensea=mask_opensea,
-        )
-        d_grids["gridW"]["wmaskutil"] = d_grids["gridW"]["wmask"].isel(nav_lev=0).squeeze(drop=True)
-
-    # Reference vertical scale factors and water column heights:
-    if vco_ref and ("e3w_0" in domain.data_vars):
-        if not key_linssh:
-            # Add reference vertical scale factors:
-            d_grids["gridW"]["e3w_0"] = domain["e3w_0"]
-    # Attributes:
-    d_grids["gridW"] = d_grids["gridW"].assign_attrs(nftype=nftype, iperio=iperio)
-
-    # -- F-grid -- #
-    # Grid scale factors and coordinates:
-    d_grids["gridF"] = xr.Dataset()
-    try:
-        d_grids["gridF"]["e1f"] = domain["e1f"]
-        d_grids["gridF"]["e2f"] = domain["e2f"]
-        if key_linssh:
-            d_grids["gridF"]["e3f"] = domain["e3f_0"]
-        d_grids["gridF"]["gphif"] = domain["gphif"]
-        d_grids["gridF"]["glamf"] = domain["glamf"]
-    except AttributeError as e:
-        raise AttributeError(
-            "missing required F-grid variable in domain dataset"
-        ) from e
-
-    # Land-sea masks:
-    if read_mask:
-        d_grids["gridF"]["fmask"] = read_dom_mask(ka=ka, ds_domain=domain, cd_nat="F", mask_opensea=mask_opensea)
-        if "fmaskutil" in domain.data_vars:
-            d_grids["gridF"]["fmaskutil"] = read_dom_maskutil(ds_domain=domain, cd_nat="F", mask_opensea=mask_opensea)
-        else:
-            d_grids["gridF"]["fmaskutil"] = d_grids["gridF"]["fmask"].isel(nav_lev=0).squeeze(drop=True)
-    else:
-        d_grids["gridF"]["fmask"] = create_dom_mask(
-            ka=ka,
-            top_level=domain["top_level"],
-            bottom_level=domain["bottom_level"],
-            cd_nat="F",
-            c_NFtype=nftype,
-            iperio=iperio,
-            mask_opensea=mask_opensea,
-        )
-        d_grids["gridF"]["fmaskutil"] = d_grids["gridF"]["fmask"].isel(nav_lev=0).squeeze(drop=True)
-
-    # Reference vertical scale factors and water column heights:
-    if vco_ref and ("e3f_0" in domain.data_vars):
-        if not key_linssh:
-            # Add reference vertical scale factors:
-            d_grids["gridF"]["e3f_0"] = domain["e3f_0"]
-        # Add reference water column heights:
-        d_grids["gridF"]["hf_0"] = (domain["e3f_0"]
-                                    .where(cond=d_grids["gridF"]["fmask"])
-                                    .sum(dim="nav_lev")
-                                    )
-    # Attributes:
-    d_grids["gridF"] = d_grids["gridF"].assign_attrs(nftype=nftype, iperio=iperio)
+    # -- Assign Global Attributes -- #
+    d_grids[f"grid{grid_type.upper()}"] = d_grids[f"grid{grid_type.upper()}"].assign_attrs(nftype=nftype, iperio=iperio)
 
     return d_grids
 
@@ -744,7 +709,8 @@ def _process_parent(
     nftype: str | None = None,
     read_mask: bool = False,
     maskcs: bool = False,
-    key_linssh: bool = False,
+    linssh: bool = False,
+    vco: str = "1d",
     vco_ref: bool = False,
     open_kwargs: dict[str, any] | None = None,
 ) -> dict[str, xr.Dataset]:
@@ -788,10 +754,13 @@ def _process_parent(
     maskcs : bool = False
         If True, all closed seas are masked using mask_opensea variables from domain files. Default is False.
 
-    key_linssh: bool = False
+    linssh: bool = False
         Linear free-surface approximation. If True, vertical coordinates are time-independent and given by
         (e3t_0, e3u_0, e3v_0, e3w_0). If False, vertical coordinates are time-dependent and must be included
         in grid datasets. Default is False.
+
+    vco : str = "1d"
+        Vertical reference variables. Options are '1d' to use 1-dimensional vertical reference coordinates or '3d' to use 3-dimensional vertical reference coordinates (deptht, depthu, depthv, depthw, depthf). Default is '1d'.  
 
     vco_ref: bool = False
         If True, add reference vertical scale factors and compute reference water column heights from domain files.
@@ -834,8 +803,8 @@ def _process_parent(
 
     # Add domain variables to each grid dataset:
     d_grids = _add_domain_vars(
-        d_grids=d_grids, key_linssh=key_linssh, iperio=iperio, nftype=nftype,
-        read_mask=read_mask, maskcs=maskcs, vco_ref=vco_ref
+        d_grids=d_grids, linssh=linssh, iperio=iperio, nftype=nftype,
+        read_mask=read_mask, maskcs=maskcs, vco=vco, vco_ref=vco_ref
     )
 
     # Process T / U / V / W / F grids:
@@ -880,7 +849,8 @@ def _process_child(
     read_mask: bool = False,
     maskcs: bool = False,
     nbghost_child: int = _DEFAULT_NBGHOST_CHILD,
-    key_linssh: bool = False,
+    linssh: bool = False,
+    vco: str = "1d",
     vco_ref: bool = False,
     open_kwargs: dict[str, any] | None = None,
 ) -> dict[str, xr.Dataset]:
@@ -940,10 +910,13 @@ def _process_child(
         Number of ghost cells to remove from the western/southern boundaries of the (grand)child domain.
         Default is 4 (`_DEFAULT_NBGHOST_CHILD`).
 
-    key_linssh: bool = False
+    linssh: bool = False
         Linear free-surface approximation. If True, vertical coordinates are time-independent and given by
         (e3t_0, e3u_0, e3v_0, e3w_0). If False, vertical coordinates are time-dependent and must be included
         in grid datasets. Default is False.
+
+    vco : str = "1d"
+        Vertical reference variables. Options are '1d' to use 1-dimensional vertical reference coordinates or '3d' to use 3-dimensional vertical reference coordinates (deptht, depthu, depthv, depthw, depthf). Default is '1d'.
 
     vco_ref: bool = False
         If True, add reference vertical scale factors and compute reference water column heights from domain files.
@@ -994,8 +967,8 @@ def _process_child(
 
     # Add child domain variables to each grid:
     d_grids = _add_domain_vars(
-        d_grids=d_grids, key_linssh=key_linssh, iperio=d_nests["iperio"], nftype=None,
-        read_mask=read_mask, maskcs=maskcs, vco_ref=vco_ref
+        d_grids=d_grids, linssh=linssh, iperio=d_nests["iperio"], nftype=None,
+        read_mask=read_mask, maskcs=maskcs, vco=vco, vco_ref=vco_ref
     )
 
     # Get child domain indices excluding ghost cells:
@@ -1075,7 +1048,8 @@ def create_datatree_dict(
     read_mask: bool = False,
     maskcs: bool = False,
     nbghost_child: int = _DEFAULT_NBGHOST_CHILD,
-    key_linssh: bool = False,
+    linssh: bool = False,
+    vco: str = "1d",
     vco_ref: bool = False,
     open_kwargs: dict[str, any] | None = None,
 ) -> dict[str, xr.Dataset]:
@@ -1105,9 +1079,11 @@ def create_datatree_dict(
         If True, all closed seas are masked using mask_opensea variables from domain files. Default is False.
     nbghost_child : int = _DEFAULT_NBGHOST_CHILD
         Number of ghost cells to remove from the western/southern boundaries of the (grand)child domain. Default is 4 (`_DEFAULT_NBGHOST_CHILD`).
-    key_linssh: bool = False
+    linssh: bool = False
         Linear free-surface approximation. If True, vertical coordinates are time-independent and given by (e3t_0, e3u_0, e3v_0, e3w_0). If False, vertical
         coordinates are time-dependent and must be included in grid datasets. Default is False.
+    vco : str = "1d"
+        Vertical reference variables. Options are '1d' to use 1-dimensional vertical reference coordinates or '3d' to use 3-dimensional vertical reference coordinates (deptht, depthu, depthv, depthw, depthf). Default is '1d'.  
     vco_ref: bool = False
         If True, add reference vertical scale factors and compute reference water column heights from domain files. Default is False.
     open_kwargs : dict[str, any], optional
@@ -1130,7 +1106,8 @@ def create_datatree_dict(
         read_mask=read_mask,
         maskcs=maskcs,
         nftype=nftype,
-        key_linssh=key_linssh,
+        linssh=linssh,
+        vco=vco,
         vco_ref=vco_ref,
         open_kwargs=open_kwargs,
     )
@@ -1158,7 +1135,8 @@ def create_datatree_dict(
                     read_mask=read_mask,
                     maskcs=maskcs,
                     nbghost_child=nbghost_child,
-                    key_linssh=key_linssh,
+                    linssh=linssh,
+                    vco=vco,
                     vco_ref=vco_ref,
                     open_kwargs=open_kwargs,
                 )
@@ -1191,7 +1169,8 @@ def create_datatree_dict(
                     read_mask=read_mask,
                     maskcs=maskcs,
                     nbghost_child=nbghost_child,
-                    key_linssh=key_linssh,
+                    linssh=linssh,
+                    vco=vco,
                     vco_ref=vco_ref,
                     open_kwargs=open_kwargs,
                 )

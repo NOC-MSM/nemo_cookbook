@@ -68,9 +68,9 @@ def create_section_polygon(
             [lat_sec, np.array([lat_sec[-1] - dlat, lat_sec[-1] - dlat, lat_sec[0]])]
         )
     elif all(lat == lat_sec[0] for lat in lat_sec):
-        raise ValueError("extracting zonal hydrographic sections is not supported.")
+        raise ValueError("extracting zonal hydrographic sections is not supported. Use NEMODataTree.extract_zonal_section() instead.")
     else:
-        raise ValueError("hydrographic section endpoints must not have same latitude.")
+        raise ValueError("hydrographic section endpoints must not have same latitude to form a closed polygon.")
 
     return lon_poly, lat_poly
 
@@ -154,8 +154,19 @@ def create_boundary_dataset(
     ds_bdy[f"{dom_prefix}gphib"][vbdy_mask] = nemo[gridV][f"{dom_prefix}gphiv"].sel(
         i=ds_bdy["i_bdy"][vbdy_mask], j=ds_bdy["j_bdy"][vbdy_mask]
     )
-    ds_bdy[f"{dom_prefix}depthb"][:, ubdy_mask] = nemo[gridU][f"{dom_prefix}depthu"]
-    ds_bdy[f"{dom_prefix}depthb"][:, vbdy_mask] = nemo[gridV][f"{dom_prefix}depthv"]
+
+    if (nemo[gridU][f"{dom_prefix}depthu"].ndim == 1) and (nemo[gridV][f"{dom_prefix}depthv"].ndim == 1):
+        # Using 1-dimensional vertical reference (depth) coordinate:
+        ds_bdy[f"{dom_prefix}depthb"][:, ubdy_mask] = nemo[gridU][f"{dom_prefix}depthu"]
+        ds_bdy[f"{dom_prefix}depthb"][:, vbdy_mask] = nemo[gridV][f"{dom_prefix}depthv"]
+    else:
+        # Using 3-dimensional vertical reference (depth) coordinate:
+        ds_bdy[f"{dom_prefix}depthb"][:, ubdy_mask] = nemo[gridU][f"{dom_prefix}depthu"].sel(
+            i=ds_bdy["i_bdy"][ubdy_mask], j=ds_bdy["j_bdy"][ubdy_mask]
+        )
+        ds_bdy[f"{dom_prefix}depthb"][:, vbdy_mask] = nemo[gridV][f"{dom_prefix}depthv"].sel(
+            i=ds_bdy["i_bdy"][vbdy_mask], j=ds_bdy["j_bdy"][vbdy_mask]
+        )
 
     return ds_bdy
 

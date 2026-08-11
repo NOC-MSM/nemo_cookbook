@@ -229,9 +229,17 @@ class TestExtractSection():
         with pytest.raises(TypeError, match=re.escape("uv_vars must be a list of velocity variables to extract (e.g., ['uo', 'vo']).")):
             example_global_nemodatatree.extract_section(lon=np.array([0, 1]), lat=np.array([0, 1]), uv_vars=uv_vars, vars=None, dom=".")
 
-    def test_extract_section(self, example_global_nemodatatree):
+    @pytest.mark.parametrize("vco", ["1d", "3d"])
+    def test_extract_section(self, vco, example_global_nemodatatree):
         # -- Define NEMODataTree based on domain type -- #
         nemo = example_global_nemodatatree
+
+        # -- Update depth coordinates using vco -- #
+        if vco == "3d":
+            for grid in [grid for grid in nemo.groups if "grid" in grid]:
+                # Add 3-dimensional vertical reference (depth) coordinates to each grid node:
+                depth = nemo[grid][f"depth{grid[-1].lower()}"].expand_dims({"j": nemo[grid]["j"], "i": nemo[grid]["i"]})
+                nemo[grid] = nemo[grid].dataset.assign_coords({f"depth{grid[-1].lower()}": depth.transpose("k", "j", "i")})
 
         # -- Defining idealised section endpoints -- #
         lon_section = np.array([-50, 50])
@@ -293,8 +301,11 @@ class TestExtractMaskBoundary():
         with pytest.raises(TypeError, match=re.escape("uv_vars must be a list of velocity variables to extract (e.g., ['uo', 'vo']).")):
             example_global_nemodatatree.extract_mask_boundary(mask=xr.DataArray(), uv_vars=uv_vars, vars=None, dom=".")
 
-    @pytest.mark.parametrize("dom_type", ["global", "regional"])
-    def test_extract_mask_boundary(self, dom_type, example_global_nemodatatree, example_regional_nemodatatree):
+    @pytest.mark.parametrize(
+            "dom_type, vco",
+            [("global", "1d"), ("global", "3d"), ("regional", "1d"), ("regional", "3d")]
+            )
+    def test_extract_mask_boundary(self, dom_type, vco, example_global_nemodatatree, example_regional_nemodatatree):
         # -- Select NEMODataTree based on domain type -- #
         match dom_type:
             case "regional":
@@ -303,6 +314,13 @@ class TestExtractMaskBoundary():
                 nemo = example_global_nemodatatree
             case _:
                 raise ValueError("dom_type must be 'global' or 'regional'")
+
+        # -- Update depth coordinates using vco -- #
+        if vco == "3d":
+            for grid in [grid for grid in nemo.groups if "grid" in grid]:
+                # Add 3-dimensional vertical reference (depth) coordinates to each grid node:
+                depth = nemo[grid][f"depth{grid[-1].lower()}"].expand_dims({"j": nemo[grid]["j"], "i": nemo[grid]["i"]})
+                nemo[grid] = nemo[grid].dataset.assign_coords({f"depth{grid[-1].lower()}": depth.transpose("k", "j", "i")})
 
         # -- Defining idealised mask -- #
         # Define 2x2 square mask at the domain centre:
@@ -380,8 +398,11 @@ class TestExtractZonalSection():
         # -- Verify ValueError is raised when specified latitude is outside of NEMO domain -- #
         with pytest.raises(ValueError, match="Latitude of zonal section is out of bounds of the grid latitude range"):
             example_regional_nemodatatree.extract_zonal_section(lat=55, lon_min=-80.0, lon_max=10.0, u_vars=None, scalar_vars=None, dom='.')
-    @pytest.mark.parametrize("dom_type", ["global", "regional"])
-    def test_extract_zonal_section(self, dom_type, example_global_nemodatatree, example_regional_nemodatatree):
+    @pytest.mark.parametrize(
+            "dom_type, vco",
+            [("global", "1d"), ("global", "3d"), ("regional", "1d"), ("regional", "3d")]
+            )
+    def test_extract_zonal_section(self, dom_type, vco, example_global_nemodatatree, example_regional_nemodatatree):
         # -- Select NEMODataTree based on domain type -- #
         match dom_type:
             case "regional":
@@ -400,6 +421,14 @@ class TestExtractZonalSection():
                 j_bdy_expected = [8.5, 8.5, 8.5]
             case _:
                 raise ValueError("dom_type must be 'global' or 'regional'")
+
+        # -- Update depth coordinates using vco -- #
+        if vco == "3d":
+            for grid in [grid for grid in nemo.groups if "grid" in grid]:
+                # Add 3-dimensional vertical reference (depth) coordinates to each grid node:
+                depth = nemo[grid][f"depth{grid[-1].lower()}"].expand_dims({"j": nemo[grid]["j"], "i": nemo[grid]["i"]})
+                nemo[grid] = nemo[grid].dataset.assign_coords({f"depth{grid[-1].lower()}": depth.transpose("k", "j", "i")})
+
         
         # -- Extract zonal section -- #
         ds_bdy = nemo.extract_zonal_section(lat=lat,
