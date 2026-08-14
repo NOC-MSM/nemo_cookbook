@@ -90,10 +90,10 @@ class TestNEMODataTreePaths():
         with pytest.raises(TypeError, match=re.escape("reference vertical coordinates (`vco_ref`) must be a boolean.")):
             NEMODataTree.from_paths(paths={}, vco_ref=vco_ref)
 
-    @pytest.mark.parametrize("nbghost_child", ["1", 1.5, None])
+    @pytest.mark.parametrize("nbghost_child", ["1", 1.5, [4]])
     def test_nbghost_child_errors(self, nbghost_child):
         # -- Verify TypeError -- #
-        expected_str = "number of ghost cells along the western/southern boundaries (`nbghost_child`) must be an integer."
+        expected_str = "number of ghost cells along the western/southern boundaries (`nbghost_child`) must be an integer or None."
         with pytest.raises(TypeError, match=re.escape(expected_str)):
             NEMODataTree.from_paths(paths={}, nbghost_child=nbghost_child)
 
@@ -202,10 +202,10 @@ class TestNEMODataTreeDatasets():
         with pytest.raises(TypeError, match=re.escape(expected_str)):
             NEMODataTree.from_datasets(datasets={}, vco_ref=vco_ref)
 
-    @pytest.mark.parametrize("nbghost_child", ["1", 1.5, None])
+    @pytest.mark.parametrize("nbghost_child", ["1", 1.5, [4]])
     def test_nbghost_child_errors(self, nbghost_child):
         # -- Verify TypeError -- #
-        expected_str = "number of ghost cells along the western/southern boundaries (`nbghost_child`) must be an integer."
+        expected_str = "number of ghost cells along the western/southern boundaries (`nbghost_child`) must be an integer or None."
         with pytest.raises(TypeError, match=re.escape(expected_str)):
             NEMODataTree.from_datasets(datasets={}, nbghost_child=nbghost_child)
 

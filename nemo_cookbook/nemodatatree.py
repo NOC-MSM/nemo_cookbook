@@ -74,7 +74,7 @@ class NEMODataTree(xr.DataTree):
         linssh: bool = False,
         vco: str = "1d",
         vco_ref: bool = False,
-        nbghost_child: int = 4,
+        nbghost_child: int | None = 4,
         **open_kwargs: dict[str, any],
     ) -> Self:
         """
@@ -150,8 +150,9 @@ class NEMODataTree(xr.DataTree):
         vco_ref: bool = False
             If True, add reference vertical scale factors and compute reference water column heights from domain files. Default is False.
 
-        nbghost_child : int = 4
+        nbghost_child : int | None = 4
             Number of ghost cells to remove from the western/southern boundaries of the (grand)child domains. Default is 4.
+            If None, no ghost cells are removed and the full (grand)child domain is used.
 
         **open_kwargs : dict, optional
             Additional keyword arguments to pass to `xarray.open_dataset` or `xr.open_mfdataset` when opening NEMO model output files.
@@ -210,9 +211,9 @@ class NEMODataTree(xr.DataTree):
             )
         if not isinstance(vco_ref, bool):
             raise TypeError("reference vertical coordinates (`vco_ref`) must be a boolean.")
-        if not isinstance(nbghost_child, int):
+        if not isinstance(nbghost_child, (int, type(None))):
             raise TypeError(
-                "number of ghost cells along the western/southern boundaries (`nbghost_child`) must be an integer."
+                "number of ghost cells along the western/southern boundaries (`nbghost_child`) must be an integer or None."
             )
         if not isinstance(open_kwargs, dict):
             raise TypeError("`open_kwargs` must be a dictionary.")
@@ -274,7 +275,7 @@ class NEMODataTree(xr.DataTree):
         vco: str = "1d",
         vco_ref: bool = False,
         maskcs: bool = False,
-        nbghost_child: int = 4,
+        nbghost_child: int | None = 4,
     ) -> Self:
         """
         Create a NEMODataTree from a dictionary of `xarray.Dataset` objects created from NEMO model output files,
@@ -333,8 +334,9 @@ class NEMODataTree(xr.DataTree):
         vco_ref: bool = False
             If True, add reference vertical scale factors and compute reference water column heights from domain files. Default is False.
 
-        nbghost_child : int = 4
+        nbghost_child : int | None = 4
             Number of ghost cells to remove from the western/southern boundaries of the (grand)child domains. Default is 4.
+            If None, no ghost cells are removed and the full (grand)child domain is used.
 
         Returns
         -------
@@ -387,9 +389,9 @@ class NEMODataTree(xr.DataTree):
             )
         if not isinstance(vco_ref, bool):
             raise TypeError("reference vertical coordinates (`vco_ref`) must be a boolean.")
-        if not isinstance(nbghost_child, int):
+        if not isinstance(nbghost_child, (int, type(None))):
             raise TypeError(
-                "number of ghost cells along the western/southern boundaries (`nbghost_child`) must be an integer."
+                "number of ghost cells along the western/southern boundaries (`nbghost_child`) must be an integer or None."
             )
 
         # -- Define parent, child, grandchild dataset collections -- #

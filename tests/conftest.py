@@ -514,86 +514,152 @@ def example_regional_nemodatatree() -> NEMODataTree:
 @pytest.fixture
 def example_ORCA2_nemodatatree() -> NEMODataTree:
     """
-    Fixture to create an example ORCA2 global NEMODataTree using AGRIF_DEMO
-    configuration. The global model domain is zonally periodic (i.e., iperio = True).
+    Fixture factory to create an example ORCA2 global NEMODataTree using AGRIF_DEMO configuration.
+    The global model domain is zonally periodic (i.e., iperio = True).
 
     Returns
     -------
     NEMODataTree
         Example ORCA2 global NEMODataTree.
     """
-    # -- Create example NEMODataTree for AGRIF_DEMO configuration -- #
-    # Get dict of example filepaths:
-    filepaths = get_filepaths("AGRIF_DEMO")
-    # Define paths dict for NEMODataTree:
-    paths = {"parent": {
-                "domain": filepaths["domain_cfg.nc"],
-                "gridT": filepaths["ORCA2_5d_00010101_00010110_grid_T.nc"],
-                "gridU": filepaths["ORCA2_5d_00010101_00010110_grid_U.nc"],
-                "gridV": filepaths["ORCA2_5d_00010101_00010110_grid_V.nc"],
-                "gridW": filepaths["ORCA2_5d_00010101_00010110_grid_W.nc"],
-                "icemod": filepaths["ORCA2_5d_00010101_00010110_icemod.nc"]
-            }}
-    # Create NEMODataTree from paths dict:
-    nemo = NEMODataTree.from_paths(paths, name="Example ORCA2", iperio=True, nftype="T")
+    def _make_nemodatatree(
+        linssh: bool = False,
+        vco: str = "1d",
+        vco_ref: bool = False,
+        ) -> NEMODataTree:
+        """
+        Fixture to create an example ORCA2 global NEMODataTree using AGRIF_DEMO
+        configuration. The global model domain is zonally periodic (i.e., iperio = True).
 
-    return nemo
+        Parameters
+        ----------
+        linssh: bool = False
+            Linear free-surface approximation. If True, vertical coordinates are time-independent and given by (e3t_0, e3u_0, e3v_0, e3w_0) in domain_cfg.
+            If False, vertical coordinates are time-dependent and must be specified in NEMO model grid datasets. Default is False.
+        vco : str = "1d"
+            Vertical reference variables. Options are '1d' to use 1-dimensional vertical reference coordinates or '3d' to use 3-dimensional
+            vertical reference coordinates (deptht, depthu, depthv, depthw, depthf). Default is '1d'.        
+        vco_ref: bool = False
+            If True, add reference vertical scale factors and compute reference water column heights from domain files. Default is False.
+
+        Returns
+        -------
+        NEMODataTree
+            Example ORCA2 global NEMODataTree.
+        """
+        # -- Create example NEMODataTree for AGRIF_DEMO configuration -- #
+        # Get dict of example filepaths:
+        filepaths = get_filepaths("AGRIF_DEMO")
+        # Define paths dict for NEMODataTree:
+        paths = {"parent": {
+                    "domain": filepaths["domain_cfg.nc"],
+                    "gridT": filepaths["ORCA2_5d_00010101_00010110_grid_T.nc"],
+                    "gridU": filepaths["ORCA2_5d_00010101_00010110_grid_U.nc"],
+                    "gridV": filepaths["ORCA2_5d_00010101_00010110_grid_V.nc"],
+                    "gridW": filepaths["ORCA2_5d_00010101_00010110_grid_W.nc"],
+                    "icemod": filepaths["ORCA2_5d_00010101_00010110_icemod.nc"]
+                }}
+        # Create NEMODataTree from paths dict:
+        nemo = NEMODataTree.from_paths(paths, name="Example ORCA2",
+                                       iperio=True,
+                                       nftype="T",
+                                       linssh=linssh,
+                                       vco=vco,
+                                       vco_ref=vco_ref
+                                       )
+
+        return nemo
+
+    return _make_nemodatatree
 
 @pytest.fixture
-def example_ORCA2_linssh_nemodatatree() -> NEMODataTree:
+def example_ORCA2_AGRIF_nemodatatree() -> NEMODataTree:
     """
-    Fixture to create an example linear free-surface ORCA2 global NEMODataTree using AGRIF_DEMO
-    configuration. The global model domain is zonally periodic (i.e., iperio = True).
+    Fixture factory to create an example nested ORCA2 global NEMODataTree.
 
     Returns
     -------
     NEMODataTree
-        Example linear free-surface ORCA2 global NEMODataTree.
+        Example nested ORCA2 global NEMODataTree.
     """
-    # -- Create example linear free-surface NEMODataTree from AGRIF_DEMO configuration -- #
-    # Get dict of example filepaths:
-    filepaths = get_filepaths("AGRIF_DEMO")
-    # Define paths dict for NEMODataTree:
-    paths = {"parent": {
-                "domain": filepaths["domain_cfg.nc"],
-                "gridT": filepaths["ORCA2_5d_00010101_00010110_grid_T.nc"],
-                "gridU": filepaths["ORCA2_5d_00010101_00010110_grid_U.nc"],
-                "gridV": filepaths["ORCA2_5d_00010101_00010110_grid_V.nc"],
-                "gridW": filepaths["ORCA2_5d_00010101_00010110_grid_W.nc"],
-                "icemod": filepaths["ORCA2_5d_00010101_00010110_icemod.nc"]
-            }}
-    # Create NEMODataTree from paths dict:
-    nemo = NEMODataTree.from_paths(paths, name="Example ORCA2", iperio=True, nftype="T", linssh=True)
+    def _make_nemodatatree(nbghost_child: int | None = 4) -> NEMODataTree:
+        """
+        Fixture to create an example nested ORCA2 global NEMODataTree including vertical grid scale factor and water column
+        references using AGRIF_DEMO configuration. The global model domain is zonally periodic (i.e., iperio = True).
+        One child and one grandchild domain are included in the NEMODataTree.
 
-    return nemo
+        Returns
+        -------
+        NEMODataTree
+            Example nested ORCA2 global NEMODataTree including vertical grid scale factor and water column references.
+        """
+        # -- Create example vco_ref NEMODataTree from AGRIF_DEMO configuration -- #
+        # Get dict of example filepaths:
+        filepaths = get_filepaths("AGRIF_DEMO")
+        # Define paths dict for NEMODataTree:
+        paths = {"parent": {
+            "domain": filepaths["domain_cfg.nc"],
+            "gridT": filepaths["ORCA2_5d_00010101_00010110_grid_T.nc"],
+            "gridU": filepaths["ORCA2_5d_00010101_00010110_grid_U.nc"],
+            "gridV": filepaths["ORCA2_5d_00010101_00010110_grid_V.nc"],
+            "gridW": filepaths["ORCA2_5d_00010101_00010110_grid_W.nc"],
+            "icemod": filepaths["ORCA2_5d_00010101_00010110_icemod.nc"]
+            },
+            "child": {
+            "1":{
+            "domain": filepaths["2_domain_cfg.nc"],
+            "gridT": filepaths["2_Nordic_5d_00010101_00010110_grid_T.nc"],
+            "gridU": filepaths["2_Nordic_5d_00010101_00010110_grid_U.nc"],
+            "gridV": filepaths["2_Nordic_5d_00010101_00010110_grid_V.nc"],
+            "gridW": filepaths["2_Nordic_5d_00010101_00010110_grid_W.nc"],
+            "icemod": filepaths["2_Nordic_5d_00010101_00010110_icemod.nc"]
+            }},
+            "grandchild": {
+            "2":{
+            "domain": filepaths["3_domain_cfg.nc"],
+            "gridT": filepaths["3_Nordic_5d_00010101_00010110_grid_T.nc"],
+            "gridU": filepaths["3_Nordic_5d_00010101_00010110_grid_U.nc"],
+            "gridV": filepaths["3_Nordic_5d_00010101_00010110_grid_V.nc"],
+            "gridW": filepaths["3_Nordic_5d_00010101_00010110_grid_W.nc"],
+            "icemod": filepaths["3_Nordic_5d_00010101_00010110_icemod.nc"]
+            }},
+            }
 
-@pytest.fixture
-def example_ORCA2_vco_ref_nemodatatree() -> NEMODataTree:
-    """
-    Fixture to create an example ORCA2 global NEMODataTree including vertical grid scale factor and water column
-    references using AGRIF_DEMO configuration. The global model domain is zonally periodic (i.e., iperio = True).
+        # Define nests dict for NEMODataTree:
+        nests = {
+            "1": {
+            "parent": "/",
+            "rx": 4,
+            "ry": 4,
+            "imin": 121,
+            "imax": 146,
+            "jmin": 113,
+            "jmax": 133,
+            "iperio": False
+            },
+            "2": {
+            "parent": "1",
+            "rx": 3,
+            "ry": 3,
+            "imin": 20,
+            "imax": 60,
+            "jmin": 27,
+            "jmax": 60,
+            "iperio": False
+            }
+            }
 
-    Returns
-    -------
-    NEMODataTree
-        Example ORCA2 global NEMODataTree including vertical grid scale factor and water column references.
-    """
-    # -- Create example vco_ref NEMODataTree from AGRIF_DEMO configuration -- #
-    # Get dict of example filepaths:
-    filepaths = get_filepaths("AGRIF_DEMO")
-    # Define paths dict for NEMODataTree:
-    paths = {"parent": {
-                "domain": filepaths["domain_cfg.nc"],
-                "gridT": filepaths["ORCA2_5d_00010101_00010110_grid_T.nc"],
-                "gridU": filepaths["ORCA2_5d_00010101_00010110_grid_U.nc"],
-                "gridV": filepaths["ORCA2_5d_00010101_00010110_grid_V.nc"],
-                "gridW": filepaths["ORCA2_5d_00010101_00010110_grid_W.nc"],
-                "icemod": filepaths["ORCA2_5d_00010101_00010110_icemod.nc"]
-            }}
-    # Create NEMODataTree from paths dict:
-    nemo = NEMODataTree.from_paths(paths, name="Example ORCA2", iperio=True, nftype="T", vco_ref=True)
+        # Create NEMODataTree from paths dict:
+        nemo = NEMODataTree.from_paths(paths=paths,
+                                       nests=nests,
+                                       iperio=True,
+                                       nftype="T",
+                                       nbghost_child=nbghost_child
+                                       )
 
-    return nemo
+        return nemo
+
+    return _make_nemodatatree
 
 @pytest.fixture
 def example_AMM12_nemodatatree() -> NEMODataTree:

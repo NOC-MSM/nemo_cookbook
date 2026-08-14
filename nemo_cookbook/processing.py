@@ -58,9 +58,16 @@ def _add_parent_indices(
     i_ic = xr.DataArray(
         np.repeat(i_child, repeats=ds.attrs["rx"]),
         dims=[f"i{label}"],
-        coords={f"i{label}": ds[f"i{label}"]},
     )
+    if i_ic.size < ds[f"i{label}"].size:
+        # Pad i-mapping with NaNs if ghost cells remain in child domain:
+        width = int((ds[f"i{label}"].size - i_ic.size) / 2)
+        i_ic = i_ic.pad({f"i{label}": (width, width)})
+      
     ds[f"i{plabel}_i{label}"] = i_ic
+    ds[f"i{plabel}_i{label}"] = ds[f"i{plabel}_i{label}"].assign_coords(
+        {f"i{label}": ds[f"i{label}"]}
+        )
     ds[f"i{plabel}_i{label}"] = ds[f"i{plabel}_i{label}"].assign_attrs(
         name=f"i{plabel}_i{label}",
         long_name=f"i{plabel} indices of child domain i{label} indices",
@@ -73,9 +80,16 @@ def _add_parent_indices(
     j_jc = xr.DataArray(
         np.repeat(j_child, repeats=ds.attrs["ry"]),
         dims=[f"j{label}"],
-        coords={f"j{label}": ds[f"j{label}"]},
     )
+    if j_jc.size < ds[f"j{label}"].size:
+        # Pad j-mapping with NaNs if ghost cells remain in child domain:
+        width = int((ds[f"j{label}"].size - j_jc.size) / 2)
+        j_jc = j_jc.pad({f"j{label}": (width, width)})
+      
     ds[f"j{plabel}_j{label}"] = j_jc
+    ds[f"j{plabel}_j{label}"] =  ds[f"j{plabel}_j{label}"].assign_coords(
+        {f"j{label}": ds[f"j{label}"]}
+        )
     ds[f"j{plabel}_j{label}"] = ds[f"j{plabel}_j{label}"].assign_attrs(
         name=f"j{plabel}_j{label}",
         long_name=f"j{plabel} indices of child domain j{label} indices",
@@ -906,9 +920,10 @@ def _process_child(
     maskcs : bool = False
         If True, all closed seas are masked using mask_opensea variables from domain files. Default is False.
 
-    nbghost_child : int = _DEFAULT_NBGHOST_CHILD
+    nbghost_child : int | None = _DEFAULT_NBGHOST_CHILD
         Number of ghost cells to remove from the western/southern boundaries of the (grand)child domain.
-        Default is 4 (`_DEFAULT_NBGHOST_CHILD`).
+        Default is 4 (`_DEFAULT_NBGHOST_CHILD`). If None, no ghost cells are removed and the full
+        (grand)child domain is used.
 
     linssh: bool = False
         Linear free-surface approximation. If True, vertical coordinates are time-independent and given by
@@ -971,18 +986,23 @@ def _process_child(
         read_mask=read_mask, maskcs=maskcs, vco=vco, vco_ref=vco_ref
     )
 
-    # Get child domain indices excluding ghost cells:
-    ind_child = _get_child_indices(
-        rx=d_nests.get("rx"),
-        ry=d_nests.get("ry"),
-        imin=d_nests.get("imin"),
-        imax=d_nests.get("imax"),
-        jmin=d_nests.get("jmin"),
-        jmax=d_nests.get("jmax"),
-        nbghost_child=nbghost_child,
-    )
-    i_slice = slice(ind_child[0], ind_child[1] + 1)
-    j_slice = slice(ind_child[2], ind_child[3] + 1)
+    if nbghost_child is not None:
+        # Get child domain indices excluding ghost cells:
+        ind_child = _get_child_indices(
+            rx=d_nests.get("rx"),
+            ry=d_nests.get("ry"),
+            imin=d_nests.get("imin"),
+            imax=d_nests.get("imax"),
+            jmin=d_nests.get("jmin"),
+            jmax=d_nests.get("jmax"),
+            nbghost_child=nbghost_child,
+        )
+        i_slice = slice(ind_child[0], ind_child[1] + 1)
+        j_slice = slice(ind_child[2], ind_child[3] + 1)
+    else:
+        # Use full child domain including ghost cells:
+        i_slice = slice(None)
+        j_slice = slice(None)
 
     # Process T / U / V / W / F grids:
     d_proc_grids = {}
@@ -1077,8 +1097,9 @@ def create_datatree_dict(
         domain variables. Default is False.
     maskcs: bool = False
         If True, all closed seas are masked using mask_opensea variables from domain files. Default is False.
-    nbghost_child : int = _DEFAULT_NBGHOST_CHILD
+    nbghost_child : int | None = _DEFAULT_NBGHOST_CHILD
         Number of ghost cells to remove from the western/southern boundaries of the (grand)child domain. Default is 4 (`_DEFAULT_NBGHOST_CHILD`).
+        If None, no ghost cells are removed and the full (grand)child domain is used.
     linssh: bool = False
         Linear free-surface approximation. If True, vertical coordinates are time-independent and given by (e3t_0, e3u_0, e3v_0, e3w_0). If False, vertical
         coordinates are time-dependent and must be included in grid datasets. Default is False.
