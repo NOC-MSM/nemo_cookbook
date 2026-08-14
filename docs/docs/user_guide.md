@@ -178,9 +178,9 @@ This is because domain variables are assigned to their respective grid nodes dur
 
     Typically, NEMO model simulations use a quasi-eulerian vertical coordinate which absorbs the divergence of horizontal barotropic velocities (e.g., $z^{*}$ or $s^{*}$), meaning that vertical grid scale factors evolve through time (i.e., a time-varying free surface translates into variations in grid cell thickness).
 
-    `NEMODataTree` considers the case of time-evolving vertical grid scale factors to be the default as the `key_linssh` argument to the `.from_paths()` and `.from_datasets()` constructors is set to be `False` by default. This means that vertical grid scale factors must be provided in the netCDF files or `xarray.Datasets` used to define each NEMO model grid node in the `NEMODataTree`.
+    `NEMODataTree` considers the case of time-evolving vertical grid scale factors to be the default as the `linssh` argument to the `.from_paths()` and `.from_datasets()` constructors is set to be `False` by default. This means that vertical grid scale factors must be provided in the netCDF files or `xarray.Datasets` used to define each NEMO model grid node in the `NEMODataTree`.
 
-    For NEMO model simulations using a linear free surface approximation (i.e., variations in the free surface are neglected compared to the depth of the ocean), we should use `key_linssh=True` to indicate that vertical grid scale factors remain fixed through time and should be read directly from the reference variables contained within the domain_cfg netCDF file or `xarray.Dataset` (e.g., `e3t_0`, `e3u_0` etc.).
+    For NEMO model simulations using a linear free surface approximation (i.e., variations in the free surface are neglected compared to the depth of the ocean), we should use `linssh=True` to indicate that vertical grid scale factors remain fixed through time and should be read directly from the reference variables contained within the domain_cfg netCDF file or `xarray.Dataset` (e.g., `e3t_0`, `e3u_0` etc.).
 
 **Dimensions & Coordinates**
 
@@ -268,11 +268,11 @@ In summary, defining a `NEMODataTree` for a nested configuration includes two im
 
     4. Redefine the `dims` and `coords` of each grid dataset to use `i{dom}`, `j{dom}`, `k{dom}` as used to define the semi-discrete equations in NEMO, where *dom* is the unique domain number.
 
-    5. **Clip nested child domains to remove ghost points along the boundaries & add a mapping from the parent grid indices to the child grid indices to the `coords`.**
+    5. **Clip nested child domains to remove ghost points along the boundaries & add a mapping from the parent grid indices to the child grid indices to the `coords`.** Alternatively, the entire child domain, including ghost points, can be retained by passing `nbghost_child=None` to the `.from_paths()` and `.from_datasets()` constructors.
 
     6. **Assemble dictionaries of processed NEMO model grid datasets for each of the parent, child and grandchild domains.**
 
-    7. Assemble the `xarray.DataTree` using a nested dictionary of NEMO model domains.
+    7. Assemble the underlying `xarray.DataTree` using a nested dictionary of NEMO model domains.
 
 ### NEMODataArray :ocean: :simple-databricks:
 ---

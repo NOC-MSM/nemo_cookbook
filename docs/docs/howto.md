@@ -26,7 +26,9 @@ NEMODataTree.from_paths(paths, iperio=True, nftype="T")
 
 In the example above, we consider only a global parent domain, which is zonally periodic (`iperio=True`) and north-folding on **T** grid points (`nftype="T"`). Note, that we are only required to specify paths for one or more NEMO model grid types (e.g., `*_gridT.nc`).
 
-For NEMO models using a linear free surface approximation (i.e., vertical scale factors are time-independent), we should also specify `key_linssh=True` to read these directly from the domain_cfg file included in the `paths` dictionary.
+For NEMO models using a linear free surface approximation (i.e., vertical scale factors are time-independent), we should also specify `linssh=True` to read these directly from the domain_cfg file included in the `paths` dictionary.
+
+Additionally, for NEMO models configured with more complex vertical coordinates (e.g., MEs or sigma-coordinates), such that vertical reference variables (e.g., `depth`) vary spatially, we should also specify `vco="3d"` to include all vertical reference variables as 3-dimensional arrays analogously to using `key_vco_3d` within NEMO itself. By default, a `NEMODataTree` is constructed using 1-dimensional vertical reference variables.
 
 ### Create a NEMODataTree from `xarray.Datasets`
 
