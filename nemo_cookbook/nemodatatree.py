@@ -498,7 +498,7 @@ class NEMODataTree(xr.DataTree):
             raise TypeError("`repo` must implement readonly_session().")
         if not isinstance(name, str):
             raise TypeError("`name` must be a string.")
-        if not isinstance(iperio, bool):
+        if iperio is not None and not isinstance(iperio, bool):
             raise TypeError("zonal periodicity (`iperio`) of parent domain must be a boolean.")
         if nftype is not None and nftype not in ("T", "F"):
             raise ValueError(
@@ -578,7 +578,7 @@ class NEMODataTree(xr.DataTree):
             raise TypeError("`store` must be a string.")
         if not isinstance(name, str):
             raise TypeError("`name` must be a string.")
-        if not isinstance(iperio, bool):
+        if iperio is not None and not isinstance(iperio, bool):
             raise TypeError("zonal periodicity (`iperio`) of parent domain must be a boolean.")
         if nftype is not None and nftype not in ("T", "F"):
             raise ValueError(
