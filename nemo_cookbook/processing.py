@@ -382,7 +382,11 @@ def _add_scale_factors_and_coords(
                     f"glam{grid_type}": ds_domain[f"glam{hgrid_type}"]
                     }
 
-        if vco == "3d":
+        if vco == "1d":
+            # Use 1-dimensional vertical reference coords:
+            if f"gdep{vgrid_type}_1d" in ds_domain.data_vars:
+                d_coords[f"depth{grid_type}"] = ds_domain[f"gdep{vgrid_type}_1d"].rename({"nav_lev": f"depth{grid_type}"})
+        elif vco == "3d":
             # Use 3-dimensional vertical reference coords:
             # Note: T/U/V/F grid are vertically co-located -> use (gdep_0).
             if f"gdep{vgrid_type}_0" in ds_domain.data_vars:
