@@ -1811,6 +1811,174 @@ class NEMODataTree(xr.DataTree):
 
         return ds_bdy
 
+    def extract_meridional_section(
+        self,
+        lon: int | float,
+        lat_min: int | float,
+        lat_max: int | float,
+        v_vars: list[str] | None = None,
+        scalar_vars: list[str] | None = None,
+        dom: str = '.',
+    ) -> xr.Dataset:
+        """
+        Extract an approximately meridional section at a chosen longitude from a NEMODataTree.
+
+        Hydrographic section will be located at the constant i-coordinate whose average
+        longitude (following selection between lat_min and lat_max) is closest to the given
+        longitude.
+
+        Hydrographic section will be defined on the NEMO model U-grid
+        
+        Scalar variables defined on the NEMO model T-grid and vector variables defined on
+        the NEMO model V-grid are linearly interpolated onto the U-grid.
+
+        Parameters:
+        -----------
+        lon : int | float
+            Longitude of meridional section.
+        lat_min : int | float
+            Minimum latitude of meridional section.
+        lat_max : int | float
+            Maximum latitude of meridional section.
+        v_vars : list[str], optional
+            List of NEMO V-grid variables to extract along
+            meridional section.
+        scalar_vars : list[str], optional
+            List of scalar variable names to extract along
+            meridional section.
+        dom : str
+            Prefix of NEMO domain in the DataTree (e.g., '1', '2', '3', etc.).
+            Default is '.' for the parent domain.
+
+        Returns:
+        --------
+        xr.Dataset
+            Dataset containing meridional hydrographic section extracted from a NEMODataTree.
+
+        Examples
+        --------
+        Extract zonal velocities, conservative temperature and meridional wind stress along the Drake Passage located
+        at -67°E in the NEMO parent domain:
+
+        >>> nemo.extract_meridional_section(lon=-67,
+        ...                                lat_min=-62,
+        ...                                lat_max=-55,
+        ...                                v_vars=["tauvo"],
+        ...                                scalar_vars=["thetao_con"],
+        ...                                dom=".",
+        ...                                )
+        See Also
+        --------
+        extract_section
+        """
+        # -- Validate Inputs -- #
+        if not isinstance(lon, (int, float)):
+            raise TypeError("Longitude must be a single numeric value.")
+        if not isinstance(lat_min, (int, float)):
+            raise TypeError("Minimum latitude must be a single numeric value.")
+        if not isinstance(lat_max, (int, float)):
+            raise TypeError("Maximum latitude must be a single numeric value.")
+        if v_vars is not None and not isinstance(v_vars, list):
+            raise TypeError("v_vars must be a list of variable names.")
+        if scalar_vars is not None and not isinstance(scalar_vars, list):
+            raise TypeError("scalar_vars must be a list of variable names.")
+        if not isinstance(dom, str):
+            raise TypeError(
+                "dom must be a string specifying prefix of a NEMO domain (e.g., '.', '1', '2', etc.)."
+            )
+
+        # -- Get NEMO model grid properties -- #
+        grid_paths = self._get_grid_paths(dom=dom)
+        dom_prefix, _ = self._get_properties(dom=dom)
+        ijk_names = self._get_ijk_names(dom=dom)
+        i_name, j_name = ijk_names["i"], ijk_names["j"]
+
+        # -- Validate longitude within longitude bounds of NEMODataTree -- #
+        lon_min_grid = self[grid_paths["gridU"]][f"{dom_prefix}glamu"].min().values.item()
+        lon_max_grid = self[grid_paths["gridU"]][f"{dom_prefix}glamu"].max().values.item()
+        if (lon < lon_min_grid) or (lon > lon_max_grid):
+            raise ValueError(f"Longitude of meridional section is out of bounds of the grid longitude range ({lon_min_grid}, {lon_max_grid}).")
+
+        # -- Add geographical indexing to U-grid -- #
+        nemo_geo = self.add_geoindex(grid=grid_paths["gridU"])
+
+        # -- Determine (i, j) indices of meridional section endpoints -- #
+        nemo_start = nemo_geo[grid_paths["gridU"]].dataset.sel(gphiu=lat_min, glamu=lon, method='nearest')
+        i_start = nemo_start[i_name].values.item()
+        j_start = nemo_start[j_name].values.item()
+        nemo_end = nemo_geo[grid_paths["gridU"]].dataset.sel(gphiu=lat_max, glamu=lon, method='nearest')
+        i_end = nemo_end[i_name].values.item()
+        j_end = nemo_end[j_name].values.item()
+
+        # Define i-index of meridional section:
+        if i_start == i_end:
+            i_sec = i_start
+        else:
+            i_list = np.arange(min([i_start, i_end]), max([i_start, i_end]) + 1)
+            i_lons = []
+            for i in i_list:
+                i_lons.append(nemo_geo[grid_paths['gridU']]["glamu"]
+                              .sel({i_name: i, j_name: slice(j_start, j_end)})
+                              .mean(dim=j_name).values.item()
+                              )
+            # Select i-index of meridional section closest to specified longitude:
+            i_sec = i_list[np.argmin(np.abs(np.array(i_lons) - lon))]
+
+        # Define j-index of meridional section:
+        j_sec = [j_start, j_end]
+
+        # -- Extract meridional section at specified latitude -- #
+        nemo_geo = nemo_geo.isel({i_name: slice(int(i_sec)-1, int(i_sec)+1),
+                                  j_name: slice(j_sec[0]-1, j_sec[1]+1)
+                                  })
+        # Transform scalar T-grid variables to U-point grid:
+        if scalar_vars is not None:
+            for var in scalar_vars:
+                nemo_geo[grid_paths["gridU"]][var] = nemo_geo[f"gridT/{var}"].interp_to(to='U')
+        # Transform V-grid variables to U-point grid:
+        if v_vars is not None:
+            for var in v_vars:
+                nemo_geo[grid_paths["gridU"]][var] = nemo_geo[f"gridV/{var}"].interp_to(to='U')
+
+        # Extract meridional section & update dimensions & coordinate variables:
+        ds_bdy = nemo_geo[grid_paths["gridU"]].dataset.sel({i_name: i_sec,
+                                                            j_name: slice(j_sec[0], j_sec[1])
+                                                            })
+        ds_bdy = (ds_bdy
+                  .rename_vars({"glamu": f"{dom_prefix}glamb",
+                                "gphiu": f"{dom_prefix}gphib",
+                                "depthu": f"{dom_prefix}depthb",
+                                "umask": "bmask",
+                                "umaskutil": "bmaskutil",
+                                "e1u": "e1b",
+                                "e2u": "e2b",
+                                "e3u": "e3b",
+                                })
+                  .rename_dims({j_name: "bdy"})
+                  )
+
+        if ("e3u_0" in ds_bdy.data_vars) and ("hu_0" in ds_bdy.data_vars):
+            ds_bdy = ds_bdy.rename_vars({"e3u_0": "e3b_0",
+                                         "hu_0": "hb_0"
+                                         })
+
+        # Add (i_bdy, j_bdy) indices of meridional section:
+        ds_bdy["i_bdy"] = xr.DataArray(data=np.repeat(i_sec, ds_bdy["bdy"].size), dims=["bdy"])
+        ds_bdy["j_bdy"] = xr.DataArray(data=np.arange(j_sec[0], j_sec[1]+1), dims=["bdy"])
+
+        # Apply land-sea masks to all variables:
+        for var in ds_bdy.data_vars:
+            if ds_bdy[var].dims == ("time_counter", "k", "bdy"):
+                ds_bdy[var] = ds_bdy[var].where(ds_bdy["bmask"])
+            elif ds_bdy[var].dims == ("time_counter", "bdy"):
+                ds_bdy[var] = ds_bdy[var].where(ds_bdy["bmaskutil"])
+
+        # Drop invalid global attributes from dataset:
+        ds_bdy.attrs.pop("iperio", None)
+        ds_bdy.attrs.pop("nftype", None)
+
+        return ds_bdy
+
     def extract_zonal_section(
         self,
         lat: int | float,
@@ -1858,7 +2026,7 @@ class NEMODataTree(xr.DataTree):
         Examples
         --------
         Extract meridional velocities, conservative temperature and zonal wind stress along the RAPID-MOCHA array located
-        at 26.5N in the NEMO parent domain:
+        at 26.5°N in the NEMO parent domain:
 
         >>> nemo.extract_zonal_section(lat=26.5,
         ...                            lon_min=-81,
