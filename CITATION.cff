@@ -1,0 +1,57 @@
+cff-version: 1.2.0
+title: NEMO Cookbook
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Oliver John
+    family-names: Tooth
+    email: oliver.tooth@noc.ac.uk
+    affiliation: 'National Oceanography Centre, UK'
+    orcid: 'https://orcid.org/0000-0002-9894-9390'
+  - given-names: Adam Tobias
+    family-names: Blaker
+    email: atb299@noc.ac.uk
+    affiliation: 'National Oceanography Centre, UK'
+    orcid: 'https://orcid.org/0000-0001-5454-0131'
+  - given-names: Andrew Charles
+    family-names: Coward
+    email: acc@noc.ac.uk
+    affiliation: 'National Oceanography Centre, UK'
+    orcid: 'https://orcid.org/0000-0002-9111-7700'
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.18292768
+    description: Zenodo Digital Object Identifier
+repository-code: 'https://github.com/NOC-MSM/nemo_cookbook'
+url: 'https://noc-msm.github.io/nemo_cookbook/'
+abstract: >-
+  NEMO Cookbook extends the familiar xarray data model with
+  grid-aware data structures designed for performing
+  reproducible analyses of the Nucleus for European
+  Modelling of the Ocean (NEMO) ocean general circulation
+  model outputs.
+
+
+  Our aim is to provide a collection of recipes implementing
+  the post-processing & analysis functions available in
+  CDFTOOLS alongside new diagnostics (e.g., surface-forced
+  water mass transformation), which are compatible with
+  generalised vertical coordinate systems (e.g., MES).
+
+
+  Each recipe uses the NEMODataTree and NEMODataArray
+  structures to leverage xarray, flox & dask libraries to
+  calculate a diagnostic with NEMO ocean model outputs
+keywords:
+  - Nucleus for European Modelling of the Ocean
+  - ocean modelling
+  - oceanography
+  - ocean science
+  - xarray
+  - python
+license: Apache-2.0
+commit: e897a50cb696ef7e919dcb0e5ecefa5c9bb37166
+version: v2026.06.01
+date-released: '2026-06-23'
