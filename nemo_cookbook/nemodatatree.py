@@ -904,12 +904,12 @@ class NEMODataTree(xr.DataTree):
 
         Returns
         -------
-        xr.DataArray
+        NEMODataArray
             Grid cell areas (m^2) for the specified NEMO model grid.
 
         Examples
         --------
-        Compute the horizontal area of each grid cell centered on a V-grid point
+        Compute the horizontal area of each grid cell centered on a T-grid point
         in the NEMO parent domain:
 
         >>> nemo.cell_area(grid="gridT", dim="k")
@@ -929,19 +929,19 @@ class NEMODataTree(xr.DataTree):
         match dim:
             case "i":
                 cell_area = (
-                    self[f"{grid}/e3{grid_suffix}"].masked.data * self[f"{grid}/e2{grid_suffix}"].masked.data
+                    self[f"{grid}/e3{grid_suffix}"] * self[f"{grid}/e2{grid_suffix}"]
                 )
             case "j":
                 cell_area = (
-                    self[f"{grid}/e3{grid_suffix}"].masked.data * self[f"{grid}/e1{grid_suffix}"].masked.data
+                    self[f"{grid}/e3{grid_suffix}"] * self[f"{grid}/e1{grid_suffix}"]
                 )
             case "k":
                 cell_area = (
-                    self[f"{grid}/e1{grid_suffix}"].masked.data * self[f"{grid}/e2{grid_suffix}"].masked.data
+                    self[f"{grid}/e2{grid_suffix}"] * self[f"{grid}/e1{grid_suffix}"]
                 )
         cell_area.name = "areacello"
 
-        return cell_area
+        return cell_area.masked
 
     def cell_volume(self, grid: str) -> xr.DataArray:
         """
@@ -955,7 +955,7 @@ class NEMODataTree(xr.DataTree):
 
         Returns
         -------
-        xr.DataArray
+        NEMODataArray
             Grid cell volumes for the specified NEMO model grid.
 
         Examples
@@ -963,7 +963,7 @@ class NEMODataTree(xr.DataTree):
         Compute the volume of each grid cell centered on a V-grid point
         in the NEMO parent domain:
 
-        >>> nemo.cell_volumes(grid="gridV")
+        >>> nemo.cell_volume(grid="gridV")
 
         See Also
         --------
@@ -972,13 +972,13 @@ class NEMODataTree(xr.DataTree):
         grid_suffix = self._get_properties(grid=grid)
 
         cell_volume = (
-            self[f"{grid}/e3{grid_suffix}"].masked.data
-            * self[f"{grid}/e1{grid_suffix}"].masked.data
-            * self[f"{grid}/e2{grid_suffix}"].masked.data
+            self[f"{grid}/e3{grid_suffix}"]
+            * self[f"{grid}/e1{grid_suffix}"]
+            * self[f"{grid}/e2{grid_suffix}"]
         )
         cell_volume.name = "volcello"
 
-        return cell_volume
+        return cell_volume.masked
 
     @deprecated(version_since="2026.03.b1",
                 version_removed="2026.07",
@@ -1131,24 +1131,20 @@ class NEMODataTree(xr.DataTree):
 
         return gradient
 
-    @deprecated(version_since="2026.03.b1",
-                version_removed="2026.07",
-                alternative="NEMOVectorField.divergence from v2026.07 onwards"
-                )
     def divergence(
         self,
-        vars: list[str],
+        uv_vars: list[str],
         dom: str = ".",
     ) -> xr.DataArray:
         """
-        Calculate the horizontal divergence of a vector field defined on a NEMO model grid.
+        Calculate the horizontal divergence of a vector field defined on the NEMO model
+        U and V-grids.
 
         Parameters
         ----------
-        vars : list[str]
-            Name of vector variables, structured as: ['u', 'v'], where
-            'u' and 'v' are the i and j components of the vector field,
-            respectively.
+        uv_vars : list[str]
+            Name of vector variables given as a list of i and j components of the
+            vector field, respectively.
         dom : str, optional
             Prefix of NEMO domain in the DataTree (e.g., '1', '2', '3', etc.).
             Default is '.' for the parent domain.
@@ -1156,26 +1152,26 @@ class NEMODataTree(xr.DataTree):
         Returns
         -------
         xr.DataArray
-            Horizontal divergence of vector field defined on a NEMO model grid.
+            Horizontal divergence of vector field defined on the NEMO model T-grid.
 
         Examples
         --------
         Compute the horizontal divergence of the seawater velocity field in the
         NEMO parent domain:
 
-        >>> nemo.divergence(dom=".", vars=["uo", "vo"])
+        >>> nemo.divergence(dom=".", uv_vars=["uo", "vo"])
 
-        Note, `vars` expects a list of the `i` and `j` components of the vector
+        Note, `uv_vars` expects a list of the `i` and `j` components of the vector
         field, respectively.
 
         See Also
         --------
-        divergence
+        curl
         """
         # -- Validate input -- #
-        if not isinstance(vars, list) or len(vars) != 2:
+        if not isinstance(uv_vars, list) or len(uv_vars) != 2:
             raise ValueError(
-                "vars must be a list of two elements structured as ['u', 'v']."
+                "uv_vars must be a list of two strings (e.g., ['uo', 'vo'])."
             )
         if not isinstance(dom, str):
             raise ValueError(
@@ -1183,65 +1179,29 @@ class NEMODataTree(xr.DataTree):
             )
 
         # -- Get NEMO model grid properties -- #
-        dom_prefix, _ = self._get_properties(dom=dom)
         grid_paths = self._get_grid_paths(dom=dom)
-        gridT, gridU, gridV = (
-            grid_paths["gridT"],
-            grid_paths["gridU"],
-            grid_paths["gridV"],
-        )
-        ijk_names = self._get_ijk_names(dom=dom)
-        i_name, j_name = ijk_names["i"], ijk_names["j"]
 
         # -- Define i,j vector components -- #
-        var_i, var_j = vars[0], vars[1]
-        if var_i not in self[gridU].data_vars:
-            raise KeyError(f"variable '{var_i}' not found in grid '{gridU}'.")
-        if var_j not in self[gridV].data_vars:
-            raise KeyError(f"variable '{var_j}' not found in grid '{gridV}'.")
+        var_i, var_j = uv_vars[0], uv_vars[1]
+        if var_i not in self[grid_paths["gridU"]].data_vars:
+            raise KeyError(f"variable '{var_i}' not found in grid '{grid_paths['gridU']}'.")
+        if var_j not in self[grid_paths["gridV"]].data_vars:
+            raise KeyError(f"variable '{var_j}' not found in grid '{grid_paths['gridV']}'.")
 
-        da_i = self[f"{gridU}/{var_i}"].masked.data
-        da_j = self[f"{gridV}/{var_j}"].masked.data
+        nda_i = self[f"{grid_paths['gridU']}/{var_i}"].masked
+        nda_j = self[f"{grid_paths['gridV']}/{var_j}"].masked
 
-        # -- Collect mask -- #
-        if (f"{dom_prefix}depthu" in da_i.coords) and (
-            f"{dom_prefix}depthv" in da_j.coords
-        ):
-            # 3-dimensional tmask:
-            tmask = self[gridT]["tmask"]
-        else:
-            # 2-dimensional tmask (unique points):
-            tmask = self[gridT]["tmaskutil"]
+        # -- Collect grid scale factors defined on U, V and T-points -- #
+        e2u_e3u = nda_i.metrics["e3"] * nda_i.metrics["e2"]
+        e1v_e3v = nda_j.metrics["e3"] * nda_j.metrics["e1"]
+        e1t_e2t_e3t = self.cell_volume(grid=grid_paths["gridT"])
 
-        # -- Neglecting the first T-grid points along i, j dimensions -- #
-        e1t = self[f"{gridT}/e1t"].masked.data.isel({i_name: slice(1, None), j_name: slice(1, None)})
-        e2t = self[f"{gridT}/e2t"].masked.data.isel({i_name: slice(1, None), j_name: slice(1, None)})
-        e3t = self[f"{gridT}/e3t"].masked.data.isel({i_name: slice(1, None), j_name: slice(1, None)})
+        # -- Calculate horizontal divergence on T-points -- #
+        result = ((e2u_e3u * nda_i).diff(dim="i", fillna=True) + (e1v_e3v * nda_j).diff(dim="j", fillna=True))
+        divergence = (1 / e1t_e2t_e3t) * result.masked
 
-        e2u, e3u = self[f"{gridU}/e2u"].masked.data, self[f"{gridU}/e3u"].masked.data
-        e1v, e3v = self[f"{gridV}/e1v"].masked.data, self[f"{gridV}/e3v"].masked.data  
-
-        # -- Calculate divergence on T-points -- #
-        dvar_i = (e2u * e3u * da_i).diff(dim=i_name, label="lower")
-        dvar_i.coords[i_name] = dvar_i.coords[i_name] + 0.5
-
-        dvar_j = (e1v * e3v * da_j).diff(dim=j_name, label="lower")
-        dvar_j.coords[j_name] = dvar_j.coords[j_name] + 0.5
-
-        divergence = (1 / (e1t * e2t * e3t)) * (dvar_i + dvar_j).where(tmask)
-
-        # -- Update DataArray properties -- #
+        # -- Update NEMODataArray properties -- #
         divergence.name = f"div({var_i}, {var_j})"
-        divergence = divergence.drop_vars(
-            [
-                f"{dom_prefix}glamu",
-                f"{dom_prefix}gphiu",
-                f"{dom_prefix}glamv",
-                f"{dom_prefix}gphiv",
-                f"{dom_prefix}depthu",
-                f"{dom_prefix}depthv",
-            ]
-        )
 
         return divergence
 
