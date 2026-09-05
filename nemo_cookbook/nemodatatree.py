@@ -1135,19 +1135,23 @@ class NEMODataTree(xr.DataTree):
         self,
         uv_vars: list[str],
         dom: str = ".",
+        fillna: bool = True,
     ) -> xr.DataArray:
         """
-        Calculate the horizontal divergence of a vector field defined on the NEMO model
+        Calculate the horizontal divergence of a vector field defined on NEMO model
         U and V-grids.
 
         Parameters
         ----------
         uv_vars : list[str]
             Name of vector variables given as a list of i and j components of the
-            vector field, respectively.
+            vector field, respectively (e.g., ['uo', 'vo']).
         dom : str, optional
             Prefix of NEMO domain in the DataTree (e.g., '1', '2', '3', etc.).
             Default is '.' for the parent domain.
+        fillna : bool, optional
+            Fill NaN values in NEMODataArrays with zeros prior to finite differencing.
+            Default is True.
 
         Returns
         -------
@@ -1177,6 +1181,10 @@ class NEMODataTree(xr.DataTree):
             raise ValueError(
                 "dom must be a string specifying the prefix of a NEMO domain (e.g., '.', '1', '2', etc.)."
             )
+        if not isinstance(fillna, bool):
+            raise TypeError(
+                "`fillna` must be specified as a boolean. Default is True."
+            )
 
         # -- Get NEMO model grid properties -- #
         grid_paths = self._get_grid_paths(dom=dom)
@@ -1197,7 +1205,7 @@ class NEMODataTree(xr.DataTree):
         e1t_e2t_e3t = self.cell_volume(grid=grid_paths["gridT"])
 
         # -- Calculate horizontal divergence on T-points -- #
-        result = ((e2u_e3u * nda_i).diff(dim="i", fillna=True) + (e1v_e3v * nda_j).diff(dim="j", fillna=True))
+        result = ((e2u_e3u * nda_i).diff(dim="i", fillna=fillna) + (e1v_e3v * nda_j).diff(dim="j", fillna=fillna))
         divergence = (1 / e1t_e2t_e3t) * result.masked
 
         # -- Update NEMODataArray properties -- #
@@ -1205,40 +1213,42 @@ class NEMODataTree(xr.DataTree):
 
         return divergence
 
-    @deprecated(version_since="2026.03.b1",
-                version_removed="2026.07",
-                alternative="NEMOVectorField.curl from v2026.07 onwards"
-                )
     def curl(
         self,
-        vars: list[str],
+        uv_vars: list[str],
         dom: str = ".",
+        fillna: bool = True,
     ) -> xr.DataArray:
         """
-        Calculate the vertical (k) curl component of a vector field on a NEMO model grid.
+        Calculate the vertical component of the curl of a vector field defined on
+        NEMO model U and V-grids.
 
         Parameters
         ----------
-        vars : list[str]
-            Name of the vector variables, structured as: ['u', 'v'], where 'u' and 'v' are
-            the i and j components of the vector field, respectively.
+        uv_vars : list[str]
+            Name of vector variables given as a list of i and j components of the
+            vector field, respectively (e.g., ['uo', 'vo']).
         dom : str, optional
             Prefix of NEMO domain in the DataTree (e.g., '1', '2', '3', etc.).
             Default is '.' for the parent domain.
+        fillna : bool, optional
+            Fill NaN values in NEMODataArrays with zeros prior to finite differencing.
+            Default is True.
 
         Returns
         -------
         xr.DataArray
-            Vertical curl component of vector field defined on a NEMO model grid.
+            Vertical component of the curl of a vector field defined on NEMO model
+            U and V-grids.
 
         Examples
         --------
         Compute the vertical component of the curl of the seawater velocity field in
         the second NEMO nested child domain:
 
-        >>> nemo.curl(dom="2", vars=["uo", "vo"])
+        >>> nemo.curl(dom="2", uv_vars=["uo", "vo"])
 
-        Note, `vars` expects a list of the `i` and `j` components of the vector field,
+        Note, `uv_vars` expects a list of the `i` and `j` components of the vector field,
         respectively.
 
         See Also
@@ -1246,75 +1256,43 @@ class NEMODataTree(xr.DataTree):
         divergence
         """
         # -- Validate input -- #
-        if not isinstance(vars, list) or len(vars) != 2:
+        if not isinstance(uv_vars, list) or len(uv_vars) != 2:
             raise ValueError(
-                "vars must be a list of two elements structured as ['u', 'v']."
+                "uv_vars must be a list of two strings (e.g., ['uo', 'vo'])."
             )
         if not isinstance(dom, str):
             raise ValueError(
                 "dom must be a string specifying the prefix of a NEMO domain (e.g., '.', '1', '2', etc.)."
             )
+        if not isinstance(fillna, bool):
+            raise TypeError(
+                "`fillna` must be specified as a boolean. Default is True."
+            )
 
         # -- Get NEMO model grid properties -- #
-        dom_prefix, _ = self._get_properties(dom=dom)
         grid_paths = self._get_grid_paths(dom=dom)
-        gridU, gridV, gridF = (
-            grid_paths["gridU"],
-            grid_paths["gridV"],
-            grid_paths["gridF"],
-        )
-        ijk_names = self._get_ijk_names(dom=dom)
-        i_name, j_name = ijk_names["i"], ijk_names["j"]
 
         # -- Define i,j vector components -- #
-        var_i, var_j = vars[0], vars[1]
-        if var_i not in self[gridU].data_vars:
-            raise KeyError(f"variable '{var_i}' not found in grid '{gridU}'.")
-        if var_j not in self[gridV].data_vars:
-            raise KeyError(f"variable '{var_j}' not found in grid '{gridV}'.")
+        var_i, var_j = uv_vars[0], uv_vars[1]
+        if var_i not in self[grid_paths["gridU"]].data_vars:
+            raise KeyError(f"variable '{var_i}' not found in grid '{grid_paths['gridU']}'.")
+        if var_j not in self[grid_paths["gridV"]].data_vars:
+            raise KeyError(f"variable '{var_j}' not found in grid '{grid_paths['gridV']}'.")
 
-        da_i = self[f"{gridU}/{var_i}"].masked.data
-        da_j = self[f"{gridV}/{var_j}"].masked.data
+        nda_i = self[f"{grid_paths['gridU']}/{var_i}"].masked
+        nda_j = self[f"{grid_paths['gridV']}/{var_j}"].masked
 
-        # -- Collect mask -- #
-        if (f"{dom_prefix}depthu" in da_i.coords) and (
-            f"{dom_prefix}depthv" in da_j.coords
-        ):
-            # 3-dimensional fmask
-            fmask = self[gridF]["fmask"]
-        else:
-            # 2-dimensional fmask (unique points):
-            fmask = self[gridF]["fmaskutil"]
+        # -- Collect grid scale factors defined on U, V and F-points -- #
+        e1u = nda_i.metrics["e1"]
+        e2v = nda_j.metrics["e2"]
+        e1f_e2f = self.cell_area(grid=grid_paths["gridF"], dim="k")
 
-        # -- Neglecting the final F-grid points along i, j dimensions -- #
-        e1f = self[f"{gridF}/e1f"].masked.data.isel(
-            {i_name: slice(None, -1), j_name: slice(None, -1)}
-        )
-        e2f = self[f"{gridF}/e2f"].masked.data.isel(
-            {i_name: slice(None, -1), j_name: slice(None, -1)}
-        )
+        # -- Calculate vertical component of the curl on F-points -- #
+        result = ((nda_j * e2v).diff(dim="i", fillna=fillna) - (nda_i * e1u).diff(dim="j", fillna=fillna))
+        curl =  result.masked * (1 / e1f_e2f)
 
-        e1u = self[f"{gridU}/e1u"].masked.data
-        e2v = self[f"{gridV}/e2v"].masked.data
-        # -- Calculate vertical curl component on F-points -- #
-        dvar_i = (e2v * da_j).diff(dim=i_name, label="lower")
-        dvar_i.coords[i_name] = dvar_i.coords[i_name] + 0.5
-
-        dvar_j = (e1u * da_i).diff(dim=j_name, label="lower")
-        dvar_j.coords[j_name] = dvar_j.coords[j_name] + 0.5
-
-        curl = (1 / (e1f * e2f)) * (dvar_i - dvar_j).where(fmask)
-
-        # -- Update DataArray properties -- #
+        # -- Update NEMODataArray properties -- #
         curl.name = f"curl({var_i}, {var_j})"
-        curl = curl.drop_vars(
-            [
-                f"{dom_prefix}glamu",
-                f"{dom_prefix}gphiu",
-                f"{dom_prefix}glamv",
-                f"{dom_prefix}gphiv",
-            ]
-        )
 
         return curl
 
