@@ -473,6 +473,26 @@ The resulting `xarray.Dataset` will be defined on the NEMO model **V**-grid at t
 * Vertical Grid Scale Factors: `e3b`
 * Land-Sea Masks: `bmask`, `bmaskutil`
 
+### Extract a Meridional Section
+
+To extract an approximately meridional hydrographic section, we can use the `.extract_meridional_section()` method.
+
+For example, to extract a section across Drake Passage located at -67°E in the Southern Ocean:
+
+```python
+nemo.extract_meridional_section(lon=-67,
+                                lat_min=-62,
+                                lat_max=-55,
+                                v_vars=["tauvo"],
+                                scalar_vars=['thetao_con', 'so_abs'],
+                                dom='.'
+                                )
+```
+
+Here, we have also provided the names of the meridional vector variable (`tauvo`) and any scalar variables (`thetao_con` and `so_abs`) to be linearly interpolated onto the **U**-grid.
+
+The resulting `xarray.Dataset` will be defined on the NEMO model **U**-grid at the constant i-coordinate whose average longitude is closest to -67°E and is structured analogously to a NEMO model grid node within a `NEMODataTree` as shown above in the `extract_zonal_section()` example above.
+
 ### Extract a Piecewise Section
 
 To extract a piecewise hydrographic section, we can use the `.extract_section()` method.
