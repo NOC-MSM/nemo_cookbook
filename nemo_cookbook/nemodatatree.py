@@ -442,7 +442,7 @@ class NEMODataTree(xr.DataTree):
         cls,
         repo: icechunk.repository.Repository,
         name: str = "NEMO model",
-        iperio: bool = False,
+        iperio: bool | None = None,
         nftype: str | None = None,
         open_kwargs: dict[str, any] | None = None,
         **session_kwargs: dict[str, any],
@@ -460,11 +460,15 @@ class NEMODataTree(xr.DataTree):
         name : str, optional
             Name of the NEMODataTree. Default is "NEMO model".
         
-        iperio: bool = False
-            Zonal periodicity of the parent domain. Default is False.
+        iperio: bool, optional
+            Zonal periodicity of the parent domain. Default is None, meaning iperio
+            will be inferred from the root group global attributes, otherwise False.
         
         nftype: str, optional
-            Type of north fold lateral boundary condition to apply. Options are 'T' for T-point pivot or 'F' for F-point
+            Type of north fold lateral boundary condition to apply. Default is None,
+            meaning nftype will be inferred from the root group global attributes,
+            otherwise None. Options are 'T' for T-point pivot, 'F' for F-point or
+            None.
 
         open_kwargs : dict[str, Any], optional
             Additional keyword arguments to pass to `xarray.open_datatree`.
@@ -494,7 +498,7 @@ class NEMODataTree(xr.DataTree):
             raise TypeError("`repo` must implement readonly_session().")
         if not isinstance(name, str):
             raise TypeError("`name` must be a string.")
-        if not isinstance(iperio, bool):
+        if iperio is not None and not isinstance(iperio, bool):
             raise TypeError("zonal periodicity (`iperio`) of parent domain must be a boolean.")
         if nftype is not None and nftype not in ("T", "F"):
             raise ValueError(
@@ -507,8 +511,10 @@ class NEMODataTree(xr.DataTree):
         nemo = super().from_dict(datatree.to_dict())
 
         # -- Update NEMODataTree properties -- #
-        nemo["/"].attrs.update({"nftype": nftype, "iperio": iperio})
-        nemo.name = name
+        nemo["/"].attrs.update({"nftype": nftype or datatree["/"].attrs.get("nftype", None),
+                                "iperio": iperio or datatree["/"].attrs.get("iperio", False)
+                                })
+        nemo.name = name or datatree["/"].attrs.get("name", None)
 
         # -- Validate NEMO grid node Datasets -- #
         for key in [grid for grid in nemo.groups if grid.startswith("grid")]:
@@ -521,7 +527,7 @@ class NEMODataTree(xr.DataTree):
         cls,
         store: str,
         name: str = "NEMO model",
-        iperio: bool = False,
+        iperio: bool | None = None,
         nftype: str | None = None,
         **open_kwargs: dict[str, any],
     ) -> Self:
@@ -536,12 +542,16 @@ class NEMODataTree(xr.DataTree):
 
         name : str, optional
             Name of the NEMODataTree. Default is "NEMO model".
-        
-        iperio: bool = False
-            Zonal periodicity of the parent domain. Default is False.
+
+        iperio: bool, optional
+            Zonal periodicity of the parent domain. Default is None, meaning iperio
+            will be inferred from the root group global attributes, otherwise False.
         
         nftype: str, optional
-            Type of north fold lateral boundary condition to apply. Options are 'T' for T-point pivot or 'F' for F-point
+            Type of north fold lateral boundary condition to apply. Default is None,
+            meaning nftype will be inferred from the root group global attributes,
+            otherwise None. Options are 'T' for T-point pivot, 'F' for F-point or
+            None.
 
         **open_kwargs : dict[str, Any], optional
             Additional keyword arguments to pass to `xarray.open_datatree`.
@@ -568,7 +578,7 @@ class NEMODataTree(xr.DataTree):
             raise TypeError("`store` must be a string.")
         if not isinstance(name, str):
             raise TypeError("`name` must be a string.")
-        if not isinstance(iperio, bool):
+        if iperio is not None and not isinstance(iperio, bool):
             raise TypeError("zonal periodicity (`iperio`) of parent domain must be a boolean.")
         if nftype is not None and nftype not in ("T", "F"):
             raise ValueError(
@@ -580,8 +590,10 @@ class NEMODataTree(xr.DataTree):
         nemo = super().from_dict(datatree.to_dict())
 
         # -- Update NEMODataTree properties -- #
-        nemo["/"].attrs.update({"nftype": nftype, "iperio": iperio})
-        nemo.name = name
+        nemo["/"].attrs.update({"nftype": nftype or datatree["/"].attrs.get("nftype", None),
+                                "iperio": iperio or datatree["/"].attrs.get("iperio", False)
+                                })
+        nemo.name = name or datatree["/"].attrs.get("name", None)
 
         # -- Validate NEMO grid node Datasets -- #
         for key in [grid for grid in nemo.groups if grid.startswith("grid")]:
