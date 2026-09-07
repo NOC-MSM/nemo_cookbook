@@ -939,7 +939,7 @@ class NEMODataTree(xr.DataTree):
                 cell_area = (
                     self[f"{grid}/e2{grid_suffix}"] * self[f"{grid}/e1{grid_suffix}"]
                 )
-        cell_area.name = "areacello"
+        cell_area.data.name = "areacello"
 
         return cell_area.masked
 
@@ -976,7 +976,7 @@ class NEMODataTree(xr.DataTree):
             * self[f"{grid}/e1{grid_suffix}"]
             * self[f"{grid}/e2{grid_suffix}"]
         )
-        cell_volume.name = "volcello"
+        cell_volume.data.name = "volcello"
 
         return cell_volume.masked
 

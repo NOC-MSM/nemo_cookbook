@@ -15,6 +15,8 @@ import numpy as np
 import pytest
 import xarray as xr
 
+from nemo_cookbook import NEMODataArray
+
 
 class TestCellArea():
     @pytest.mark.parametrize(
@@ -43,6 +45,7 @@ class TestCellArea():
             )
         areacello = nemo.cell_area(grid=grid, dim='i')
 
+        assert isinstance(areacello, NEMODataArray)
         assert areacello.name == "areacello"
         assert areacello.equals(data)
 
@@ -53,6 +56,7 @@ class TestCellArea():
             )
         areacello = nemo.cell_area(grid=grid, dim='j')
 
+        assert isinstance(areacello, NEMODataArray)
         assert areacello.name == "areacello"
         assert areacello.equals(data)
 
@@ -63,6 +67,7 @@ class TestCellArea():
             )
         areacello = nemo.cell_area(grid=grid, dim='k')
 
+        assert isinstance(areacello, NEMODataArray)
         assert areacello.name == "areacello"
         assert areacello.equals(data)
 
@@ -95,6 +100,7 @@ class TestCellVolume():
         volcello = nemo.cell_volume(grid=grid)
 
         # -- Verify equal dims, coords and data values -- #
+        assert isinstance(volcello, NEMODataArray)
         assert volcello.name == "volcello"
         assert volcello.equals(data)
 
