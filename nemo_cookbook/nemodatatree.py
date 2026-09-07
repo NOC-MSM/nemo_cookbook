@@ -904,12 +904,12 @@ class NEMODataTree(xr.DataTree):
 
         Returns
         -------
-        xr.DataArray
+        NEMODataArray
             Grid cell areas (m^2) for the specified NEMO model grid.
 
         Examples
         --------
-        Compute the horizontal area of each grid cell centered on a V-grid point
+        Compute the horizontal area of each grid cell centered on a T-grid point
         in the NEMO parent domain:
 
         >>> nemo.cell_area(grid="gridT", dim="k")
@@ -929,19 +929,19 @@ class NEMODataTree(xr.DataTree):
         match dim:
             case "i":
                 cell_area = (
-                    self[f"{grid}/e3{grid_suffix}"].masked.data * self[f"{grid}/e2{grid_suffix}"].masked.data
+                    self[f"{grid}/e3{grid_suffix}"] * self[f"{grid}/e2{grid_suffix}"]
                 )
             case "j":
                 cell_area = (
-                    self[f"{grid}/e3{grid_suffix}"].masked.data * self[f"{grid}/e1{grid_suffix}"].masked.data
+                    self[f"{grid}/e3{grid_suffix}"] * self[f"{grid}/e1{grid_suffix}"]
                 )
             case "k":
                 cell_area = (
-                    self[f"{grid}/e1{grid_suffix}"].masked.data * self[f"{grid}/e2{grid_suffix}"].masked.data
+                    self[f"{grid}/e2{grid_suffix}"] * self[f"{grid}/e1{grid_suffix}"]
                 )
-        cell_area.name = "areacello"
+        cell_area.data.name = "areacello"
 
-        return cell_area
+        return cell_area.masked
 
     def cell_volume(self, grid: str) -> xr.DataArray:
         """
@@ -955,7 +955,7 @@ class NEMODataTree(xr.DataTree):
 
         Returns
         -------
-        xr.DataArray
+        NEMODataArray
             Grid cell volumes for the specified NEMO model grid.
 
         Examples
@@ -963,7 +963,7 @@ class NEMODataTree(xr.DataTree):
         Compute the volume of each grid cell centered on a V-grid point
         in the NEMO parent domain:
 
-        >>> nemo.cell_volumes(grid="gridV")
+        >>> nemo.cell_volume(grid="gridV")
 
         See Also
         --------
@@ -972,313 +972,132 @@ class NEMODataTree(xr.DataTree):
         grid_suffix = self._get_properties(grid=grid)
 
         cell_volume = (
-            self[f"{grid}/e3{grid_suffix}"].masked.data
-            * self[f"{grid}/e1{grid_suffix}"].masked.data
-            * self[f"{grid}/e2{grid_suffix}"].masked.data
+            self[f"{grid}/e3{grid_suffix}"]
+            * self[f"{grid}/e1{grid_suffix}"]
+            * self[f"{grid}/e2{grid_suffix}"]
         )
-        cell_volume.name = "volcello"
+        cell_volume.data.name = "volcello"
 
-        return cell_volume
+        return cell_volume.masked
 
-    @deprecated(version_since="2026.03.b1",
-                version_removed="2026.07",
-                alternative="NEMODataArray.derivative or NEMOVectorField.gradient from v2026.07 onwards"
-                )
-    def gradient(
-        self,
-        var: str,
-        dim: str,
-        dom: str = ".",
-    ) -> xr.DataArray:
-        """
-        Calculate the gradient of a scalar variable along one dimension (e.g., 'i', 'j', 'k') of a NEMO model grid.
-
-        Parameters
-        ----------
-        var : str
-            Name of the scalar variable.
-        dim : str
-            Dimension along which to calculate gradient (e.g., 'i', 'j', 'k').
-        dom : str, optional
-            Prefix of NEMO domain in the DataTree (e.g., '1', '2', '3', etc.).
-            Default is '.' for the parent domain.
-
-        Returns
-        -------
-        xr.DataArray
-            Gradient of scalar variable defined on a NEMO model grid.
-
-        Examples
-        --------
-        Compute the 'meridional' gradient of sea surface temperature `tos_con`
-        along the NEMO parent domain `j` dimension:
-
-        >>> nemo.gradient(dom='.', var="tos_con", dim="j")
-
-        Compute the vertical gradient of absolute salinity in the first NEMO
-        nested child domain:
-
-        >>> nemo.gradient(dom="1", var="so_abs", dim="k")
-
-        See Also
-        --------
-        integral
-        """
-        # -- Validate input -- #
-        if not isinstance(var, str):
-            raise ValueError(
-                "var must be a string specifying name of the scalar variable."
-            )
-        if not isinstance(dim, str):
-            raise ValueError(
-                "dim must be a string specifying dimension along which to calculate the gradient (e.g., 'i', 'j', 'k')."
-            )
-        if not isinstance(dom, str):
-            raise ValueError(
-                "dom must be a string specifying prefix of a NEMO domain (e.g., '.', '1', '2', etc.)."
-            )
-
-        # -- Get NEMO model grid properties -- #
-        dom_prefix, dom_suffix = self._get_properties(dom=dom)
-        grid_paths = self._get_grid_paths(dom=dom)
-        gridT, gridU, gridV, gridW = (
-            grid_paths["gridT"],
-            grid_paths["gridU"],
-            grid_paths["gridV"],
-            grid_paths["gridW"],
-        )
-
-        if var not in self[gridT].data_vars:
-            raise KeyError(f"variable '{var}' not found in grid '{gridT}'.")
-
-        da = self[f"{gridT}/{var}"].masked.data
-        dim_name = f"{dim}{dom_suffix}"
-        if dim_name not in da.dims:
-            raise KeyError(
-                f"dimension '{dim_name}' not found in variable '{var}'. Dimensions available: {da.dims}."
-            )
-
-        match dim:
-            case "i":
-                if f"{dom_prefix}deptht" in da.coords:
-                    # 3-dimensional umask:
-                    umask = self[gridU]["umask"]
-                else:
-                    # 2-dimensional umask:
-                    umask = self[gridU]["umaskutil"]
-
-                # Zonally Periodic Domain:
-                if self[gridT].attrs.get("iperio", False):
-                    da_end = da.isel({dim_name: 0})
-                    da_end[dim_name] = da[dim_name].max() + 1
-                    da = xr.concat([da, da_end], dim=dim_name)
-                    dvar = da.diff(dim=dim_name, label="lower")
-                else:
-                    # Non-Periodic: pad with NaN values after differencing:
-                    dvar = da.diff(dim=dim_name, label="lower").pad({dim_name: (0, 1)})
-                # Apply u-mask & transform coords -> calculate gradient:
-                dvar.coords[dim_name] = dvar.coords[dim_name] + 0.5
-                gradient = dvar.where(umask) / self[f"{gridU}/e1u"].masked.data
-
-                # Remove redundant depth coordinates:
-                if f"{dom_prefix}deptht" in gradient.coords:
-                    gradient = gradient.drop_vars(
-                        [f"{dom_prefix}deptht"]
-                    ).assign_coords(
-                        {f"{dom_prefix}depthu": self[gridU][f"{dom_prefix}depthu"]}
-                    )
-            case "j":
-                # 3-dimensional vmask:
-                if f"{dom_prefix}deptht" in da.coords:
-                    vmask = self[gridV]["vmask"]
-                else:
-                    # 2-dimensional vmask (unique points):
-                    vmask = self[gridV]["vmaskutil"]
-
-                # Pad with zeros after differencing (zero gradient at jmaxdom):
-                dvar = da.diff(dim=dim_name, label="lower").pad(
-                    {dim_name: (0, 1)}, constant_values=0
-                )
-                # Apply vmask & transform coords -> calculate gradient:
-                dvar.coords[dim_name] = dvar.coords[dim_name] + 0.5
-                gradient = dvar.where(vmask) / self[f"{gridV}/e2v"].masked.data
-
-                if f"{dom_prefix}deptht" in gradient.coords:
-                    gradient = gradient.drop_vars(
-                        [f"{dom_prefix}deptht"]
-                    ).assign_coords(
-                        {f"{dom_prefix}depthv": self[gridV][f"{dom_prefix}depthv"]}
-                    )
-
-            case "k":
-                dvar = da.diff(dim=dim_name, label="lower")
-                # Transform coords & apply w-mask -> calculate gradient:
-                dvar.coords[dim_name] = dvar.coords[dim_name] + 0.5
-                dvar = dvar.where(self[gridW]["wmask"].isel({dim_name: slice(1, None)}))
-                try:
-                    gradient = -dvar / self[f"{gridW}/e3w"].masked.data.isel(
-                        {dim_name: slice(1, None)}
-                    )
-                    gradient = gradient.drop_vars([f"{dom_prefix}deptht"])
-                except KeyError as e:
-                    raise KeyError(
-                        f"NEMO model grid: '{gridW}' does not contain vertical scale factor 'e3w' required to calculate gradients along the k-dimension."
-                    ) from e
-
-        # Update DataArray properties:
-        gradient.name = f"grad_{dim_name}({var})"
-        gradient = gradient.drop_vars([f"{dom_prefix}glamt", f"{dom_prefix}gphit"])
-
-        return gradient
-
-    @deprecated(version_since="2026.03.b1",
-                version_removed="2026.07",
-                alternative="NEMOVectorField.divergence from v2026.07 onwards"
-                )
     def divergence(
         self,
-        vars: list[str],
+        uv_vars: list[str],
         dom: str = ".",
+        fillna: bool = True,
     ) -> xr.DataArray:
         """
-        Calculate the horizontal divergence of a vector field defined on a NEMO model grid.
+        Calculate the horizontal divergence of a vector field defined on NEMO model
+        U and V-grids.
 
         Parameters
         ----------
-        vars : list[str]
-            Name of vector variables, structured as: ['u', 'v'], where
-            'u' and 'v' are the i and j components of the vector field,
-            respectively.
+        uv_vars : list[str]
+            Name of vector variables given as a list of i and j components of the
+            vector field, respectively (e.g., ['uo', 'vo']).
         dom : str, optional
             Prefix of NEMO domain in the DataTree (e.g., '1', '2', '3', etc.).
             Default is '.' for the parent domain.
+        fillna : bool, optional
+            Fill NaN values in NEMODataArrays with zeros prior to finite differencing.
+            Default is True.
 
         Returns
         -------
         xr.DataArray
-            Horizontal divergence of vector field defined on a NEMO model grid.
+            Horizontal divergence of vector field defined on the NEMO model T-grid.
 
         Examples
         --------
         Compute the horizontal divergence of the seawater velocity field in the
         NEMO parent domain:
 
-        >>> nemo.divergence(dom=".", vars=["uo", "vo"])
+        >>> nemo.divergence(dom=".", uv_vars=["uo", "vo"])
 
-        Note, `vars` expects a list of the `i` and `j` components of the vector
+        Note, `uv_vars` expects a list of the `i` and `j` components of the vector
         field, respectively.
 
         See Also
         --------
-        divergence
+        curl
         """
         # -- Validate input -- #
-        if not isinstance(vars, list) or len(vars) != 2:
+        if not isinstance(uv_vars, list) or len(uv_vars) != 2:
             raise ValueError(
-                "vars must be a list of two elements structured as ['u', 'v']."
+                "uv_vars must be a list of two strings (e.g., ['uo', 'vo'])."
             )
         if not isinstance(dom, str):
             raise ValueError(
                 "dom must be a string specifying the prefix of a NEMO domain (e.g., '.', '1', '2', etc.)."
             )
+        if not isinstance(fillna, bool):
+            raise TypeError(
+                "`fillna` must be specified as a boolean. Default is True."
+            )
 
         # -- Get NEMO model grid properties -- #
-        dom_prefix, _ = self._get_properties(dom=dom)
         grid_paths = self._get_grid_paths(dom=dom)
-        gridT, gridU, gridV = (
-            grid_paths["gridT"],
-            grid_paths["gridU"],
-            grid_paths["gridV"],
-        )
-        ijk_names = self._get_ijk_names(dom=dom)
-        i_name, j_name = ijk_names["i"], ijk_names["j"]
 
         # -- Define i,j vector components -- #
-        var_i, var_j = vars[0], vars[1]
-        if var_i not in self[gridU].data_vars:
-            raise KeyError(f"variable '{var_i}' not found in grid '{gridU}'.")
-        if var_j not in self[gridV].data_vars:
-            raise KeyError(f"variable '{var_j}' not found in grid '{gridV}'.")
+        var_i, var_j = uv_vars[0], uv_vars[1]
+        if var_i not in self[grid_paths["gridU"]].data_vars:
+            raise KeyError(f"variable '{var_i}' not found in grid '{grid_paths['gridU']}'.")
+        if var_j not in self[grid_paths["gridV"]].data_vars:
+            raise KeyError(f"variable '{var_j}' not found in grid '{grid_paths['gridV']}'.")
 
-        da_i = self[f"{gridU}/{var_i}"].masked.data
-        da_j = self[f"{gridV}/{var_j}"].masked.data
+        nda_i = self[f"{grid_paths['gridU']}/{var_i}"].masked
+        nda_j = self[f"{grid_paths['gridV']}/{var_j}"].masked
 
-        # -- Collect mask -- #
-        if (f"{dom_prefix}depthu" in da_i.coords) and (
-            f"{dom_prefix}depthv" in da_j.coords
-        ):
-            # 3-dimensional tmask:
-            tmask = self[gridT]["tmask"]
-        else:
-            # 2-dimensional tmask (unique points):
-            tmask = self[gridT]["tmaskutil"]
+        # -- Collect grid scale factors defined on U, V and T-points -- #
+        e2u_e3u = nda_i.metrics["e3"] * nda_i.metrics["e2"]
+        e1v_e3v = nda_j.metrics["e3"] * nda_j.metrics["e1"]
+        e1t_e2t_e3t = self.cell_volume(grid=grid_paths["gridT"])
 
-        # -- Neglecting the first T-grid points along i, j dimensions -- #
-        e1t = self[f"{gridT}/e1t"].masked.data.isel({i_name: slice(1, None), j_name: slice(1, None)})
-        e2t = self[f"{gridT}/e2t"].masked.data.isel({i_name: slice(1, None), j_name: slice(1, None)})
-        e3t = self[f"{gridT}/e3t"].masked.data.isel({i_name: slice(1, None), j_name: slice(1, None)})
+        # -- Calculate horizontal divergence on T-points -- #
+        result = ((e2u_e3u * nda_i).diff(dim="i", fillna=fillna) + (e1v_e3v * nda_j).diff(dim="j", fillna=fillna))
+        divergence = (1 / e1t_e2t_e3t) * result.masked
 
-        e2u, e3u = self[f"{gridU}/e2u"].masked.data, self[f"{gridU}/e3u"].masked.data
-        e1v, e3v = self[f"{gridV}/e1v"].masked.data, self[f"{gridV}/e3v"].masked.data  
-
-        # -- Calculate divergence on T-points -- #
-        dvar_i = (e2u * e3u * da_i).diff(dim=i_name, label="lower")
-        dvar_i.coords[i_name] = dvar_i.coords[i_name] + 0.5
-
-        dvar_j = (e1v * e3v * da_j).diff(dim=j_name, label="lower")
-        dvar_j.coords[j_name] = dvar_j.coords[j_name] + 0.5
-
-        divergence = (1 / (e1t * e2t * e3t)) * (dvar_i + dvar_j).where(tmask)
-
-        # -- Update DataArray properties -- #
+        # -- Update NEMODataArray properties -- #
         divergence.name = f"div({var_i}, {var_j})"
-        divergence = divergence.drop_vars(
-            [
-                f"{dom_prefix}glamu",
-                f"{dom_prefix}gphiu",
-                f"{dom_prefix}glamv",
-                f"{dom_prefix}gphiv",
-                f"{dom_prefix}depthu",
-                f"{dom_prefix}depthv",
-            ]
-        )
 
         return divergence
 
-    @deprecated(version_since="2026.03.b1",
-                version_removed="2026.07",
-                alternative="NEMOVectorField.curl from v2026.07 onwards"
-                )
     def curl(
         self,
-        vars: list[str],
+        uv_vars: list[str],
         dom: str = ".",
+        fillna: bool = True,
     ) -> xr.DataArray:
         """
-        Calculate the vertical (k) curl component of a vector field on a NEMO model grid.
+        Calculate the vertical component of the curl of a vector field defined on
+        NEMO model U and V-grids.
 
         Parameters
         ----------
-        vars : list[str]
-            Name of the vector variables, structured as: ['u', 'v'], where 'u' and 'v' are
-            the i and j components of the vector field, respectively.
+        uv_vars : list[str]
+            Name of vector variables given as a list of i and j components of the
+            vector field, respectively (e.g., ['uo', 'vo']).
         dom : str, optional
             Prefix of NEMO domain in the DataTree (e.g., '1', '2', '3', etc.).
             Default is '.' for the parent domain.
+        fillna : bool, optional
+            Fill NaN values in NEMODataArrays with zeros prior to finite differencing.
+            Default is True.
 
         Returns
         -------
         xr.DataArray
-            Vertical curl component of vector field defined on a NEMO model grid.
+            Vertical component of the curl of a vector field defined on NEMO model
+            U and V-grids.
 
         Examples
         --------
         Compute the vertical component of the curl of the seawater velocity field in
         the second NEMO nested child domain:
 
-        >>> nemo.curl(dom="2", vars=["uo", "vo"])
+        >>> nemo.curl(dom="2", uv_vars=["uo", "vo"])
 
-        Note, `vars` expects a list of the `i` and `j` components of the vector field,
+        Note, `uv_vars` expects a list of the `i` and `j` components of the vector field,
         respectively.
 
         See Also
@@ -1286,75 +1105,43 @@ class NEMODataTree(xr.DataTree):
         divergence
         """
         # -- Validate input -- #
-        if not isinstance(vars, list) or len(vars) != 2:
+        if not isinstance(uv_vars, list) or len(uv_vars) != 2:
             raise ValueError(
-                "vars must be a list of two elements structured as ['u', 'v']."
+                "uv_vars must be a list of two strings (e.g., ['uo', 'vo'])."
             )
         if not isinstance(dom, str):
             raise ValueError(
                 "dom must be a string specifying the prefix of a NEMO domain (e.g., '.', '1', '2', etc.)."
             )
+        if not isinstance(fillna, bool):
+            raise TypeError(
+                "`fillna` must be specified as a boolean. Default is True."
+            )
 
         # -- Get NEMO model grid properties -- #
-        dom_prefix, _ = self._get_properties(dom=dom)
         grid_paths = self._get_grid_paths(dom=dom)
-        gridU, gridV, gridF = (
-            grid_paths["gridU"],
-            grid_paths["gridV"],
-            grid_paths["gridF"],
-        )
-        ijk_names = self._get_ijk_names(dom=dom)
-        i_name, j_name = ijk_names["i"], ijk_names["j"]
 
         # -- Define i,j vector components -- #
-        var_i, var_j = vars[0], vars[1]
-        if var_i not in self[gridU].data_vars:
-            raise KeyError(f"variable '{var_i}' not found in grid '{gridU}'.")
-        if var_j not in self[gridV].data_vars:
-            raise KeyError(f"variable '{var_j}' not found in grid '{gridV}'.")
+        var_i, var_j = uv_vars[0], uv_vars[1]
+        if var_i not in self[grid_paths["gridU"]].data_vars:
+            raise KeyError(f"variable '{var_i}' not found in grid '{grid_paths['gridU']}'.")
+        if var_j not in self[grid_paths["gridV"]].data_vars:
+            raise KeyError(f"variable '{var_j}' not found in grid '{grid_paths['gridV']}'.")
 
-        da_i = self[f"{gridU}/{var_i}"].masked.data
-        da_j = self[f"{gridV}/{var_j}"].masked.data
+        nda_i = self[f"{grid_paths['gridU']}/{var_i}"].masked
+        nda_j = self[f"{grid_paths['gridV']}/{var_j}"].masked
 
-        # -- Collect mask -- #
-        if (f"{dom_prefix}depthu" in da_i.coords) and (
-            f"{dom_prefix}depthv" in da_j.coords
-        ):
-            # 3-dimensional fmask
-            fmask = self[gridF]["fmask"]
-        else:
-            # 2-dimensional fmask (unique points):
-            fmask = self[gridF]["fmaskutil"]
+        # -- Collect grid scale factors defined on U, V and F-points -- #
+        e1u = nda_i.metrics["e1"]
+        e2v = nda_j.metrics["e2"]
+        e1f_e2f = self.cell_area(grid=grid_paths["gridF"], dim="k")
 
-        # -- Neglecting the final F-grid points along i, j dimensions -- #
-        e1f = self[f"{gridF}/e1f"].masked.data.isel(
-            {i_name: slice(None, -1), j_name: slice(None, -1)}
-        )
-        e2f = self[f"{gridF}/e2f"].masked.data.isel(
-            {i_name: slice(None, -1), j_name: slice(None, -1)}
-        )
+        # -- Calculate vertical component of the curl on F-points -- #
+        result = ((nda_j * e2v).diff(dim="i", fillna=fillna) - (nda_i * e1u).diff(dim="j", fillna=fillna))
+        curl =  result.masked * (1 / e1f_e2f)
 
-        e1u = self[f"{gridU}/e1u"].masked.data
-        e2v = self[f"{gridV}/e2v"].masked.data
-        # -- Calculate vertical curl component on F-points -- #
-        dvar_i = (e2v * da_j).diff(dim=i_name, label="lower")
-        dvar_i.coords[i_name] = dvar_i.coords[i_name] + 0.5
-
-        dvar_j = (e1u * da_i).diff(dim=j_name, label="lower")
-        dvar_j.coords[j_name] = dvar_j.coords[j_name] + 0.5
-
-        curl = (1 / (e1f * e2f)) * (dvar_i - dvar_j).where(fmask)
-
-        # -- Update DataArray properties -- #
+        # -- Update NEMODataArray properties -- #
         curl.name = f"curl({var_i}, {var_j})"
-        curl = curl.drop_vars(
-            [
-                f"{dom_prefix}glamu",
-                f"{dom_prefix}gphiu",
-                f"{dom_prefix}glamv",
-                f"{dom_prefix}gphiv",
-            ]
-        )
 
         return curl
 

@@ -288,10 +288,10 @@ To calculate the horizontal divergence from the `i` and `j` components of a vect
 For example, to compute the horizontal divergence from the seawater velocity field in the NEMO model parent domain:
 
 ```python
-nemo.divergence(dom=".", vars=["uo", "vo"])
+nemo.divergence(dom=".", uv_vars=["uo", "vo"])
 ```
 
-where `vars` is a list specifying the names of `i` and `j` vector components, respectively.
+where `uv_vars` is a list specifying the names of `i` and `j` vector components, respectively.
 
 ### Calculate Curl
 
@@ -300,10 +300,10 @@ To calculate the vertical `k` component of the curl of a horizontal vector field
 For example, to compute the vertical component of the curl of the seawater velocity field in the second NEMO nested child domain:
 
 ```python
-nemo.curl(dom="2", vars=["uo", "vo"])
+nemo.curl(dom="2", uv_vars=["uo", "vo"])
 ```
 
-where, as in the case of `.divergence()`, the `vars` argument expects a list of the `i` and `j` components of the vector field, respectively.
+where, as in the case of `.divergence()`, the `uv_vars` argument expects a list of the `i` and `j` components of the vector field, respectively.
 
 ### Calculate Integrals
 
