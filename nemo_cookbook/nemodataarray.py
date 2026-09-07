@@ -909,8 +909,9 @@ class NEMODataArray:
         )
 
         # -- Define integral variable DataArray -- #
-        dim_list = [dim for dim in [self.t_name, "k_new", self.j_name, self.i_name] if (dim is not None) and (dim in result.dims)]
-        result = result.transpose(*dim_list).squeeze(dim="k_new")
+        dims = [dim if dim != "k" else "k_new" for dim in self.dims]
+        result_dims = [dim for dim in dims if dim in result.dims]
+        result = result.transpose(*result_dims).squeeze(dim="k_new")
         result.name = f"integral_z({self.name})"
 
         # -- Apply land-sea mask & return NEMODataArray -- #
@@ -1105,8 +1106,8 @@ class NEMODataArray:
         result.name = da.name
 
         # Reorder dimensions (time_counter, [k], j, i):
-        var_dims = [dim for dim in [self.t_name, self.k_name, self.j_name, self.i_name] if (dim is not None) and (dim in result.dims)]
-        result = result.transpose(*var_dims)
+        result_dims = [dim for dim in self.dims if dim in result.dims]
+        result = result.transpose(*result_dims)
 
         # Normalise by target grid cell weights for flux variables:
         if self._grid_suffix.upper() in ["U", "V"]:
@@ -1192,10 +1193,11 @@ class NEMODataArray:
         )
 
         # -- Construct transformed variable Dataset -- #
-        var_dims = [dim for dim in [self.t_name, "k_new", self.j_name, self.i_name] if (dim is not None) and (dim in var_out.dims)]
+        dims = [dim if dim != "k" else "k_new" for dim in self.dims]
+        var_dims = [dim for dim in dims if dim in var_out.dims]
         var_out = var_out.transpose(*var_dims)
     
-        e3_dims = [dim for dim in [self.t_name, "k_new", self.j_name, self.i_name] if (dim is not None) and (dim in e3_out.dims)]
+        e3_dims = [dim for dim in dims if dim in e3_out.dims]
         e3_out = e3_out.transpose(*e3_dims)
 
         result = xr.Dataset(
@@ -1559,32 +1561,31 @@ class NEMODataArray:
 
     def __repr__(self) -> str:
         return (
-            f"<NEMODataTree '{self._tree.name or 'unnamed'}'>\n"
-            f"  <NEMODataArray '{self.name or 'unnamed'}' (Domain: '{self._dom}', "
-            f"Grid: '{self._grid}', Grid Type: '{self._grid_suffix.upper()}')>\n\n"
+            f"<NEMODataTree  '{self._tree.name or 'unnamed'}' "
+            f"(Domain: '{self._dom}', Grid: '{self._grid}', Grid Type: '{self._grid_suffix.upper()}')>\n\n"
             f"{repr(self._da)}"
         )
 
     def _repr_html_(self) -> str:
         banner = f"""
-        <div style="margin-bottom: 10px;">
-            <div">
-                <span style="color:#6a737d;">NEMODataTree</span> '{self._tree.name or "unnamed"}'
+        <div style="margin-bottom:10px;">
+            <div style="display:flex; align-items:center;
+                        padding-bottom:8px; margin-bottom:8px;
+                        border-bottom:1px solid #d0d7de;">
+                <span style="color:#6a737d; margin-right:12px;">NEMODataTree</span>
+                '{self._tree.name or "unnamed"}'
             </div>
 
-            <div style="margin-left: 18px; margin-top:4px;">
-                <span style="color:#6a737d;">NEMODataArray</span> '{self.name or "unnamed"}'
-                <div>├─ <strong>Domain:</strong> '{self._dom}'</div>
-                <div>├─ <strong>Grid Path:</strong> '{self._grid}'</div>
-                <div>└─ <strong>Grid Type:</strong> '{self._grid_suffix.upper()}'</div>
-            </div>
+            <div><span style="font-family:monospace;">├─</span> <strong>Domain:</strong> '{self._dom}'</div>
+            <div><span style="font-family:monospace;">├─</span> <strong>Grid Path:</strong> '{self._grid}'</div>
+            <div><span style="font-family:monospace;">└─</span> <strong>Grid Type:</strong> '{self._grid_suffix.upper()}'</div>
         </div>
         """
 
         return f"""
-        <div style="border:1px solid #ddd; padding:12px; border-radius:8px;">
+        <div style="padding:12px;">
             {banner}
-            {self.data._repr_html_()}
+            {self.data._repr_html_().replace("xarray.DataArray", "NEMODataArray")}
         </div>
         """
 

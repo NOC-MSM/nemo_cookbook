@@ -28,7 +28,6 @@ from nemo_cookbook.masks import create_polygon_mask, get_mask_boundary
 from nemo_cookbook.nemodataarray import NEMODataArray
 from nemo_cookbook.processing import create_datatree_dict
 from nemo_cookbook.stats import compute_binned_statistic
-from nemo_cookbook.utils import deprecated
 from nemo_cookbook.validation import validate_nemo_grid_node
 
 
@@ -594,6 +593,117 @@ class NEMODataTree(xr.DataTree):
                                 "iperio": iperio or datatree["/"].attrs.get("iperio", False)
                                 })
         nemo.name = name or datatree["/"].attrs.get("name", None)
+
+        # -- Validate NEMO grid node Datasets -- #
+        for key in [grid for grid in nemo.groups if grid.startswith("grid")]:
+            validate_nemo_grid_node(key=key, value=nemo[key])
+
+        return nemo
+
+    def merge(self, trees: list[Self], **kwargs) -> Self:
+        """
+        Merge any number of NEMODataTree objects into a single NEMODataTree.
+
+        Parameters
+        ----------
+        trees : list[NEMODataTree]
+            Merge together all variables in these NEMODataTree objects.
+        **kwargs
+            Additional keyword arguments passed to xarray.merge.
+
+        Returns
+        -------
+        NEMODataTree
+            NEMODataTree with combined variables from the inputs.
+
+        Examples
+        --------
+        Merge the variables from two NEMODataTree objects `nemo` and `nemo_other` into a single NEMODataTree `nemo_merged`:
+
+        >>> nemo_merged = nemo.merge([nemo_other], compat="no_conflicts")
+
+        See Also
+        --------
+        concat
+        """
+        # -- Validate Input -- #
+        if not (isinstance(trees, list) and all(isinstance(tree, NEMODataTree) for tree in trees)):
+            raise TypeError("trees must be a list of NEMODataTree objects to merge into a single NEMODataTree")
+
+        # Merge NEMODataTree underyling xarray.DataTrees:
+        datatree = xr.merge(objects=[self] + trees, **kwargs)
+
+        # Convert the resulting xarray.DataTree into a NEMODataTree:
+        nemo = super().from_dict(datatree.to_dict())
+
+        # -- Update NEMODataTree properties -- #
+        nemo["/"].attrs.update({"nftype": datatree["/"].attrs.get("nftype", None),
+                                "iperio": datatree["/"].attrs.get("iperio", False)
+                                })
+        nemo.name = datatree["/"].attrs.get("name", None)
+
+        # -- Validate NEMO grid node Datasets -- #
+        for key in [grid for grid in nemo.groups if grid.startswith("grid")]:
+            validate_nemo_grid_node(key=key, value=nemo[key])
+
+        return nemo
+
+    def concat(self, trees: list[Self], dim: str | xr.DataArray, **kwargs) -> Self:
+        """
+        Concatenate any number of NEMODataTree objects along a new or existing dimension.
+
+        Parameters
+        ----------
+        trees : list[NEMODataTree]
+            Concatenate together all variables in these NEMODataTree objects.
+        dim : str | xr.DataArray
+            Dimension along which to concatenate the NEMODataTree objects. This can either be a new dimension name,
+            in which case it is added along axis=0, or an existing dimension name, in which case the location of the
+            dimension is unchanged. If dimension is provided as an xarray.DataArray, its name is used as the dimension
+            to concatenate along and its values are added as a coordinate.
+        **kwargs
+            Additional keyword arguments passed to xarray.concat.
+
+        Returns
+        -------
+        NEMODataTree
+            NEMODataTree with concatenated variables from the inputs.
+
+        Examples
+        --------
+        Concatenate two NEMODataTree objects `nemo` and `nemo_other` along an existing dimension `time_counter`:
+
+        >>> nemo_concat = nemo.concat([nemo_other], dim="time_counter")
+
+        Concatenate two NEMODataTree objects `nemo` and `nemo_other` representing ensemble members along a new dimension `ens`:
+
+        >>> ens = xr.DataArray(data=[1,2],
+        ...                    dims="ens",
+        ...                    coords={"ens": ("ens", [1,2])}
+        ...                    )
+        >>> nemo_concat = nemo.concat([nemo_other], dim=ens)
+
+        See Also
+        --------
+        merge
+        """
+        # -- Validate Input -- #
+        if not (isinstance(trees, list) and all(isinstance(tree, NEMODataTree) for tree in trees)):
+            raise TypeError("trees must be a list of NEMODataTree objects to concatenate along a given dimension")
+        if not isinstance(dim, (str, xr.DataArray)):
+            raise TypeError("dim must be a string or an xarray.DataArray specifying the dimension to concatenate along")
+
+        # Concatenate NEMODataTree underlying xarray.DataTrees:
+        datatree = xr.concat(objs=[self] + trees, dim=dim, **kwargs)
+
+        # Convert the resulting xarray.DataTree into a NEMODataTree:
+        nemo = super().from_dict(datatree.to_dict())
+
+        # -- Update NEMODataTree properties -- #
+        nemo["/"].attrs.update({"nftype": datatree["/"].attrs.get("nftype", None),
+                                "iperio": datatree["/"].attrs.get("iperio", False)
+                                })
+        nemo.name = datatree["/"].attrs.get("name", None)
 
         # -- Validate NEMO grid node Datasets -- #
         for key in [grid for grid in nemo.groups if grid.startswith("grid")]:

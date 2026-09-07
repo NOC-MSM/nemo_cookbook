@@ -15,9 +15,85 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from nemo_cookbook import NEMODataArray
+from nemo_cookbook import NEMODataArray, NEMODataTree
 
 
+class TestNEMODataTreeMerge():
+    @pytest.mark.parametrize("trees", [["nemo", "nemo_other"], (xr.DataTree(), xr.DataTree())])
+    def test_trees_errors(self, trees, example_global_nemodatatree):
+        # -- Verify TypeError -- #
+        expected_str = "trees must be a list of NEMODataTree objects to merge into a single NEMODataTree"
+        with pytest.raises(TypeError, match=re.escape(expected_str)):
+            example_global_nemodatatree.merge(trees)
+    @pytest.mark.parametrize("dom_type", ["global", "regional"])
+    def test_merge(self, dom_type, example_global_nemodatatree, example_regional_nemodatatree):
+        # -- Select NEMODataTree based on domain type -- #
+        match dom_type:
+            case "regional":
+                nemo = example_regional_nemodatatree
+                nemo_partial = example_regional_nemodatatree.copy()
+            case "global":
+                nemo = example_global_nemodatatree
+                nemo_partial = example_global_nemodatatree.copy()
+            case _:
+                raise ValueError("dom_type must be 'global' or 'regional'")
+
+        # -- Prepare partially complete NEMODataTrees for merge -- #
+        nemo["gridT"] = nemo["gridT"].dataset.drop_vars(["tos_con"])
+        nemo_partial["gridT"] = nemo_partial["gridT"].dataset.drop_vars(["thetao_con"])
+
+        # -- Verify NEMODataTree is returned -- #
+        nemo_merged = nemo.merge([nemo_partial], compat="no_conflicts")
+        assert isinstance(nemo_merged, NEMODataTree)
+        for node in nemo.groups:
+            assert node in nemo_merged.groups
+
+        # -- Verify variables have been correctly merged -- #
+        assert "tos_con" in nemo_merged["gridT"].data_vars
+        assert "thetao_con" in nemo_merged["gridT"].data_vars
+        assert nemo["gridT"]["thetao_con"].equals(nemo_merged["gridT"]["thetao_con"])
+        assert nemo_partial["gridT"]["tos_con"].equals(nemo_merged["gridT"]["tos_con"])
+
+class TestNEMODataTreeConcat():
+    @pytest.mark.parametrize("trees", [["nemo", "nemo_other"], (xr.DataTree(), xr.DataTree())])
+    def test_trees_errors(self, trees, example_global_nemodatatree):
+        # -- Verify TypeError -- #
+        expected_str = "trees must be a list of NEMODataTree objects to concatenate along a given dimension"
+        with pytest.raises(TypeError, match=re.escape(expected_str)):
+            example_global_nemodatatree.concat(trees, dim="ens")
+    @pytest.mark.parametrize("dim", [["ens"], {"ens": [1,2]}])
+    def test_dim_error(self, dim, example_global_nemodatatree):
+        # -- Verify TypeError -- #
+        expected_str = "dim must be a string or an xarray.DataArray specifying the dimension to concatenate along"
+        with pytest.raises(TypeError, match=re.escape(expected_str)):
+            example_global_nemodatatree.concat(trees=[example_global_nemodatatree], dim=dim)
+    @pytest.mark.parametrize("dom_type", ["global", "regional"])
+    def test_concat(self, dom_type, example_global_nemodatatree, example_regional_nemodatatree):
+        # -- Select NEMODataTree based on domain type -- #
+        match dom_type:
+            case "regional":
+                nemo = example_regional_nemodatatree
+            case "global":
+                nemo = example_global_nemodatatree
+            case _:
+                raise ValueError("dom_type must be 'global' or 'regional'")
+
+        # -- Prepare new ensemble dimension for concatenation -- #
+        ens = xr.DataArray(data=[1,2],
+                           dims="ens",
+                           coords={"ens": ("ens", [1,2])}
+                           )
+
+        # -- Verify NEMODataTree is returned -- #
+        nemo_concat = nemo.concat([nemo], dim=ens)
+        assert isinstance(nemo_concat, NEMODataTree)
+
+        # -- Verify new ensemble dimension exists -- #
+        for node in nemo.groups:
+            assert node in nemo_concat.groups
+            assert "ens" in nemo_concat[node].dims
+            assert nemo_concat[node].sizes["ens"] == 2
+        
 class TestCellArea():
     @pytest.mark.parametrize(
             "dom_type, grid",
