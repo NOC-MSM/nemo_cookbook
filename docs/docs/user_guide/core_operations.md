@@ -67,6 +67,8 @@ Support for method-chaining also includes indexing operations, such as `.sel()`,
 
 ## **Combining**
 
+**Merging**
+
 To combine the variables in multiple NEMODataTree objects into one larger object, we can use the `merge()` method, which takes a list of NEMODataTree objects to merge.
 
 For example, to merge variables contained in two NEMODataTree objects `nemo` and `nemo_other` into a single NEMODataTree `nemo_merged`:
@@ -77,13 +79,14 @@ nemo_merged = nemo.merge([nemo_other], compat="no_conflicts")
 
 Note, we can also pass additional keyword arguments to `xarray.merge()` alongside our list of NEMODataTree objects.
 
+**Concatenating**
+
 To combine NEMODataTree objects along an existing or new dimension into a larger object, we can use the `concat()` method, which takes a list of NEMODataTree objects and a dimension name or `xarray.DataArray` defining the dimension along which to concatenate variables.
 
 For example, to concantenate two NEMODataTree objects `nemo` and `nemo_other` along the existing `time_counter` dimension:
 
 ``` py
 nemo_concat = nemo.concat([nemo_other], dim="time_counter")
-```rged = nemo.merge([nemo_other], compat="no_conflicts")
 ```
 
 The above example works well when the two NEMODataTrees represent different periods of a time-series, but we can also use `concat()` to concatenate multiple NEMODataTrees representing ensemble members of the same simulations along a new dimension.
