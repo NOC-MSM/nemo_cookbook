@@ -53,6 +53,26 @@ The following core dimensions are required to construct a new `NEMODataTree` fro
 
 * **grid{T/U/V/W}**: (`time_counter`, `depth{p}`, `y`, `x`), where *p* is the grid point type.
 
+### Merging NEMODataTrees
+
+To combine the variables in multiple `NEMODataTrees` into one larger `NEMODataTree`, we can use the `merge()` method, which takes a list of `NEMODataTrees` to merge:
+
+```python
+nemo_merged = nemo.merge([nemo_other], compat="no_conflicts")
+```
+
+We can also pass additional keyword arguments to `xarray.merge()` alongside our list of `NEMODataTree` objects. In the example above, we pass `compat="no_conflicts"` to compare variables of the same name such that only values which are not null in both `NEMODataTrees` must be equal.
+
+### Concatenating NEMODataTrees
+
+To combine `NEMODataTrees` along an existing or new dimension into a larger `NEMODataTree`, we can use the `concat()` method, which takes a list of `NEMODataTrees` and a dimension name or `xarray.DataArray` defining the dimension along which to concatenate variables.
+
+```python
+nemo_concat = nemo.concat([nemo_other], dim="time_counter")
+```
+
+Note, the `merge()` and `concat()` methods are simply convienence wrappers to `xarray.merge()` and `xarray.concat()` functions, which handle the process of assembling the resulting `xarray.DataTree` object back into a compliant NEMODataTree.
+
 ### Access NEMO Variables
 
 To access a variable stored in a given grid node of a `NEMODataTree` as an `xarray.DataArray`, we can use the following syntax:
@@ -146,7 +166,7 @@ To drop the absolute salinity values where `my_mask` is `False`, we can optional
 In addition to the more familiar `.sel()` and `.isel()` label based selection methods, the `.sel_like()` method can be used to index a `NEMODataArray` according to the dimension index labels of another `NEMODataArray` or `xarray.DataArray` as follows:
 
 ```python
-nda = nemo["gridT/so_abs"].sel(time_counter=slice('2000-01', '2025-01', k=1))
+nda = nemo["gridT/so_abs"].sel(time_counter=slice('2000-01', '2025-01'), k=1)
 
 nemo["gridT/thetao_con"].sel_like(nda)
 ```
@@ -181,7 +201,7 @@ nemo.cell_volume(grid="gridV")
 
 ### Plotting a NEMODataArray using Geographical Coordinates
 
-To plot a 2-dimensional slice of a `NEMODataArray` as a Catropy `GeoQuadMesh` using its longitude & latitude coordinates (i.e., `glam{t/u/v/w}(j, i)` & `gphi{t/u/v/w}(j, i)`), we can use the `.geoplot()` method.
+To plot a 2-dimensional slice of a `NEMODataArray` as a Cartopy `GeoQuadMesh` using its longitude & latitude coordinates (i.e., `glam{t/u/v/w}(j, i)` & `gphi{t/u/v/w}(j, i)`), we can use the `.geoplot()` method.
 
 For example, to create a geographical plot of sea surface temperature:
 
@@ -324,7 +344,7 @@ We can also use the `.integral()` method to calculate cumulative integrals along
 For example, to calculate the vertical meridional overturning stream function from the meridional velocity `vo` (*zonally integrated meridional velocity accumulated with increasing depth*):
 
 ```python
-nemo["gridV/vo",].integral(dims=["i", "k"], cum_dims=["k"], dir="+1",)
+nemo["gridV/vo"].integral(dims=["i", "k"], cum_dims=["k"], dir="+1")
 ```
 where `dims` is a list of grid dimension names along which integration will be performed, and `cum_dims` specifies which of the dimensions in `dims` should be cumulatively integrated.
 
@@ -354,7 +374,7 @@ For example, to compute the grid cell area-weighted mean sea surface temperature
 nemo["gridT/1_gridT/tos_con"].weighted_mean(dims=["i", "j"], skipna=True)
 ```
 
-where `dims` represent the dimensions of the NEMO model grid to average over. In this example, `dims=["i", "j"]` is equivalent to computing the mean of variable `tos_con` using the horizontal cell area of **T** grid points (i.e., e1t * e2t) as weights.
+where `dims` represents the dimensions of the NEMO model grid to average over. In this example, `dims=["i", "j"]` is equivalent to computing the mean of variable `tos_con` using the horizontal cell area of **T** grid points (i.e., e1t * e2t) as weights.
 
 ### Create Regional Masks using Polygons
 
@@ -373,11 +393,11 @@ To calculate an aggregated statistic from only the model grid cells contained in
 For example, to compute the grid cell area-weighted mean sea surface temperature `tos_con` for a region enclosed in a polygon defined by `lon_poly` and `lat_poly` in a NEMO model nested child domain:
 
 ```python
-nemo["gridT/1_gridT/tos_con",].masked_statistic(lon_poly,
-                                                lat_poly,
-                                                statistic="weighted_mean",
-                                                dims=["i", "j"]
-                                                )
+nemo["gridT/1_gridT/tos_con"].masked_statistic(lon_poly,
+                                               lat_poly,
+                                               statistic="weighted_mean",
+                                               dims=["i", "j"]
+                                               )
 ```
 
 where `dims` represent the dimensions of the NEMO model grid used for aggregation. In this example, combining `statistic="weighted_mean"` and `dims=["i", "j"]` is equivalent to computing the mean of variable `tos_con` using the horizontal cell area of **T** grid points (i.e., e1t * e2t) as weights.

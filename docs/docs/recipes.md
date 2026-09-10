@@ -4,7 +4,7 @@
 
 Each recipe uses the `NEMODataTree` and `NEMODataArray` data structures and their associated methods to calculate a diagnostic using NEMO ocean model outputs.
 
-Just like the [**Cosima Cookook**](https://cosima-recipes.readthedocs.io/en/latest/), each recipe is a self-contained and internally documented Jupyter notebook. 
+Just like the [**Cosima Cookbook**](https://cosima-recipes.readthedocs.io/en/latest/), each recipe is a self-contained and internally documented Jupyter notebook. 
 
 There are several ways to explore our available Recipes:
 
@@ -15,8 +15,36 @@ There are several ways to explore our available Recipes:
     > Note that using [**Google Colab**](https://colab.research.google.com) requires you to pip install nemo_cookbook and its dependencies at the start of your notebook!
 4. Clone the [**NEMO Cookbook**](https://github.com/NOC-MSM/nemo_cookbook) GitHub repository and run the Jupyter notebooks directly from the `recipes/` directory yourself.
 
-### :book: Available Recipes
+## :book: Available Recipes
 ---
+
+### Fundamentals
+
+<div class="grid cards" markdown>
+
+-   __Getting Started__
+
+    ---
+
+    Learn the basics of NEMODataTree and NEMODataArray objects.
+
+    [:octicons-arrow-right-24: View in Docs](https://noc-msm.github.io/nemo_cookbook/recipe_getting_started/)
+
+    [![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/NOC-MSM/nemo_cookbook/blob/main/recipes/recipe_getting_started.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/NOC-MSM/nemo_cookbook/blob/main/recipes/recipe_getting_started.ipynb)
+
+-   __Working with CMIP Data__
+
+    ---
+
+    Creating NEMODataTrees using CMORISED NEMO model outputs & calculating time-evolving vertical grid scale factors.
+
+    [:octicons-arrow-right-24: View in Docs](https://noc-msm.github.io/nemo_cookbook/recipe_cmip6)
+
+    [![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/NOC-MSM/nemo_cookbook/blob/main/recipes/recipe_cmip6.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/NOC-MSM/nemo_cookbook/blob/main/recipes/recipe_cmip6.ipynb)
+
+</div>
+
+### Diagnostics
 
 <div class="grid cards" markdown>
 
@@ -160,6 +188,12 @@ There are several ways to explore our available Recipes:
 
     [![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/NOC-MSM/nemo_cookbook/blob/main/recipes/recipe_extract_mask_boundary.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/NOC-MSM/nemo_cookbook/blob/main/recipes/recipe_extract_mask_boundary.ipynb)
 
+</div>
+
+### Validation
+
+<div class="grid cards" markdown>
+
 -   __Regridding using xESMF__
 
     ---
@@ -169,16 +203,6 @@ There are several ways to explore our available Recipes:
     [:octicons-arrow-right-24: View in Docs](https://noc-msm.github.io/nemo_cookbook/recipe_xesmf)
 
     [![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/NOC-MSM/nemo_cookbook/blob/main/recipes/recipe_xesmf.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/NOC-MSM/nemo_cookbook/blob/main/recipes/recipe_xesmf.ipynb)
-
--   __Working with CMIP Data__
-
-    ---
-
-    Creating NEMODataTrees using CMORISED NEMO model outputs & calculating time-evolving vertical grid scale factors.
-
-    [:octicons-arrow-right-24: View in Docs](https://noc-msm.github.io/nemo_cookbook/recipe_cmip6)
-
-    [![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/NOC-MSM/nemo_cookbook/blob/main/recipes/recipe_cmip6.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/NOC-MSM/nemo_cookbook/blob/main/recipes/recipe_cmip6.ipynb)
 
 </div>
 

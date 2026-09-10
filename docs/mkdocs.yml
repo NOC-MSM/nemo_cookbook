@@ -51,6 +51,8 @@ theme:
 markdown_extensions:
   - attr_list
   - tables
+  - toc:
+      toc_depth: 3
   - pymdownx.emoji:
       emoji_index: !!python/name:material.extensions.emoji.twemoji
       emoji_generator: !!python/name:material.extensions.emoji.to_svg
@@ -60,6 +62,7 @@ markdown_extensions:
       pygments_lang_class: true
   - pymdownx.inlinehilite
   - pymdownx.snippets
+  - pymdownx.superfences
   - admonition
   - pymdownx.details
   - pymdownx.tilde
@@ -72,7 +75,12 @@ markdown_extensions:
 
 nav:
   - Getting started: index.md
-  - User Guide: user_guide.md
+  - User Guide:
+    - Overview: user_guide.md
+    - Terminology: user_guide/terminology.md
+    - NEMO Fundamentals: user_guide/nemo_fundamentals.md
+    - Data Structures: user_guide/data_structures.md
+    - Core Operations: user_guide/core_operations.md
   - Examples: examples.md
   - How To...: howto.md
   - Recipes:
@@ -94,6 +102,7 @@ nav:
       - Vertical Coordinate Transformation: recipe_transform_vertical_coords.ipynb
       - Regridding using xESMF: recipe_xesmf.ipynb
       - Working with CMIP Data: recipe_cmip6.ipynb
+  - Pipelines: pipelines.md
   - API Reference: reference.md
   - Contributing: contributing.md
   - Release Notes: release_notes.md
