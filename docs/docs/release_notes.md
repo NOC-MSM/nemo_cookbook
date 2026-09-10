@@ -1,5 +1,57 @@
 # What's New
 
+## v2026.09.01 - 10th September 2026
+
+### New Features
+
+* **Added `extract_meridional_section()` method to `NEMODataTree`:**
+     * Enables users to extract an approximately meridional section at a chosen longitude from a NEMODataTree.
+     * Hydrographic section will be located at the constant i-coordinate whose average longitude (following selection between lat_min and lat_max) is closest to the given longitude.
+
+* **Added `concat()` and `merge()` methods of `NEMODataTree ` enabling users to merge variables contained in two or more`NEMODataTrees` or concatenate variables contained in two or more `NEMODataTrees` along a new or existing dimension.**
+
+* **Added `geoplot()` method of `NEMODataArray` enabling users to plot a 2-dimensional horizontal slice of a variable in  geographical coordinates using Cartopy.**
+
+### Refactored
+
+* **Updated `divergence()` & `curl()` method of `NEMODataArray` to utilise `NEMODataArray` differencing operations.**
+
+### Bug Fixes
+
+* **Fix bug in` interp_to()` when applied to `NEMODataArrays` in nested NEMO model domains**
+
+### Deprecated
+
+* **Deprecated `NEMODataTree.gradient()` method. Users should use `NEMODataArray.derivative()` to calculate derivatives of scalar and vector variables along a given dimension.**
+
+### Documentation
+
+* **Refactored User Guide to include separate sections on NEMO fundamentals, data structures and core operations.**
+* **Added new `NEMODataTree` & `NEMODataArray` methods to How To... Guide..**
+* **Added new pipelines page to document use of NEMO Pipeline for undertaking NEMO Cookbook diagnostics at scale.**
+
+### Pull Requests
+
+* 36 refactor improve performance of nemodatatree constructors by @oj-tooth in https://github.com/NOC-MSM/nemo_cookbook/pull/39
+* 37 feature add nemodataarraygeoplot method by @oj-tooth in https://github.com/NOC-MSM/nemo_cookbook/pull/40
+* 38 refactor improve performance of clip grid by @oj-tooth in https://github.com/NOC-MSM/nemo_cookbook/pull/41
+* Fix for #43 - bug in interp_to() by @atb299 in https://github.com/NOC-MSM/nemo_cookbook/pull/44
+* 45 update geoplot method to support customisation by @oj-tooth in https://github.com/NOC-MSM/nemo_cookbook/pull/48
+* 46 add support for 3 dimensional depth coordinates by @oj-tooth in https://github.com/NOC-MSM/nemo_cookbook/pull/49
+* 47 add option to retain ghost points in nested nemodatatrees by @oj-tooth in https://github.com/NOC-MSM/nemo_cookbook/pull/50
+* 51 feature add extract meridional section method by @oj-tooth in https://github.com/NOC-MSM/nemo_cookbook/pull/56
+* 57 feature automated iperio nftype and name discovery during nemodatatree creation by @oj-tooth in https://github.com/NOC-MSM/nemo_cookbook/pull/58
+* 55 refactor replace existing nemodatatree curl and divergence methods by @oj-tooth in https://github.com/NOC-MSM/nemo_cookbook/pull/59
+* 60 feature add merge and concat methods to combine nemodatatrees by @oj-tooth in https://github.com/NOC-MSM/nemo_cookbook/pull/61
+* 53 docs refactor the nemo cookbook user guide by @oj-tooth in https://github.com/NOC-MSM/nemo_cookbook/pull/62
+
+## New Contributors
+* @atb299 made their first contribution in https://github.com/NOC-MSM/nemo_cookbook/pull/44
+
+**Full Changelog**: https://github.com/NOC-MSM/nemo_cookbook/compare/v2026.06.01...v2026.09.01
+
+---
+
 ## v2026.06.01 - 23rd June 2026
 
 ### New Features
@@ -42,8 +94,7 @@
 
 **Full Changelog**: https://github.com/NOC-MSM/nemo_cookbook/compare/v2026.04.0b1...v2026.06.01
 
-
-# What's New
+---
 
 ## v2026.04.b1 - 30th April 2026
 
