@@ -11,9 +11,32 @@ Ollie Tooth (oliver.tooth@noc.ac.uk)
 """
 import functools
 import warnings
-from typing import Callable
+from typing import Callable, TypedDict
+
+import xarray as xr
+
+# -- Type Aliases and TypedDict Defintions -- #
+GridPaths = dict[str, str]
+NestedGridPaths = dict[str, GridPaths]
+
+class PathsDict(TypedDict, total=False):
+    parent: GridPaths
+    child: NestedGridPaths
+    grandchild: NestedGridPaths
+
+GridDatasets = dict[str, xr.Dataset]
+NestedGridDatasets = dict[str, GridDatasets]
+
+class DatasetsDict(TypedDict, total=False):
+    parent: GridDatasets
+    child: NestedGridDatasets
+    grandchild: NestedGridDatasets
+
+NestConfig = dict[str, str | int | bool]
+NestsDict = dict[str, NestConfig]
 
 
+# -- Decorators -- #
 def deprecated(
     version_since: str,
     version_removed : str,
