@@ -1431,10 +1431,10 @@ class NEMODataArray:
         
         return ds
 
-    # ----------------
-    # Binary Operators 
-    # ----------------
-    def _binary_op(self, other: Self | xr.DataArray | int | float, op) -> Self:
+    # ------------------------
+    # NEMODataArray Operators 
+    # ------------------------
+    def _operator(self, other: Self | xr.DataArray | int | float, op) -> Self:
         if isinstance(other, NEMODataArray):
             if self.grid != other.grid:
                 raise ValueError(
@@ -1443,7 +1443,7 @@ class NEMODataArray:
         result = op(self._da, self._unwrap(other))
         return self._wrap(result)
 
-    def _rbinary_op(self, other: Self | xr.DataArray | int | float, op) -> Self:
+    def _roperator(self, other: Self | xr.DataArray | int | float, op) -> Self:
         if isinstance(other, NEMODataArray):
             if self.grid != other.grid:
                 raise ValueError(
@@ -1452,52 +1452,80 @@ class NEMODataArray:
         result = op(self._unwrap(other), self._da)
         return self._wrap(result)
 
+    # -- Unary Operators -- #
+    def __neg__(self) -> Self:
+        return self._wrap(operator.neg(self._da))
+    
+    def __pos__(self) -> Self:
+        return self._wrap(operator.pos(self._da))
+    
+    def __abs__(self) -> Self:
+        return self._wrap(operator.abs(self._da))
+
+    # -- Arithmetic Operators -- #
     def __add__(self, other: Self | xr.DataArray | int | float) -> Self:
-        return self._binary_op(other, operator.add)
+        return self._operator(other, operator.add)
     def __radd__(self, other: Self | xr.DataArray | int | float) -> Self:
-        return self._rbinary_op(other, operator.add)
+        return self._roperator(other, operator.add)
     
     def __sub__(self, other: Self | xr.DataArray | int | float) -> Self:
-        return self._binary_op(other, operator.sub)
+        return self._operator(other, operator.sub)
     def __rsub__(self, other: Self | xr.DataArray | int | float) -> Self:
-        return self._rbinary_op(other, operator.sub)
+        return self._roperator(other, operator.sub)
     
     def __mul__(self, other: Self | xr.DataArray | int | float) -> Self:
-        return self._binary_op(other, operator.mul)
+        return self._operator(other, operator.mul)
     def __rmul__(self, other: Self | xr.DataArray | int | float) -> Self:
-        return self._rbinary_op(other, operator.mul)
+        return self._roperator(other, operator.mul)
 
     def __truediv__(self, other: Self | xr.DataArray | int | float) -> Self:
-        return self._binary_op(other, operator.truediv)
+        return self._operator(other, operator.truediv)
     def __rtruediv__(self, other: Self | xr.DataArray | int | float) -> Self:
-        return self._rbinary_op(other, operator.truediv)
-    
+        return self._roperator(other, operator.truediv)
+
+    def __floordiv__(self, other: Self | xr.DataArray | int | float) -> Self:
+        return self._operator(other, operator.floordiv)
+    def __rfloordiv__(self, other: Self | xr.DataArray | int | float) -> Self:
+        return self._roperator(other, operator.floordiv)
+
+    def __mod__(self, other: Self | xr.DataArray | int | float) -> Self:
+        return self._operator(other, operator.mod)
+    def __rmod__(self, other: Self | xr.DataArray | int | float) -> Self:
+        return self._roperator(other, operator.mod)
+
+    def __pow__(self, other: Self | xr.DataArray | int | float) -> Self:
+        return self._operator(other, operator.pow)
+    def __rpow__(self, other: Self | xr.DataArray | int | float) -> Self:
+        return self._roperator(other, operator.pow)
+
+    # -- Bitwise Operators -- #
     def __and__(self, other: Self | xr.DataArray) -> Self:
-        return self._binary_op(other, operator.and_)
+        return self._operator(other, operator.and_)
 
     def __xor__(self, other: Self | xr.DataArray) -> Self:
-        return self._binary_op(other, operator.xor)
+        return self._operator(other, operator.xor)
 
+    # -- Comparison Operators -- #
     def __or__(self, other: Self | xr.DataArray) -> Self:
-        return self._binary_op(other, operator.or_)
+        return self._operator(other, operator.or_)
     
     def __lt__(self, other: Self | xr.DataArray | int | float) -> Self:
-        return self._binary_op(other, operator.lt)
+        return self._operator(other, operator.lt)
 
     def __le__(self, other: Self | xr.DataArray | int | float) -> Self:
-        return self._binary_op(other, operator.le)
+        return self._operator(other, operator.le)
 
     def __gt__(self, other: Self | xr.DataArray | int | float) -> Self:
-        return self._binary_op(other, operator.gt)
+        return self._operator(other, operator.gt)
 
     def __ge__(self, other: Self | xr.DataArray | int | float) -> Self:
-        return self._binary_op(other, operator.ge)
+        return self._operator(other, operator.ge)
 
     def __eq__(self, other: Self | xr.DataArray) -> Self:
-        return self._binary_op(other, nputils.array_eq)
+        return self._operator(other, nputils.array_eq)
 
     def __ne__(self, other: Self | xr.DataArray) -> Self:
-        return self._binary_op(other, nputils.array_ne)
+        return self._operator(other, nputils.array_ne)
     
     # ----------------
     # Utility Methods 

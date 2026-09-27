@@ -237,3 +237,78 @@ class TestNEMODataArrayProperties:
         assert isinstance(masked_nda, NEMODataArray)
         expected = nemo["gridU"]["uo"].where(nemo["gridU"]["umask"])
         assert masked_nda.data.equals(expected)
+
+class TestNEMODataArrayOperators:
+    """
+    Test NEMODataArray Class Operators.
+    """
+    @pytest.mark.parametrize("dom_type", ["global", "regional"])
+    def test_unary_operators(self, dom_type, example_global_nemodatatree, example_regional_nemodatatree):
+        nemo = _get_nemodatatree(dom_type, example_global_nemodatatree, example_regional_nemodatatree)
+        nda = nemo["gridT/tos_con"]
+        # __neg__
+        assert (-nda).data.equals(-nemo["gridT"]["tos_con"])
+        # __pos__
+        assert (+nda).data.equals(+nemo["gridT"]["tos_con"])
+        # __abs__
+        assert (abs(nda)).data.equals(abs(nemo["gridT"]["tos_con"]))
+
+    @pytest.mark.parametrize("dom_type", ["global", "regional"])
+    def test_binary_operators(self, dom_type, example_global_nemodatatree, example_regional_nemodatatree):
+        nemo = _get_nemodatatree(dom_type, example_global_nemodatatree, example_regional_nemodatatree)
+        nda = nemo["gridT/tos_con"]
+        other = nemo["gridT/tos_con"]
+        # __add__
+        assert (nda + other).data.equals(nemo["gridT"]["tos_con"] + nemo["gridT"]["tos_con"])
+        # __radd__
+        assert (2 + nda).data.equals(2 + nemo["gridT"]["tos_con"])
+
+        # __sub__
+        assert (nda - other).data.equals(nemo["gridT"]["tos_con"] - nemo["gridT"]["tos_con"])
+        # __rsub__
+        assert (2 - nda).data.equals(2 - nemo["gridT"]["tos_con"])
+
+        # __mul__
+        assert (nda * other).data.equals(nemo["gridT"]["tos_con"] * nemo["gridT"]["tos_con"])
+        # __rmul__
+        assert (2 * nda).data.equals(2 * nemo["gridT"]["tos_con"])
+
+        # __truediv__
+        assert (nda / other).data.equals(nemo["gridT"]["tos_con"] / nemo["gridT"]["tos_con"])
+        # __rtruediv__
+        assert (2 / nda).data.equals(2 / nemo["gridT"]["tos_con"])
+
+        # __floordiv__
+        assert (nda // other).data.equals(nemo["gridT"]["tos_con"] // nemo["gridT"]["tos_con"])
+        # __rfloordiv__
+        assert (2 // nda).data.equals(2 // nemo["gridT"]["tos_con"])
+
+        # __mod__
+        assert (nda % other).data.equals(nemo["gridT"]["tos_con"] % nemo["gridT"]["tos_con"])
+        # __rmod__
+        assert (2 % nda).data.equals(2 % nemo["gridT"]["tos_con"])
+
+        # __pow__
+        assert (nda ** 2).data.equals(nemo["gridT"]["tos_con"] ** 2)
+        # __rpow__
+        assert (2 ** nda).data.equals(2 ** nemo["gridT"]["tos_con"])
+
+    @pytest.mark.parametrize("dom_type", ["global", "regional"])
+    def test_comparison_operators(self, dom_type, example_global_nemodatatree, example_regional_nemodatatree):
+        nemo = _get_nemodatatree(dom_type, example_global_nemodatatree, example_regional_nemodatatree)
+        nda = nemo["gridT/tos_con"]
+        other = nemo["gridT/tos_con"]
+        # __eq__
+        assert (nda == other).data.equals(nemo["gridT"]["tos_con"] == nemo["gridT"]["tos_con"])
+        # __ne__
+        assert (nda != other).data.equals(nemo["gridT"]["tos_con"] != nemo["gridT"]["tos_con"])
+
+        # __lt__
+        assert (nda < other).data.equals(nemo["gridT"]["tos_con"] < nemo["gridT"]["tos_con"])
+        # __le__
+        assert (nda <= other).data.equals(nemo["gridT"]["tos_con"] <= nemo["gridT"]["tos_con"])
+
+        # __gt__
+        assert (nda > other).data.equals(nemo["gridT"]["tos_con"] > nemo["gridT"]["tos_con"])
+        # __ge__
+        assert (nda >= other).data.equals(nemo["gridT"]["tos_con"] >= nemo["gridT"]["tos_con"])
