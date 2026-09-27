@@ -41,12 +41,31 @@ dependencies = [
   ]
 
 [project.optional-dependencies]
+complete = ["nemo_cookbook[parallel,interactive,virtual]"]
 
-complete = ["nemo_cookbook[parallel,interactive]"]
 parallel = ["dask[complete]"]
-interactive = ["jupyter>=1.1.1", "notebook>=7.4.1", "ipykernel>=6.29.5", "pyarrow>=21.0.0", "cartopy>=0.23", "nc-time-axis", "gsw>=3.6.20",]
+virtual = [
+  "virtualizarr>=2.7.3,<3",
+  "obstore>=0.11.1,<0.12",
+  "obspec_utils>=0.9.0,<0.10",
+  "h5py>=3.13.0,<4",
+]
+interactive = [
+  "jupyter>=1.1.1",
+  "notebook>=7.4.1",
+  "ipykernel>=6.29.5",
+  "pyarrow>=21.0.0",
+  "nc-time-axis",
+  "gsw>=3.6.20",
+]
 tests = ["pytest", "pytest-mock"]
-docs = ["mkdocs-material", "mkdocs-glightbox", "mkdocs-jupyter", "mkdocstrings", "mkdocstrings-python"]
+docs = [
+  "mkdocs-material",
+  "mkdocs-glightbox",
+  "mkdocs-jupyter",
+  "mkdocstrings",
+  "mkdocstrings-python"
+]
 
 [project.urls]
 Repository = "https://github.com/NOC-MSM/nemo_cookbook"

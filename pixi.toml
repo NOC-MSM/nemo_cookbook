@@ -69,6 +69,10 @@ xesmf = ">=0.8.7,<0.10"
 gcsfs = ">=2026.6.0,<2027"
 s3fs = ">=2026.6.0,<2027"
 xeofs = ">=3.0.4,<4"
+virtualizarr = ">=2.7.3,<3"
+obstore = ">=0.11.1,<0.12"
+obspec_utils = ">=0.9.0,<0.10"
+h5py = ">=3.13.0,<4"
 
 [feature.dev.pypi-dependencies]
 oceandatastore = ">=0.3.0, <0.4"

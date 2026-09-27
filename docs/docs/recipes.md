@@ -32,6 +32,16 @@ There are several ways to explore our available Recipes:
 
     [![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/NOC-MSM/nemo_cookbook/blob/main/recipes/recipe_getting_started.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/NOC-MSM/nemo_cookbook/blob/main/recipes/recipe_getting_started.ipynb)
 
+-   __Creating Virtual NEMODataTrees__
+
+    ---
+
+    Creating virtual NEMODataTrees from local collections of NetCDF NEMO model outputs.
+
+    [:octicons-arrow-right-24: View in Docs](https://noc-msm.github.io/nemo_cookbook/recipe_virtual_nemodatatree)
+
+    [![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/NOC-MSM/nemo_cookbook/blob/main/recipes/recipe_virtual_nemodatatree.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/NOC-MSM/nemo_cookbook/blob/main/recipes/recipe_virtual_nemodatatree.ipynb)
+
 -   __Working with CMIP Data__
 
     ---

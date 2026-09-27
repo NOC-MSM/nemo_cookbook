@@ -29,6 +29,7 @@ from nemo_cookbook.nemodataarray import NEMODataArray
 from nemo_cookbook.processing import create_datatree_dict
 from nemo_cookbook.stats import compute_binned_statistic
 from nemo_cookbook.validation import validate_nemo_grid_node
+from nemo_cookbook.virtualize import create_virtual_dataset_dict
 
 
 class NEMODataTree(xr.DataTree):
@@ -597,6 +598,176 @@ class NEMODataTree(xr.DataTree):
         # -- Validate NEMO grid node Datasets -- #
         for key in [grid for grid in nemo.groups if grid.startswith("grid")]:
             validate_nemo_grid_node(key=key, value=nemo[key])
+
+        return nemo
+
+    @classmethod
+    def virtualize_from_paths(
+        cls,
+        prefix: str,
+        paths: dict[str, str],
+        nests: dict[str, str] | None = None,
+        drop_vars: list[str] | None = None,
+        loadable_vars: list[str] | None = None,
+        name : str = "NEMO model",
+        iperio: bool = False,
+        nftype: str | None = None,
+        linssh: bool = False,
+        vco: str = "1d",
+        nbghost_child: int | None = 4,
+    ) -> Self:
+        """
+        Create a virtual NEMODataTree from a dictionary of paths to NEMO model output files,
+        organised into a hierarchy of domains (i.e., 'parent', 'child', 'grandchild').
+
+        Parameters
+        ----------
+        prefix : str
+            Prefix shared by the paths to all NEMO grid files.
+        paths : dict[str, str]
+            Dictionary containing paths to NEMO grid files, structured as:
+            {
+                'parent': {'domain': 'path/to/domain.nc',
+                            'gridT': 'path/to/gridT.nc',
+                            , ... ,
+                            'icemod': 'path/to/icemod.nc',
+                            },
+                'child': {'1': {'domain': 'path/to/child_domain.nc',
+                                'gridT': 'path/to/child_gridT.nc',
+                                , ... ,
+                                'icemod': 'path/to/child_icemod.nc',
+                                },
+                            },
+                'grandchild': {'2': {'domain': 'path/to/grandchild_domain.nc',
+                                        'gridT': 'path/to/grandchild_gridT.nc',
+                                        , ...,
+                                        'icemod': 'path/to/grandchild_icemod.nc',
+                                        },
+                                }
+            }
+
+        nests : dict[str, str], optional
+            Dictionary describing the properties of nested domains, structured as:
+            {
+                "1": {
+                    "parent": "/",
+                    "rx": rx,
+                    "ry": ry,
+                    "imin": imin,
+                    "imax": imax,
+                    "jmin": jmin,
+                    "jmax": jmax,
+                    "iperio": iperio,
+                    },
+            }
+            where `rx` and `ry` are the horizontal refinement factors, and `imin`, `imax`, `jmin`, `jmax`
+            define the indices of the child (grandchild) domain within the parent (child) domain. Zonally
+            periodic nested domains should be specified with `iperio=True`.
+
+        drop_variables : list[str] | None, optional
+            Variables to drop in the virtual datasets before creating the NEMODataTree.
+
+        loadable_variables : list[str] | None, optional
+            Variables to load as Dask/NumPy arrays instead of as virtual arrays before creating the NEMODataTree.
+
+        name: str, optional
+            Name of the Virtual NEMODataTree. Default is "NEMO model".
+
+        iperio: bool = False
+            Zonal periodicity of the parent domain. Default is False.
+
+        nftype: str, optional
+            Type of north fold lateral boundary condition to apply. Options are 'T' for T-point pivot or 'F' for F-point
+            pivot. By default, no north fold lateral boundary condition is applied (None).
+
+        linssh: bool = False
+            Linear free-surface approximation. If True, vertical coordinates are time-independent and given by (e3t_0, e3u_0, e3v_0, e3w_0) in domain_cfg.
+            If False, vertical coordinates are time-dependent and must be specified in NEMO model grid datasets. Default is False.
+
+        vco : str = "1d"
+            Vertical reference variables. Options are '1d' to use 1-dimensional vertical reference coordinates or '3d' to use 3-dimensional vertical reference coordinates (deptht, depthu, depthv, depthw, depthf). Default is '1d'.
+
+        nbghost_child : int | None = 4
+            Number of ghost cells to remove from the western/southern boundaries of the (grand)child domains. Default is 4.
+            If None, no ghost cells are removed and the full (grand)child domain is used.
+
+        Returns
+        -------
+        NEMODataTree
+            Virtual DataTree storing NEMO model outputs.
+
+        Examples
+        --------
+        Create a zonally periodic virtual `NEMODataTree` with north folding on T-points from a dictionary of paths to local netCDF files:
+
+        >>> from nemo_cookbook import NEMODataTree
+        >>> paths = {"parent": {
+        ...          "domain": "/prefix/domain_cfg.nc",
+        ...          "gridT": "/prefix/*_gridT.nc",
+        ...          "gridU": "/prefix/*_gridV.nc",
+        ...          "gridV": "/prefix/*_gridV.nc",
+        ...          "gridW": "/prefix/*_gridW.nc",
+        ...          "icemod": "/prefix/*_icemod.nc",
+        ...          }}
+        >>> nemo = NEMODataTree.virtualize_from_paths(prefix="/prefix", paths=paths, name="My NEMO model", iperio=True, nftype="T")
+
+        Create a regional virtual `NEMODataTree` using a linear free-surface approximation from a dictionary of paths to remote netCDF files:
+
+        >>> nemo = NEMODataTree.virtualize_from_paths(prefix="/prefix", paths=paths, name="My NEMO model", iperio=False, nftype=None, linssh=True)
+
+        See Also
+        --------
+        from_paths
+        """
+        # -- Validate Inputs -- #
+        if not isinstance(prefix, str):
+            raise TypeError("`prefix` must be a string.")
+        if not isinstance(paths, dict):
+            raise TypeError("`paths` must be a dictionary or nested dictionary.")
+        if not isinstance(nests, (dict, type(None))):
+            raise TypeError("`nests` must be a dictionary or None.")
+        if drop_vars is not None and not isinstance(drop_vars, list):
+            raise TypeError("`drop_vars` must be a list of strings or None.")
+        if loadable_vars is not None and not isinstance(loadable_vars, list):
+            raise TypeError("`loadable_vars` must be a list of strings or None.")
+        if not isinstance(name, str):
+            raise TypeError("`name` must be a string.")
+        if not isinstance(iperio, bool):
+            raise TypeError("zonal periodicity (`iperio`) of parent domain must be a boolean.")
+        if nftype is not None and nftype not in ("T", "F"):
+            raise ValueError(
+                "north fold type (`nftype`) of parent domain must be 'T' (T-pivot fold), 'F' (F-pivot fold), or None."
+            )
+        if not isinstance(linssh, bool):
+            raise TypeError("linear free-surface approximation (`linssh`) must be a boolean.")
+        if vco not in ("1d", "3d"):
+            raise ValueError(
+                "vertical reference coordinates (`vco`) must be '1d' (1-dimensional) or '3d' (3-dimensional)."
+            )
+        if not isinstance(nbghost_child, (int, type(None))):
+            raise TypeError(
+                "number of ghost cells along the western/southern boundaries (`nbghost_child`) must be an integer or None."
+            )
+
+        # -- Open Virtual Datasets -- #
+        d_vds = create_virtual_dataset_dict(prefix=prefix,
+                                            paths=paths,
+                                            nests=nests,
+                                            drop_vars=drop_vars,
+                                            loadable_vars=loadable_vars,
+                                            )
+
+        # -- Create Virtual NEMODataTree -- #
+        nemo = NEMODataTree.from_datasets(datasets=d_vds,
+                                          nests=nests,
+                                          name=name,
+                                          iperio=iperio,
+                                          nftype=nftype,
+                                          read_mask=True,
+                                          vco=vco,
+                                          linssh=linssh,
+                                          nbghost_child=nbghost_child,
+                                          )
 
         return nemo
 
