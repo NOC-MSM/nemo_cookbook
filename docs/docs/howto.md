@@ -30,6 +30,8 @@ For NEMO models using a linear free surface approximation (i.e., vertical scale 
 
 Additionally, for NEMO models configured with more complex vertical coordinates (e.g., MEs or sigma-coordinates), such that vertical reference variables (e.g., `depth`) vary spatially, we should also specify `vco="3d"` to include all vertical reference variables as 3-dimensional arrays analogously to using `key_vco_3d` within NEMO itself. By default, a `NEMODataTree` is constructed using 1-dimensional vertical reference variables.
 
+To transfer additional variables included in our `domain_cfg` file to our `NEMODataTree`, we can use `keep_dom_vars` to specify a list of variables defined on **T** grid points which will be retained when we construct our `NEMODataTree`.
+
 ### Create a NEMODataTree from `xarray.Datasets`
 
 Alternatively, we can create a `NEMODataTree` from a dictionary of single or multi-file `xarray.Datasets`. This is particularly valuable when working with remote NEMO model data or Coupled Model Intercomparison Project (CMIP) outputs which require us to reformat coordinate dimensions (see **Example NEMODataTrees**).
