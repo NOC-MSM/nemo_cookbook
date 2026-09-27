@@ -76,6 +76,7 @@ class NEMODataTree(xr.DataTree):
         vco: str = "1d",
         vco_ref: bool = False,
         nbghost_child: int | None = 4,
+        keep_dom_vars: list[str] | None = None,
         **open_kwargs: dict[str, any],
     ) -> Self:
         """
@@ -155,6 +156,9 @@ class NEMODataTree(xr.DataTree):
             Number of ghost cells to remove from the western/southern boundaries of the (grand)child domains. Default is 4.
             If None, no ghost cells are removed and the full (grand)child domain is used.
 
+        keep_dom_vars: list[str] | None = None
+            List of domain_cfg variables defined on T-points to include in NEMODataTree. Default is None, meaning no additional domain_cfg variables are retained.
+
         **open_kwargs : dict, optional
             Additional keyword arguments to pass to `xarray.open_dataset` or `xr.open_mfdataset` when opening NEMO model output files.
         Returns
@@ -216,6 +220,8 @@ class NEMODataTree(xr.DataTree):
             raise TypeError(
                 "number of ghost cells along the western/southern boundaries (`nbghost_child`) must be an integer or None."
             )
+        if not isinstance(keep_dom_vars, (list, type(None))):
+            raise TypeError("`keep_dom_vars` must be a list of strings or None.")
         if not isinstance(open_kwargs, dict):
             raise TypeError("`open_kwargs` must be a dictionary.")
 
@@ -255,6 +261,7 @@ class NEMODataTree(xr.DataTree):
             linssh=linssh,
             vco=vco,
             vco_ref=vco_ref,
+            keep_dom_vars=keep_dom_vars,
             open_kwargs=dict(**open_kwargs),
         )
 
@@ -277,6 +284,7 @@ class NEMODataTree(xr.DataTree):
         vco_ref: bool = False,
         maskcs: bool = False,
         nbghost_child: int | None = 4,
+        keep_dom_vars: list[str] | None = None,
     ) -> Self:
         """
         Create a NEMODataTree from a dictionary of `xarray.Dataset` objects created from NEMO model output files,
@@ -328,6 +336,9 @@ class NEMODataTree(xr.DataTree):
         linssh: bool = False
             Linear free-surface approximation. If True, vertical coordinates are time-independent and given by (e3t_0, e3u_0, e3v_0, e3w_0) in domain_cfg.
             If False, vertical coordinates are time-dependent and must be specified in NEMO model grid datasets. Default is False.
+
+        keep_dom_vars: list[str] | None = None
+            List of domain_cfg variables defined on T-points to include in NEMODataTree. Default is None, meaning no additional domain_cfg variables are retained.
 
         vco : str = "1d"
             Vertical reference variables. Options are '1d' to use 1-dimensional vertical reference coordinates or '3d' to use 3-dimensional vertical reference coordinates (deptht, depthu, depthv, depthw, depthf). Default is '1d'.        
@@ -390,6 +401,8 @@ class NEMODataTree(xr.DataTree):
             )
         if not isinstance(vco_ref, bool):
             raise TypeError("reference vertical coordinates (`vco_ref`) must be a boolean.")
+        if not isinstance(keep_dom_vars, (list, type(None))):
+            raise TypeError("`keep_dom_vars` must be a list of strings or None.")
         if not isinstance(nbghost_child, (int, type(None))):
             raise TypeError(
                 "number of ghost cells along the western/southern boundaries (`nbghost_child`) must be an integer or None."
@@ -430,6 +443,7 @@ class NEMODataTree(xr.DataTree):
             linssh=linssh,
             vco=vco,
             vco_ref=vco_ref,
+            keep_dom_vars=keep_dom_vars,
             nbghost_child=nbghost_child,
         )
 
