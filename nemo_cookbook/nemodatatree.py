@@ -2355,3 +2355,69 @@ class NEMODataTree(xr.DataTree):
 
         return result
 
+    def to_domain_cfg(
+        self,
+        vco_ref: bool = False,
+        ) -> xr.Dataset:
+        """
+        Create a domain_cfg dataset from the coordinates, grid scales factors
+        and land-sea masks contained in a NEMODataTree.
+
+        Parameters
+        ----------
+        vco_ref: bool = False
+            If True, add reference vertical scale factors and compute reference water column heights to domain_cfg. Default is False.
+
+        Returns
+        -------
+        xr.Dataset
+            Dataset containing coordinates, grid scale factors and land-sea masks.
+
+        Examples
+        --------
+        Return domain_cfg dataset from a NEMODataTree including reference vertical scale factors and water column heights:
+
+        >>> nemo.to_domain_cfg(vco_ref=True)
+        """
+        # -- Validate Input -- #
+        if not isinstance(vco_ref, bool):
+            raise TypeError("reference vertical coordinates (`vco_ref`) must be a boolean.")
+
+        # -- Create NEMO domain_cfg Dataset -- #
+        ds_domcfg = xr.Dataset()
+
+        for grid_suffix in ["t", "u", "v", "w", "f"]:
+            # Define list of scale factors, coords & masks:
+            var_list = [
+                f"e1{grid_suffix}",
+                f"e2{grid_suffix}",
+                f"glam{grid_suffix}",
+                f"gphi{grid_suffix}",
+                f"{grid_suffix}mask",
+                f"{grid_suffix}maskutil"
+                ]
+
+            if vco_ref:
+                # Add reference vertical scale factors and water column heights:
+                var_list.extend([f"e3{grid_suffix}_0", f"h_{grid_suffix}0"])
+
+            for var in var_list:
+                if var in self[f"grid{grid_suffix.upper()}"].variables:
+                    # Add grid variables to domain_cfg dataset:
+                    da = self[f"grid{grid_suffix.upper()}"][var]
+                    ds_domcfg[var] = da.drop_vars(da.coords.keys())
+                else:
+                    raise ValueError(f"Missing variable {var} in grid{grid_suffix.upper()}")
+
+        # -- Update dims & coords to NEMO standard domain_cfg names -- #
+        ds_domcfg = (
+            ds_domcfg
+            .rename_dims(dims_dict={"i": "x", "j": "y", "k": "nav_lev"})
+            .assign_coords(coords={
+            "x": ds_domcfg["i"].data,
+            "y": ds_domcfg["j"].data,
+            "nav_lev": ds_domcfg["k"].data
+            })
+            )
+
+        return ds_domcfg
