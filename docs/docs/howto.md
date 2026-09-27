@@ -597,4 +597,16 @@ nemo["gridT/tos_obs"] = NEMODataArray.from_xesmf(da=ds_xesmf["tos_obs"], tree=ne
 
 The resulting `NEMODataArray` can now be used for grid-aware computation and for performing model validation.
 
+### Create a NEMO domain_cfg Dataset from a NEMODataTree
+
+To create a single domain_cfg dataset containing geographical coordinate, grid scale factor and land-sea mask variables for all NEMO grid nodes within a given `NEMODataTree`, we can use the `.to_domain_cfg()` method.
+
+For example, to create a domain_cfg `xarray.Dataset` for a NEMO model parent domain including reference vertical scale factors and water column heights:
+
+```python
+ds_domcfg = nemo.to_domain_cfg(dom=".", vco_ref=True)
+```
+
+The resulting `xarray.Dataset` can now be serialized to a netCDF file and used to construct future `NEMODataTrees` more efficiently by allowing us to pass the `read_mask=True` (i.e., read land-sea masks from input domain_cfg rather than compute on-the-fly from the `top_level` and `bottom_level` variables) argument to either the `.from_paths()` or `.from_datasets()` constructor.
+
 [Recipes]: recipes.md#summary

@@ -649,3 +649,79 @@ class TestExtractZonalSection():
         assert ds_bdy['vo'].dims == ("time_counter", "k", "bdy")
         assert "thetao_con" in ds_bdy.data_vars
         assert ds_bdy['thetao_con'].dims == ("time_counter", "k", "bdy")
+
+
+class TestNEMODataTreeToDomainCfg:
+    @pytest.mark.parametrize("vco_ref", ["False", 0])
+    def test_vco_ref_errors(self, example_global_nemodatatree, vco_ref):
+        # -- Verify TypeError -- #
+        nemo = example_global_nemodatatree
+        with pytest.raises(TypeError, match=re.escape("reference vertical coordinates (`vco_ref`) must be a boolean.")):
+            nemo.to_domain_cfg(dom=".", vco_ref=vco_ref)
+
+    @pytest.mark.parametrize("dom_type", ["global", "regional"])
+    def test_to_domain_cfg(self, dom_type, example_global_nemodatatree, example_regional_nemodatatree):
+        # -- Select NEMODataTree based on domain type -- #
+        match dom_type:
+            case "regional":
+                nemo = example_regional_nemodatatree
+            case "global":
+                nemo = example_global_nemodatatree
+            case _:
+                raise ValueError("dom_type must be 'global' or 'regional'")
+
+        # -- Verify coords, scale factors & masks in the domain_cfg dataset -- #
+        ds_domcfg = nemo.to_domain_cfg(dom=".", vco_ref=False)
+        assert isinstance(ds_domcfg, xr.Dataset)
+
+        for coord in ["x", "y", "nav_lev"]:
+            assert coord in ds_domcfg.coords
+    
+        for grid_suffix in ["t", "u", "v", "w", "f"]:
+            for var in [
+                f"e1{grid_suffix}", f"e2{grid_suffix}",
+                f"glam{grid_suffix}", f"gphi{grid_suffix}",
+                f"{grid_suffix}mask", f"{grid_suffix}maskutil"
+                ]:
+                assert var in ds_domcfg.data_vars
+                assert isinstance(ds_domcfg[var], xr.DataArray)
+
+    @pytest.mark.parametrize("dom_type", ["global", "regional"])
+    def test_to_domain_cfg_vco_ref_error(self, dom_type, example_global_nemodatatree, example_regional_nemodatatree):
+        # -- Select NEMODataTree based on domain type -- #
+        match dom_type:
+            case "regional":
+                nemo = example_regional_nemodatatree
+            case "global":
+                nemo = example_global_nemodatatree
+            case _:
+                raise ValueError("dom_type must be 'global' or 'regional'")
+
+        # -- Verify ValueError is raised when vco_ref variable is missing -- #
+        with pytest.raises(ValueError, match=re.escape("Missing variable e3t_0 in gridT")):
+            nemo.to_domain_cfg(dom=".", vco_ref=True)
+
+    @pytest.mark.parametrize("dom_type", ["global", "regional"])
+    def test_to_domain_cfg_from_datasets(self, dom_type, example_global_nemodatatree, example_regional_nemodatatree):
+        # -- Select NEMODataTree based on domain type -- #
+        match dom_type:
+            case "regional":
+                nemo = example_regional_nemodatatree
+                iperio = False
+                nftype = None
+            case "global":
+                nemo = example_global_nemodatatree
+                iperio = True
+                nftype = "T"
+            case _:
+                raise ValueError("dom_type must be 'global' or 'regional'")
+
+        # -- Verify that the NEMODataTree can be reconstructed from the domain_cfg dataset -- #
+        ds_domcfg = nemo.to_domain_cfg(dom=".", vco_ref=False)
+        nemo_domcfg = NEMODataTree.from_datasets(
+            datasets={"parent": {"domain": ds_domcfg}},
+            read_mask=True,
+            iperio=iperio,
+            nftype=nftype
+            )
+        assert isinstance(nemo_domcfg, NEMODataTree)

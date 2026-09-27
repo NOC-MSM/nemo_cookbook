@@ -10,6 +10,7 @@ Author:
 Ollie Tooth (oliver.tooth@noc.ac.uk)
 """
 
+import re
 from typing import Self
 
 import icechunk
@@ -1025,15 +1026,13 @@ class NEMODataTree(xr.DataTree):
         dict[str, str]
             Dictionary of NEMO model grid paths.
         """
-        # Collect paths to all NEMO model grids:
-        grid_paths = list(dict(self.subtree_with_keys).keys())
-
         if dom == ".":
             grid_paths = [
-                path for path in grid_paths if ("_" not in path) and ("grid" in path)
+                path for path in dict(self.subtree_with_keys) if ("_" not in path) and ("grid" in path)
             ]
         else:
-            grid_paths = [path for path in grid_paths if dom in path]
+            pattern = re.compile(pattern=rf"^[^/]+(?:/\d+_[^/]+)*/{dom}_[^/]+$")
+            grid_paths = [path for path in dict(self.subtree_with_keys) if pattern.fullmatch(string=path)]
 
         d_paths = {path.split("/")[0]: path for path in grid_paths}
 
@@ -2355,3 +2354,91 @@ class NEMODataTree(xr.DataTree):
 
         return result
 
+    def to_domain_cfg(
+        self,
+        dom: str = ".",
+        vco_ref: bool = False,
+        ) -> xr.Dataset:
+        """
+        Create a domain_cfg dataset from the coordinates, grid scales factors
+        and land-sea masks contained in a NEMODataTree.
+
+        Parameters
+        ----------
+        dom : str, optional
+            Prefix of NEMO domain in the DataTree (e.g., '1', '2', '3', etc.).
+            Default is '.' for the parent domain.
+
+        vco_ref : bool, optional
+            If True, add reference vertical scale factors and compute reference water column heights to domain_cfg. Default is False.
+
+        Returns
+        -------
+        xr.Dataset
+            Dataset containing coordinates, grid scale factors and land-sea masks.
+
+        Examples
+        --------
+        Return domain_cfg dataset from a NEMODataTree including reference vertical scale factors and water column heights:
+
+        >>> nemo.to_domain_cfg(vco_ref=True)
+        """
+        # -- Validate Input -- #
+        if not isinstance(dom, str):
+            raise ValueError(
+                "dom must be a string specifying the prefix of a NEMO domain (e.g., '.', '1', '2', etc.)."
+            )
+        if not isinstance(vco_ref, bool):
+            raise TypeError("reference vertical coordinates (`vco_ref`) must be a boolean.")
+
+        # -- Get NEMO model grid properties -- #
+        dom_prefix, dom_suffix = self._get_properties(dom=dom)
+        grid_paths = self._get_grid_paths(dom=dom)
+
+        # -- Create NEMO domain_cfg Dataset -- #
+        ds_domcfg = xr.Dataset()
+
+        for grid_suffix in ["t", "u", "v", "w", "f"]:
+            # Define list of scale factors, coords & masks:
+            var_list = [
+                f"e1{grid_suffix}",
+                f"e2{grid_suffix}",
+                f"{dom_prefix}glam{grid_suffix}",
+                f"{dom_prefix}gphi{grid_suffix}",
+                f"{grid_suffix}mask",
+                f"{grid_suffix}maskutil"
+                ]
+
+            if vco_ref:
+                # Add reference vertical scale factors and water column heights:
+                var_list.extend([f"e3{grid_suffix}_0", f"h_{grid_suffix}0"])
+
+            for var in var_list:
+                if var in self[grid_paths[f"grid{grid_suffix.upper()}"]].variables:
+                    # Add grid variables to domain_cfg dataset:
+                    da = self[grid_paths[f"grid{grid_suffix.upper()}"]][var]
+                    ds_domcfg[var] = da.drop_vars(da.coords.keys())
+                else:
+                    raise ValueError(f"Missing variable {var} in grid{grid_suffix.upper()}")
+
+            if dom != ".":
+                # Optionally rename (grand)child domain coordinates:
+                ds_domcfg = ds_domcfg.rename(
+                    name_dict={
+                        f"{dom_prefix}glam{grid_suffix}": f"glam{grid_suffix}",
+                        f"{dom_prefix}gphi{grid_suffix}": f"gphi{grid_suffix}",
+                    }
+                )
+
+        # -- Update dims & coords to NEMO standard domain_cfg names -- #
+        ds_domcfg = (
+            ds_domcfg
+            .rename_dims(dims_dict={f"i{dom_suffix}": "x", f"j{dom_suffix}": "y", f"k{dom_suffix}": "nav_lev"})
+            .assign_coords(coords={
+            "x": ds_domcfg[f"i{dom_suffix}"].data,
+            "y": ds_domcfg[f"j{dom_suffix}"].data,
+            "nav_lev": ds_domcfg[f"k{dom_suffix}"].data
+            })
+            )
+
+        return ds_domcfg
