@@ -653,10 +653,11 @@ class TestExtractZonalSection():
 
 class TestNEMODataTreeToDomainCfg:
     @pytest.mark.parametrize("vco_ref", ["False", 0])
-    def test_vco_ref_errors(self, vco_ref):
+    def test_vco_ref_errors(self, example_global_nemodatatree, vco_ref):
         # -- Verify TypeError -- #
+        nemo = example_global_nemodatatree
         with pytest.raises(TypeError, match=re.escape("reference vertical coordinates (`vco_ref`) must be a boolean.")):
-            NEMODataTree.from_paths(paths={}, vco_ref=vco_ref)
+            nemo.to_domain_cfg(dom=".", vco_ref=vco_ref)
 
     @pytest.mark.parametrize("dom_type", ["global", "regional"])
     def test_to_domain_cfg(self, dom_type, example_global_nemodatatree, example_regional_nemodatatree):
@@ -670,7 +671,7 @@ class TestNEMODataTreeToDomainCfg:
                 raise ValueError("dom_type must be 'global' or 'regional'")
 
         # -- Verify coords, scale factors & masks in the domain_cfg dataset -- #
-        ds_domcfg = nemo.to_domain_cfg()
+        ds_domcfg = nemo.to_domain_cfg(dom=".", vco_ref=False)
         assert isinstance(ds_domcfg, xr.Dataset)
 
         for coord in ["x", "y", "nav_lev"]:
@@ -698,7 +699,7 @@ class TestNEMODataTreeToDomainCfg:
 
         # -- Verify ValueError is raised when vco_ref variable is missing -- #
         with pytest.raises(ValueError, match=re.escape("Missing variable e3t_0 in gridT")):
-            nemo.to_domain_cfg(vco_ref=True)
+            nemo.to_domain_cfg(dom=".", vco_ref=True)
 
     @pytest.mark.parametrize("dom_type", ["global", "regional"])
     def test_to_domain_cfg_from_datasets(self, dom_type, example_global_nemodatatree, example_regional_nemodatatree):
@@ -716,7 +717,7 @@ class TestNEMODataTreeToDomainCfg:
                 raise ValueError("dom_type must be 'global' or 'regional'")
 
         # -- Verify that the NEMODataTree can be reconstructed from the domain_cfg dataset -- #
-        ds_domcfg = nemo.to_domain_cfg()
+        ds_domcfg = nemo.to_domain_cfg(dom=".", vco_ref=False)
         nemo_domcfg = NEMODataTree.from_datasets(
             datasets={"parent": {"domain": ds_domcfg}},
             read_mask=True,
