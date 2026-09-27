@@ -41,7 +41,7 @@ class TestGetFilepaths():
 class TestNEMODataTreeExamples():
     def test_orca2_nemodatatree(self, example_ORCA2_nemodatatree):
         # -- Create example NEMODataTree for AGRIF_DEMO configuration -- #
-        nemo = example_ORCA2_nemodatatree(linssh=False, vco_ref=False, vco="1d")
+        nemo = example_ORCA2_nemodatatree(linssh=False, vco_ref=False, vco="1d", keep_dom_vars=None)
 
         # -- Verify grid nodes, scale factors & coordinates -- #
         assert isinstance(nemo, xr.DataTree)
@@ -60,7 +60,7 @@ class TestNEMODataTreeExamples():
 
     def test_orca2_linssh_nemodatatree(self, example_ORCA2_nemodatatree):
         # -- Create example linear free-surface NEMODataTree from AGRIF_DEMO configuration -- #
-        nemo = example_ORCA2_nemodatatree(linssh=True, vco_ref=False, vco="1d")
+        nemo = example_ORCA2_nemodatatree(linssh=True, vco_ref=False, vco="1d", keep_dom_vars=None)
 
         # -- Verify grid nodes, scale factors & coordinates -- #
         assert isinstance(nemo, xr.DataTree)
@@ -79,7 +79,7 @@ class TestNEMODataTreeExamples():
 
     def test_orca2_vco_ref_nemodatatree(self, example_ORCA2_nemodatatree):
         # -- Create example vco_ref NEMODataTree from AGRIF_DEMO configuration -- #
-        nemo = example_ORCA2_nemodatatree(linssh=False, vco_ref=True, vco="1d")
+        nemo = example_ORCA2_nemodatatree(linssh=False, vco_ref=True, vco="1d", keep_dom_vars=None)
 
         # -- Verify grid nodes, scale factors & coordinates -- #
         assert isinstance(nemo, xr.DataTree)
@@ -89,6 +89,23 @@ class TestNEMODataTreeExamples():
             grid_suffix = node[-1].lower()
             assert f"e3{grid_suffix}_0" in nemo[node].data_vars
             assert f"h{grid_suffix}_0" in nemo[node].data_vars
+
+        # -- Tear down -- #
+        # Close files associated with NEMODataTree:
+        nemo.close()
+
+    def test_orca2_keep_dom_vars_nemodatatree(self, example_ORCA2_nemodatatree):
+        # -- Create example NEMODataTree from AGRIF_DEMO configuration retained bathmetry variable -- #
+        nemo = example_ORCA2_nemodatatree(linssh=False, vco_ref=False, vco="1d", keep_dom_vars=["bathy_metry"])
+
+        # -- Verify grid nodes & domain_cfg variables -- #
+        assert isinstance(nemo, xr.DataTree)
+        nodes = [entry[0] for entry in list(nemo.subtree_with_keys)]
+        for node in ['gridT', 'gridU', 'gridV', 'gridF']:
+            assert node in nodes
+        # Verify that the domain_cfg variable 'bathy_metry' has been retained:
+        assert "bathy_metry" in nemo["gridT"].data_vars
+        assert nemo["gridT/bathy_metry"].dims == ("j", "i")
 
         # -- Tear down -- #
         # Close files associated with NEMODataTree:

@@ -517,6 +517,7 @@ def _add_domain_vars(
     nftype: str | None = None,
     read_mask: bool = False,
     maskcs: bool = False,
+    keep_dom_vars: list[str] | None = None
 ) -> dict[str, xr.Dataset]:
     """
     Append domain & mask variables to each grid dataset
@@ -559,6 +560,10 @@ def _add_domain_vars(
 
     maskcs : bool = False
         If True, all closed seas are masked using mask_opensea variables from domain files. Default is False.
+
+    keep_dom_vars : list[str] | None = None
+        List of domain variables to include in NEMODataTree. Default is None, meaning no additional
+        domain_cfg variables are retained.
 
     Returns
     -------
@@ -603,6 +608,17 @@ def _add_domain_vars(
                                                                             vco=vco,
                                                                             vco_ref=vco_ref
                                                                             )
+
+    # -- Retain specified domain_cfg variables -- #
+    if keep_dom_vars is not None:
+        for var in keep_dom_vars:
+            if var in domain:
+                d_grids["gridT"][var] = domain[var]
+            else:
+                warnings.warn(
+                    message=f"Cannot include domain variable '{var}' in NEMODataTree - variable not found in domain_cfg dataset.",
+                    stacklevel=2
+                    )
 
     # -- Assign Global Attributes -- #
     d_grids[f"grid{grid_type.upper()}"] = d_grids[f"grid{grid_type.upper()}"].assign_attrs(nftype=nftype, iperio=iperio)
@@ -730,6 +746,7 @@ def _process_parent(
     linssh: bool = False,
     vco: str = "1d",
     vco_ref: bool = False,
+    keep_dom_vars: list[str] | None = None,
     open_kwargs: dict[str, any] | None = None,
 ) -> dict[str, xr.Dataset]:
     """
@@ -784,6 +801,10 @@ def _process_parent(
         If True, add reference vertical scale factors and compute reference water column heights from domain files.
         Default is False.
 
+    keep_dom_vars : list[str] | None = None
+        List of domain variables to include in NEMODataTree. Default is None, meaning no additional
+        domain_cfg variables are retained.
+
     open_kwargs: dict[str, any], optional
         Additional keyword arguments to pass to xarray.open_dataset or xarray.open_mfdataset when opening
         parent grid files. Default is None.
@@ -822,7 +843,8 @@ def _process_parent(
     # Add domain variables to each grid dataset:
     d_grids = _add_domain_vars(
         d_grids=d_grids, linssh=linssh, iperio=iperio, nftype=nftype,
-        read_mask=read_mask, maskcs=maskcs, vco=vco, vco_ref=vco_ref
+        read_mask=read_mask, maskcs=maskcs, vco=vco, vco_ref=vco_ref,
+        keep_dom_vars=keep_dom_vars
     )
 
     # Process T / U / V / W / F grids:
@@ -870,6 +892,7 @@ def _process_child(
     linssh: bool = False,
     vco: str = "1d",
     vco_ref: bool = False,
+    keep_dom_vars: list[str] | None = None,
     open_kwargs: dict[str, any] | None = None,
 ) -> dict[str, xr.Dataset]:
     """
@@ -941,6 +964,10 @@ def _process_child(
         If True, add reference vertical scale factors and compute reference water column heights from domain files.
         Default is False.
 
+    keep_dom_vars : list[str] | None = None
+        List of domain variables to include in NEMODataTree. Default is None, meaning no additional
+        domain_cfg variables are retained.
+
     open_kwargs: dict[str, any], optional
         Additional keyword arguments to pass to xarray.open_dataset or xarray.open_mfdataset when opening
         (grand)child grid files. Default is None.
@@ -987,7 +1014,8 @@ def _process_child(
     # Add child domain variables to each grid:
     d_grids = _add_domain_vars(
         d_grids=d_grids, linssh=linssh, iperio=d_nests["iperio"], nftype=None,
-        read_mask=read_mask, maskcs=maskcs, vco=vco, vco_ref=vco_ref
+        read_mask=read_mask, maskcs=maskcs, vco=vco, vco_ref=vco_ref,
+        keep_dom_vars=keep_dom_vars,
     )
 
     if nbghost_child is not None:
@@ -1075,6 +1103,7 @@ def create_datatree_dict(
     linssh: bool = False,
     vco: str = "1d",
     vco_ref: bool = False,
+    keep_dom_vars: list[str] | None = None,
     open_kwargs: dict[str, any] | None = None,
 ) -> dict[str, xr.Dataset]:
     """
@@ -1111,6 +1140,8 @@ def create_datatree_dict(
         Vertical reference variables. Options are '1d' to use 1-dimensional vertical reference coordinates or '3d' to use 3-dimensional vertical reference coordinates (deptht, depthu, depthv, depthw, depthf). Default is '1d'.  
     vco_ref: bool = False
         If True, add reference vertical scale factors and compute reference water column heights from domain files. Default is False.
+    keep_dom_vars : list[str] | None = None
+        List of domain variables to include in NEMODataTree. Default is None, meaning no additional domain variables are retained.
     open_kwargs : dict[str, any], optional
         Additional keyword arguments passed to `xarray.open_dataset` or `xarray.open_mfdataset` when
         opening NEMO grid files. Default is None.
@@ -1134,6 +1165,7 @@ def create_datatree_dict(
         linssh=linssh,
         vco=vco,
         vco_ref=vco_ref,
+        keep_dom_vars=keep_dom_vars,
         open_kwargs=open_kwargs,
     )
 
@@ -1163,6 +1195,7 @@ def create_datatree_dict(
                     linssh=linssh,
                     vco=vco,
                     vco_ref=vco_ref,
+                    keep_dom_vars=keep_dom_vars,
                     open_kwargs=open_kwargs,
                 )
             )
@@ -1197,6 +1230,7 @@ def create_datatree_dict(
                     linssh=linssh,
                     vco=vco,
                     vco_ref=vco_ref,
+                    keep_dom_vars=keep_dom_vars,
                     open_kwargs=open_kwargs,
                 )
             )

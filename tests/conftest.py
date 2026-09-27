@@ -526,6 +526,7 @@ def example_ORCA2_nemodatatree() -> NEMODataTree:
         linssh: bool = False,
         vco: str = "1d",
         vco_ref: bool = False,
+        keep_dom_vars: list[str] | None = None,
         ) -> NEMODataTree:
         """
         Fixture to create an example ORCA2 global NEMODataTree using AGRIF_DEMO
@@ -541,6 +542,8 @@ def example_ORCA2_nemodatatree() -> NEMODataTree:
             vertical reference coordinates (deptht, depthu, depthv, depthw, depthf). Default is '1d'.        
         vco_ref: bool = False
             If True, add reference vertical scale factors and compute reference water column heights from domain files. Default is False.
+        keep_dom_vars: list[str] | None = None
+            List of domain_cfg variables defined on T-points to include in NEMODataTree. Default is None, meaning no additional domain_cfg variables are retained.
 
         Returns
         -------
@@ -565,7 +568,8 @@ def example_ORCA2_nemodatatree() -> NEMODataTree:
                                        nftype="T",
                                        linssh=linssh,
                                        vco=vco,
-                                       vco_ref=vco_ref
+                                       vco_ref=vco_ref,
+                                       keep_dom_vars=keep_dom_vars
                                        )
 
         return nemo

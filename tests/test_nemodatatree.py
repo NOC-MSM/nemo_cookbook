@@ -90,6 +90,12 @@ class TestNEMODataTreePaths():
         with pytest.raises(TypeError, match=re.escape("reference vertical coordinates (`vco_ref`) must be a boolean.")):
             NEMODataTree.from_paths(paths={}, vco_ref=vco_ref)
 
+    @pytest.mark.parametrize("keep_dom_vars", ["bathymetry", ("bathymetry",)])
+    def test_keep_dom_vars_errors(self, keep_dom_vars):
+        # -- Verify TypeError -- #
+        with pytest.raises(TypeError, match=re.escape("`keep_dom_vars` must be a list of strings or None.")):
+            NEMODataTree.from_paths(paths={}, keep_dom_vars=keep_dom_vars)
+
     @pytest.mark.parametrize("nbghost_child", ["1", 1.5, [4]])
     def test_nbghost_child_errors(self, nbghost_child):
         # -- Verify TypeError -- #
@@ -201,6 +207,12 @@ class TestNEMODataTreeDatasets():
         expected_str = "reference vertical coordinates (`vco_ref`) must be a boolean."
         with pytest.raises(TypeError, match=re.escape(expected_str)):
             NEMODataTree.from_datasets(datasets={}, vco_ref=vco_ref)
+
+    @pytest.mark.parametrize("keep_dom_vars", ["bathymetry", ("bathymetry",)])
+    def test_keep_dom_vars_errors(self, keep_dom_vars):
+        # -- Verify TypeError -- #
+        with pytest.raises(TypeError, match=re.escape("`keep_dom_vars` must be a list of strings or None.")):
+            NEMODataTree.from_datasets(datasets={}, keep_dom_vars=keep_dom_vars)
 
     @pytest.mark.parametrize("nbghost_child", ["1", 1.5, [4]])
     def test_nbghost_child_errors(self, nbghost_child):
