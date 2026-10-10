@@ -841,22 +841,37 @@ class NEMODataArray:
     
     def depth_integral(
         self,
-        limits: tuple[int | float]
+        limits: tuple[
+            float | xr.DataArray | NEMODataArray,
+            float | xr.DataArray | NEMODataArray,
+        ],
+        strict: bool = True,
     ) -> Self:
         """
         Integrate a variable in depth coordinates between two limits.
 
         Parameters
         ----------
-        limits : tuple[int | float]
+        limits : tuple[float | xr.DataArray | NEMODataArray, float | xr.DataArray | NEMODataArray]
             Limits of depth integration given as a tuple of the form
-            (depth_min, depth_max) where depth_min and depth_max are
-            the lower and upper limits of vertical integration, respectively.
+            (depth_min, depth_max), where depth_min and depth_max are the
+            lower and upper limits of vertical integration, respectively.
+            Each limit may be:
+
+            - a scalar
+            - an xarray.DataArray or a NEMODataArray (e.g., spatially varying mixed layer depth)
+
+            Scalar and array-like limits may be mixed.
+
+        strict : bool, optional
+            Validate depth limits are non-negative and increasing before performing integration.
+            Default is True.
 
         Returns
         -------
         NEMODataArray
-            Vertical integral of chosen variable between two depth surfaces (depth_min, depth_max).
+            Vertical integral of chosen variable between depth surfaces
+            (depth_min, depth_max).
 
         Examples
         --------
@@ -865,53 +880,65 @@ class NEMODataArray:
 
         >>> nemo["gridT/thetao_con"].depth_integral(limits=(0, 100))
 
+        Vertically integrate the conservative temperature variable `thetao_con` defined in a
+        NEMO model parent domain over the depth of the spatially varying mixed layer:
+
+        >>> nemo["gridT/thetao_con"].depth_integral(limits=(0, nemo["gridT/mlotst"]))
+
         See Also
         --------
         integral
         """
+        # -- Utility Function -- #
+        def _limit_to_DataArray(value) -> xr.DataArray:
+            """Convert depth limit to xarray.DataArray."""
+            if isinstance(value, NEMODataArray):
+                return value.data.astype(np.float64)
+            if isinstance(value, xr.DataArray):
+                return value.astype(np.float64)
+            arr = np.asarray(a=value, dtype=np.float64)
+            if arr.ndim == 0:
+                return xr.DataArray(data=arr)
+            raise TypeError(
+                f"Limit {value} is multi-dimensional. Expected xarray.DataArray or NEMODataArray for multi-dimensional limits."
+            )
+
         # -- Validate Input -- #
-        if (not isinstance(limits, tuple)) | (len(limits) != 2):
+        if (not isinstance(limits, tuple)) or (len(limits) != 2):
             raise TypeError(
                 "depth limits of integration should be given by a tuple of the form (depth_min, depth_max)"
             )
-        if (limits[0] < 0) | (limits[1] < 0):
-            raise ValueError("depth limits of integration must be non-negative.")
-        if limits[0] >= limits[1]:
+
+        depth_min = _limit_to_DataArray(value=limits[0])
+        depth_max = _limit_to_DataArray(value=limits[1])
+
+        if (self.k_name in depth_min.dims) or (self.k_name in depth_max.dims):
             raise ValueError(
-                "lower depth limit must be less than upper depth limit."
+                f"depth limits of integration cannot include the vertical dimension '{self.k_name}'."
             )
 
+        if strict:
+            if bool((depth_min < 0).any()) or bool((depth_max < 0).any()):
+                raise ValueError("depth limits of integration must be non-negative.")
+            if bool((depth_min >= depth_max).any()):
+                raise ValueError("lower depth limit must be less than upper depth limit.")
+
         # -- Define input variables -- #
-        var_in = (self
-                 .masked
-                 .data
-                 .chunk({self.k_name: -1})
-                 )
- 
-        e3_in = (self.metrics["e3"]
-                 .masked
-                 .data
-                 .chunk({self.k_name: -1})
-                 )
+        var_in = self.masked.data.chunk({self.k_name: -1})
+        e3_in = self.metrics["e3"].masked.data.chunk({self.k_name: -1})
 
         # -- Vertically integrate w.r.t depth -- #
         result = xr.apply_ufunc(
             compute_depth_integral,
             e3_in,
             var_in,
-            np.array([limits[1]]),
-            np.array([limits[0]]),
+            depth_max,
+            depth_min,
             input_core_dims=[[self.k_name], [self.k_name], [], []],
-            output_core_dims=[["k_new"]],
+            output_core_dims=[[]],
             dask="parallelized",
-            output_dtypes=[var_in.dtype],
-            dask_gufunc_kwargs={"output_sizes": {"k_new": 1}},
+            output_dtypes=[np.float64],
         )
-
-        # -- Define integral variable DataArray -- #
-        dims = [dim if dim != "k" else "k_new" for dim in self.dims]
-        result_dims = [dim for dim in dims if dim in result.dims]
-        result = result.transpose(*result_dims).squeeze(dim="k_new")
         result.name = f"integral_z({self.name})"
 
         # -- Apply land-sea mask & return NEMODataArray -- #
