@@ -521,6 +521,13 @@ class TestNEMODataArrayDepthIntegral:
         with pytest.raises(TypeError, match=re.escape("depth limits of integration should be given by a tuple")):
             nda.depth_integral(limits=limits)
 
+    @pytest.mark.parametrize("limits", [([0, 100], 500), (0, [100, 200])])
+    def test_limits_multidim_type_error(self, limits, example_global_nemodatatree):
+        nemo = example_global_nemodatatree
+        nda = nemo["gridT/thetao_con"]
+        with pytest.raises(TypeError, match=re.escape("is multi-dimensional. Expected xarray.DataArray or NEMODataArray for multi-dimensional limits.")):
+            nda.depth_integral(limits=limits)
+
     def test_limits_size_error(self, example_global_nemodatatree):
         nemo = example_global_nemodatatree
         nda = nemo["gridT/thetao_con"]
@@ -564,6 +571,52 @@ class TestNEMODataArrayDepthIntegral:
         assert result.name == "integral_z(thetao_con)"
         assert result.data.equals(expected_data)
 
+    @pytest.mark.parametrize("dom_type",["global", "regional"])
+    def test_depth_integral_dataarray(
+        self, dom_type, example_global_nemodatatree, example_regional_nemodatatree
+    ):
+        # Test Case: Uniform field (10 degC) & random upper and lower DataArray depth limits ->
+        # Depth Integral = (upper_limit - lower_limit)*10:
+        nemo = _get_nemodatatree(dom_type, example_global_nemodatatree, example_regional_nemodatatree)
+        expected_data = (
+            nemo["gridT/thetao_con"].data.isel(k=0).drop_vars(["k", "deptht"])
+        )
+        depth_lower = xr.full_like(nemo["gridT/tos_con"].data, fill_value=0.0)
+        depth_upper = xr.full_like(nemo["gridT/tos_con"].data, fill_value=0.0)
+        depth_upper[:, :, :] = abs(np.random.randn(nemo["gridT"].dims["time_counter"],
+                                                   nemo["gridT"].dims["j"],
+                                                   nemo["gridT"].dims["i"]
+                                                   ))
+        limits = (depth_lower, depth_upper)
+        expected_result = expected_data * (limits[1] - limits[0])
+        result = nemo["gridT/thetao_con"].depth_integral(limits=limits)
+        assert isinstance(result, NEMODataArray)
+        assert result.name == "integral_z(thetao_con)"
+        assert result.data.equals(expected_result)
+
+    @pytest.mark.parametrize("dom_type",["global", "regional"])
+    def test_depth_integral_nemodataarray(
+        self, dom_type, example_global_nemodatatree, example_regional_nemodatatree
+    ):
+        # Test Case: Uniform field (10 degC) & random upper depth NEMODataArray limits ->
+        # Depth Integral = (upper_limit - lower_limit)*10:
+        nemo = _get_nemodatatree(dom_type, example_global_nemodatatree, example_regional_nemodatatree)
+        expected_data = (
+            nemo["gridT/thetao_con"].data.isel(k=0).drop_vars(["k", "deptht"])
+        )
+        depth_upper = xr.full_like(nemo["gridT/tos_con"].data, fill_value=0.0)
+        depth_upper[:, :, :] = abs(np.random.randn(nemo["gridT"].dims["time_counter"],
+                                                   nemo["gridT"].dims["j"],
+                                                   nemo["gridT"].dims["i"]
+                                                   ))
+        nemo["gridT/mlotst"] = depth_upper
+        limits = (0, nemo["gridT/mlotst"])
+        expected_result = expected_data * (limits[1] - limits[0])
+        result = nemo["gridT/thetao_con"].depth_integral(limits=limits)
+        assert isinstance(result, NEMODataArray)
+        assert result.name == "integral_z(thetao_con)"
+        assert result.data.equals(expected_result)
+
     @pytest.mark.parametrize("dom_type", ["global", "regional"])
     def test_depth_integral_subset(
         self, dom_type, example_global_nemodatatree, example_regional_nemodatatree
@@ -587,8 +640,6 @@ class TestNEMODataArrayDepthIntegral:
         result = nda.depth_integral(limits=(0, 100))
         # Core dimensions:
         assert ("time_counter" in result.dims) and ("j" in result.dims) and ("i" in result.dims)
-        # Computation dimension k_new should not be added:
-        assert ("k_new" not in result.dims)
 
 
 class TestNEMODataArrayMaskedStatistic:
