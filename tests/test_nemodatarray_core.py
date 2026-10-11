@@ -38,7 +38,7 @@ class TestNEMODataArrayApplyMask:
     def test_mask_type_error(self, mask_error, example_global_nemodatatree):
         nemo = example_global_nemodatatree
         nda = nemo["gridT/tos_con"]
-        with pytest.raises(TypeError, match=re.escape("mask must be specified as an xarray.DataArray or None.")):
+        with pytest.raises(TypeError, match=re.escape("mask must be specified as an xarray.DataArray, NEMODataArray, or None.")):
             nda.apply_mask(mask=mask_error)
 
     @pytest.mark.parametrize("dom_type", ["global", "regional"])
@@ -63,7 +63,7 @@ class TestNEMODataArrayApplyMask:
         assert (result.data['i'].size == 5) and (result.data['j'].size == 5)
 
     @pytest.mark.parametrize("dom_type", ["global", "regional"])
-    def test_apply_custom_mask(self, dom_type, example_global_nemodatatree, example_regional_nemodatatree):
+    def test_apply_custom_DataArray_mask(self, dom_type, example_global_nemodatatree, example_regional_nemodatatree):
         # Test custom mask is combined with land-sea mask.
         nemo = _get_nemodatatree(dom_type, example_global_nemodatatree, example_regional_nemodatatree)
         nda = nemo["gridT/tos_con"]
@@ -74,6 +74,17 @@ class TestNEMODataArrayApplyMask:
         assert isinstance(result, NEMODataArray)
         assert result.data.equals(expected)
 
+    @pytest.mark.parametrize("dom_type", ["global", "regional"])
+    def test_apply_custom_NEMODataArray_mask(self, dom_type, example_global_nemodatatree, example_regional_nemodatatree):
+        # Test custom mask is combined with land-sea mask.
+        nemo = _get_nemodatatree(dom_type, example_global_nemodatatree, example_regional_nemodatatree)
+        nda = nemo["gridT/tos_con"]
+        # Define custom mask (e.g. mask where SST is greater than 5 degC):
+        custom_mask = nemo['gridT/tos_con'] > 5
+        result = nda.apply_mask(mask=custom_mask)
+        expected = nemo["gridT"]["tos_con"].where(nemo["gridT"]["tmaskutil"] & custom_mask.data)
+        assert isinstance(result, NEMODataArray)
+        assert result.data.equals(expected)
 
 class TestNEMODataArrayClip():
     @pytest.mark.parametrize("bbox", [[0, 1, 0, 2], (0, 1), "0 1 2 3"])

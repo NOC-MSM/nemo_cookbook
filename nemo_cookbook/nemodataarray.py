@@ -254,7 +254,7 @@ class NEMODataArray:
     # ---------------
     def apply_mask(
         self,
-        mask: xr.DataArray | None = None,
+        mask: xr.DataArray | NEMODataArray | None = None,
         drop: bool = False
     ) -> Self:
         """
@@ -263,7 +263,7 @@ class NEMODataArray:
 
         Parameters
         ----------
-        mask : xr.DataArray | None
+        mask : xr.DataArray | NEMODataArray | None
             Boolean mask to apply to variable defined on NEMO model grid. Default is None
             meaning only land-sea mask of NEMO parent grid is applied.
         drop : bool, optional
@@ -291,10 +291,12 @@ class NEMODataArray:
         """
         # -- Validate Inputs -- #
         if mask is not None:
-            if not isinstance(mask, xr.DataArray):
-                raise TypeError("mask must be specified as an xarray.DataArray or None.")
+            if not isinstance(mask, (xr.DataArray, NEMODataArray)):
+                raise TypeError("mask must be specified as an xarray.DataArray, NEMODataArray, or None.")
         if mask is None:
             mask = self.mask
+        elif isinstance(mask, NEMODataArray):
+            mask = (self.mask & mask.data)
         else:
             mask = (self.mask & mask)
 
@@ -306,7 +308,7 @@ class NEMODataArray:
                           )
             mask = mask.load()
 
-        result = self._da.where(mask, drop=drop)
+        result = self._da.where(cond=mask, drop=drop)
 
         return self._wrap(result)
         
