@@ -58,16 +58,6 @@ There are several ways to explore our available Recipes:
 
 <div class="grid cards" markdown>
 
--   __Getting Started__
-
-    ---
-
-    Learn the basics of NEMODataTree and NEMODataArray objects.
-
-    [:octicons-arrow-right-24: View in Docs](https://noc-msm.github.io/nemo_cookbook/recipe_getting_started/)
-
-    [![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/NOC-MSM/nemo_cookbook/blob/main/recipes/recipe_getting_started.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/NOC-MSM/nemo_cookbook/blob/main/recipes/recipe_getting_started.ipynb)
-
 -   __Meridional Overturning - Tracer__
 
     ---
@@ -158,6 +148,16 @@ There are several ways to explore our available Recipes:
 
     [![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/NOC-MSM/nemo_cookbook/blob/main/recipes/recipe_heat_content.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/NOC-MSM/nemo_cookbook/blob/main/recipes/recipe_heat_content.ipynb)
 
+-   __Mixed Layer Heat Content__
+
+    ---
+
+    Ocean heat content of the surface mixed layer using depth integration.
+
+    [:octicons-arrow-right-24: View in Docs](https://noc-msm.github.io/nemo_cookbook/recipe_mixed_layer_heat_content/)
+
+    [![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/NOC-MSM/nemo_cookbook/blob/main/recipes/recipe_mixed_layer_heat_content.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/NOC-MSM/nemo_cookbook/blob/main/recipes/recipe_mixed_layer_heat_content.ipynb)
+
 -   __Vertical Coordinate Transformations__
 
     ---
@@ -222,13 +222,11 @@ There are several ways to explore our available Recipes:
 
 1. Meridional overturning stream functions in multi-envelope sigma coordinates.
 
-2. Ocean heat content & mixed layer heat content. 
+2. Vorticity diagnostics.
 
-3. Vorticity diagnostics.
+3. Eddy kinetic energy.
 
-4. Eddy kinetic energy.
-
-5. Geostrophic velocities from sea surface height.
+4. Geostrophic velocities from sea surface height.
 
 ### Contributing New Recipes...
 ---

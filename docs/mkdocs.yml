@@ -3,7 +3,7 @@ site_url: https://noc-msm.github.io/nemo_cookbook/
 
 repo_url: https://github.com/NOC-MSM/nemo_cookbook
 repo_name: nemo_cookbook
-edit_uri: edit/main/docs/
+edit_uri: edit/main/docs/docs/
 
 theme:
   name: material
@@ -94,6 +94,7 @@ nav:
       - Ocean Heat Transport: recipe_heat_transport.ipynb
       - Barotropic Stream Functions: recipe_barotropic_sf.ipynb
       - Ocean Heat Content: recipe_heat_content.ipynb
+      - Mixed Layer Heat Content: recipe_mixed_layer_heat_content.ipynb
       - Regional Masked Statistics: recipe_masked_stats.ipynb
       - Sea Ice Diagnostics: recipe_sea_ice.ipynb
       - Volume Census in T-S Space: recipe_volume_census.ipynb
