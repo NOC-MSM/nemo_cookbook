@@ -7,6 +7,11 @@ Thank you for your interest in contributing to **NEMO Cookbook**!
 
 We welcome contributions from the community to help us support the reproducible analysis of NEMO model outputs.
 
+!!! info "Important"
+    **Please review our policy on [Using AI for development] before contributing to NEMO Cookbook.** 
+
+[using AI for development]: policies.md#using-ai-for-nemo-cookbook-development
+
 ### **Getting Started**
 ---
 

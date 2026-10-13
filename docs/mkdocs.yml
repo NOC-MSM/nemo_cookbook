@@ -106,8 +106,10 @@ nav:
       - Regridding using xESMF: recipe_xesmf.ipynb
   - Pipelines: pipelines.md
   - API Reference: reference.md
-  - Contributing: contributing.md
-  - Release Notes: release_notes.md
+  - Development:
+    - Contributing: contributing.md
+    - Policies: policies.md
+    - Release Notes: release_notes.md
 
 plugins:
   - search
