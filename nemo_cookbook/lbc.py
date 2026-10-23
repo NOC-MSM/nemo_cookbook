@@ -377,14 +377,9 @@ def lbc_nfd(
             "Invalid psgn. Options are 1 for positive and -1 for negative."
         )
 
-    if "x" not in ptab.coords:
-        raise ValueError("DataArray must have 'x' coordinate.")
-    if "y" not in ptab.coords:
-        raise ValueError("DataArray must have 'y' coordinate.")
-
     # === Define domain parameters === #
-    ipi = ptab.coords["x"].size
-    ipj = ptab.coords["y"].size
+    ipi = ptab.sizes[ptab.dims[-1]]
+    ipj = ptab.sizes[ptab.dims[-2]]
     Ni0glo = ipi - 2 * ihls
 
     # === Apply North Fold LBC === #
