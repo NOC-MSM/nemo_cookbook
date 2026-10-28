@@ -26,8 +26,7 @@ def _add_parent_indices(
     label: str
     ) -> xr.Dataset:
     """
-    Add coordinates mapping parent domain (i, j) indices
-    to child domain (ip_c, jp_c) indices.
+    Add coordinates mapping parent domain (i, j) indices to child domain (ip_c, jp_c) indices.
 
     Parameters
     ----------
@@ -199,8 +198,7 @@ def _check_grid_dims(ds: xr.Dataset, grid: str) -> None:
 
 def _check_grid_datasets(d: dict[str, xr.Dataset]) -> dict[str, xr.Dataset]:
     """
-    Check compatibility of NEMO model grid xarray Datasets for
-    creating a NEMODataTree.
+    Check compatibility of NEMO model grid xarray Datasets for creating a NEMODataTree.
 
     Parameters
     ----------
@@ -330,8 +328,7 @@ def _add_scale_factors_and_coords(
     vco_ref: bool = False,
 ) -> dict[str, xr.Dataset]:
     """
-    Append grid cell scale factors and geographical coordinates
-    to a NEMO model grid dataset.
+    Append grid cell scale factors and geographical coordinates to a NEMO model grid dataset.
 
     Parameters
     ----------
@@ -520,8 +517,7 @@ def _add_domain_vars(
     keep_dom_vars: list[str] | None = None
 ) -> dict[str, xr.Dataset]:
     """
-    Append domain & mask variables to each grid dataset
-    defining a NEMO model domain.
+    Append domain & mask variables to each grid dataset defining a NEMO model domain.
 
     Parameters
     ----------
@@ -582,7 +578,7 @@ def _add_domain_vars(
         # Remove singleton dimensions from domain dataset:
         domain = d_grids["domain"].squeeze(drop=True)
         # Drop legacy domain coordinates to prevent broadcasting conflicts:
-        for coord in ("nav_lon", "nav_lat", "nav_lev", "y", "x"):
+        for coord in ("time_counter", "nav_lon", "nav_lat", "nav_lev", "y", "x"):
             if coord in domain:
                 domain = domain.drop_vars(coord)
     else:
@@ -862,7 +858,7 @@ def _process_parent(
         )
 
     # Define root node inheritable coords & attrs from first non-domain grid.
-    root_name = [grid for grid in d_parent.keys() if grid != "domain"][0]
+    root_name = next(iter([grid for grid in d_parent.keys() if grid != "domain"]))
     # Handle case where icemod is only non-domain grid:
     root_name = "gridT" if root_name == "icemod" else root_name
     d_root = d_proc_grids[root_name].drop_dims(["j", "i", "k"])
@@ -1107,8 +1103,7 @@ def create_datatree_dict(
     open_kwargs: dict[str, any] | None = None,
 ) -> dict[str, xr.Dataset]:
     """
-    Create Dictionary of DataTree paths (keys) and xarray Datasets (values)
-    representing a collection of NEMO model grids.
+    Create Dictionary of DataTree paths (keys) and xarray Datasets (values) representing a collection of NEMO model grids.
 
     Parameters
     ----------
