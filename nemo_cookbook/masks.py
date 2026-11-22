@@ -1,5 +1,5 @@
 """
-mask.py
+masks.py.
 
 Description:
 This module includes functions to compute land/sea masks,
@@ -15,7 +15,7 @@ import xarray as xr
 from matplotlib.path import Path
 from skimage import measure
 
-from nemo_cookbook.lbc import lbc_nfd
+from nemo_cookbook.lbc import _apply_lbc_nfd
 
 
 def read_dom_mask(
@@ -25,12 +25,10 @@ def read_dom_mask(
     mask_opensea: xr.DataArray = None,
 ) -> xr.DataArray:
     """
-    Read land/ocean mask arrays at tracer points, horizontal velocity
-    points (u & v) and vorticity points (f) points from domain dataset.
+    Read land/ocean mask arrays at tracer points, horizontal velocity points (u & v) and vorticity points (f) points from domain dataset.
 
-    Expected dimensions are: (y, x) for 2D arrays and (nav_lev) for
-    1D vertical level array. All dimensions are expected to use
-    zero-based indexing.
+    Expected dimensions are: (y, x) for 2D arrays and (nav_lev) for 1D vertical level array.
+    All dimensions are expected to use zero-based indexing.
 
     Parameters
     ----------
@@ -83,11 +81,9 @@ def read_dom_maskutil(
     mask_opensea: xr.DataArray = None,
 ) -> xr.DataArray:
     """
-    Read land/ocean mask arrays at tracer points, horizontal velocity
-    points (u & v) and vorticity points (f) points from domain dataset.
+    Read land/ocean mask arrays at tracer points, horizontal velocity points (u & v) and vorticity points (f) points from domain dataset.
 
-    Expected dimensions are: (y, x) for 2D arrays. All dimensions are
-    expected to use zero-based indexing.
+    Expected dimensions are: (y, x) for 2D arrays. All dimensions are expected to use zero-based indexing.
 
     Parameters
     ----------
@@ -133,13 +129,12 @@ def create_dom_mask(
     top_level: xr.DataArray,
     bottom_level: xr.DataArray,
     cd_nat: str,
-    c_NFtype: str = None,
+    c_NFtype: str | None = None,
     iperio: bool = False,
     mask_opensea: xr.DataArray = None,
 ) -> xr.DataArray:
     """
-    Compute land/ocean mask arrays at tracer points, horizontal velocity
-    points (u & v) and vorticity points (f) points.
+    Compute land/ocean mask arrays at tracer points, horizontal velocity points (u & v) and vorticity points (f) points.
 
     Expected dimensions are: (y, x) for 2D arrays and (nav_lev) for
     1D vertical level array. All dimensions are expected to use
@@ -231,14 +226,14 @@ def create_dom_mask(
     t_mask = (mask_1 & mask_2 & mask_3).transpose("nav_lev", "y", "x")
 
     if c_NFtype is not None:
-        # Add 2 halos to tmask (x-direction & y-direction):
-        t_mask_hls = t_mask.pad(x=(2, 2), constant_values=0)
-        t_mask_hls["x"] = np.arange(-1, t_mask_hls["x"].size - 1)
-        t_mask_hls = t_mask_hls.pad(y=(0, 2), constant_values=0)
-        t_mask_hls["y"] = np.arange(1, t_mask_hls["y"].size + 1)
-
-        # Apply NFold boundary condition to loaded tmask with halos:
-        tmask = lbc_nfd(c_NFtype=c_NFtype, cd_nat="T", ihls=2, ptab=t_mask_hls.load(), psgn=1)
+        # Add 1 halo to tmask (north fold & zonal periodicity):
+        tmask = _apply_lbc_nfd(
+            da=t_mask.rename({"x": "i", "y": "j"}),
+            c_NFtype=c_NFtype,
+            cd_nat="T",
+            psgn=1,
+            ihls=1,
+        ).rename({"i": "x", "j": "y"})
     else:
         tmask = t_mask
 
@@ -249,25 +244,13 @@ def create_dom_mask(
         case "U":
             # NFold Domain:
             if c_NFtype is not None:
-                # Zonally Periodic Domain:
-                if iperio:
-                    tmask[:, :, -2] = tmask[:, :, 2]
-
-                # Calculate umask from tmask w halos & nfd applied:
+                # Calculate umask from tmask w halos (zonal periodicity applied):
                 tmask_1 = tmask.isel({"x": slice(None, -1)})
                 tmask_2 = tmask.isel({"x": slice(1, None)})
                 tmask_2.coords["x"] = tmask_2.coords["x"] - 1
 
-                u_mask_hls = (tmask_1 * tmask_2).pad(x=(0, 1), constant_values=0)
-                u_mask_hls["x"] = np.arange(-1, u_mask_hls["x"].size - 1)
-
-                # Apply NFold boundary condition to umask:
-                u_mask_hls_nfd = lbc_nfd(
-                    c_NFtype=c_NFtype, cd_nat="U", ihls=2, ptab=u_mask_hls, psgn=1
-                )
-
                 # Select umask for interior domain only:
-                mask = u_mask_hls_nfd.isel(x=slice(2, -2), y=slice(None, -2))
+                mask = (tmask_1 * tmask_2).isel(x=slice(1, None), y=slice(None, -1))
 
             else:
                 # Zonally Periodic Domain:
@@ -293,13 +276,8 @@ def create_dom_mask(
 
             # NFold Domain:
             if c_NFtype is not None:
-                # Apply NFold boundary condition to vmask:
-                vmask_hls_nfd = lbc_nfd(
-                    c_NFtype=c_NFtype, cd_nat="V", ihls=2, ptab=v_mask, psgn=1
-                )
-
                 # Select vmask for interior domain only:
-                mask = vmask_hls_nfd.isel(x=slice(2, -2), y=slice(None, -2))
+                mask = v_mask.isel(x=slice(1, -1), y=slice(None, -1))
 
             else:
                 mask = v_mask
@@ -320,13 +298,8 @@ def create_dom_mask(
 
             # NFold Domain:
             if c_NFtype is not None:
-                # Apply NFold boundary condition to wmask:
-                wmask_hls_nfd = lbc_nfd(
-                    c_NFtype=c_NFtype, cd_nat="W", ihls=2, ptab=w_mask, psgn=1
-                )
-
                 # Select wmask for interior domain only:
-                mask = wmask_hls_nfd.isel(x=slice(2, -2), y=slice(None, -2))
+                mask = w_mask.isel(x=slice(1, -1), y=slice(None, -1))
 
             else:
                 mask = w_mask
@@ -334,12 +307,7 @@ def create_dom_mask(
         case "F":
             # NFold Domain:
             if c_NFtype is not None:
-                # Zonally Periodic Domain:
-                if iperio:
-                    # Zonally Periodic Parent Domain:
-                    tmask[:, :, -2] = tmask[:, :, 2]
-
-                # Calculate fmask from tmask w halos & nfd lbc:
+                # Calculate fmask from tmask w halos (north fold & zonal periodicity):
                 tmask_x1y1 = tmask.isel({"x": slice(None, -1), "y": slice(None, -1)})
 
                 tmask_x2y1 = tmask.isel({"x": slice(1, None), "y": slice(None, -1)})
@@ -352,19 +320,10 @@ def create_dom_mask(
                 tmask_x2y2.coords["x"] = tmask_x2y2.coords["x"] - 1
                 tmask_x2y2.coords["y"] = tmask_x2y2.coords["y"] - 1
 
-                fmask_hls = (tmask_x1y1 * tmask_x2y1 * tmask_x1y2 * tmask_x2y2).pad(
-                    x=(0, 1), y=(0, 1), constant_values=0
-                )
-                fmask_hls["x"] = np.arange(-1, fmask_hls["x"].size - 1)
-                fmask_hls["y"] = np.arange(1, fmask_hls["y"].size + 1)
-
-                # Apply NFold boundary condition to fmask:
-                fmask_hls_nfd = lbc_nfd(
-                    c_NFtype=c_NFtype, cd_nat="F", ihls=2, ptab=fmask_hls, psgn=1
-                )
+                fmask_hls = tmask_x1y1 * tmask_x2y1 * tmask_x1y2 * tmask_x2y2
 
                 # Select fmask for interior domain only:
-                mask = fmask_hls_nfd.isel(x=slice(2, -2), y=slice(None, -2))
+                mask = fmask_hls.isel(x=slice(1, None))
 
             else:
                 # Zonally Periodic Domain:
