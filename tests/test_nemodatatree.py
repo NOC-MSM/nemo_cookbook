@@ -16,7 +16,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from nemo_cookbook import NEMODataTree
+from nemo_cookbook import NEMODataTree, NEMODataArray
 
 
 class TestNEMODataTreePaths():
@@ -475,6 +475,6 @@ class TestNEMODataTreeUtils():
 
         # -- Verify output type -- #
         result = nemo._get_weights(grid=grid, dims=dims, fillna=True)
-        assert isinstance(result, xr.DataArray)
+        assert isinstance(result, NEMODataArray)
         # -- Verify land-sea mask conservation (no zero / land weights) -- #
         assert np.sum(result == 0) == 0
