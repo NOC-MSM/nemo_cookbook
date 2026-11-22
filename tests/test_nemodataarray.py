@@ -15,6 +15,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
+from nemo_cookbook.lbc import _apply_lbc_nfd
 from nemo_cookbook.nemodataarray import NEMODataArray
 
 
@@ -312,3 +313,44 @@ class TestNEMODataArrayOperators:
         assert (nda > other).data.equals(nemo["gridT"]["tos_con"] > nemo["gridT"]["tos_con"])
         # __ge__
         assert (nda >= other).data.equals(nemo["gridT"]["tos_con"] >= nemo["gridT"]["tos_con"])
+
+
+class TestNEMODataArrayAddHalos:
+    """
+    Tests for NEMODataArray.add_halos() method.
+    """
+    @pytest.mark.parametrize("grid, var, cd_nat, psgn", [
+        ("gridT", "e1t", "T", 1),
+        ("gridU", "e1u", "U", 1),
+        ("gridV", "e1v", "V", -1),
+        ("gridW", "e3w", "W", 1),
+        ("gridF", "fmask", "F", 1),
+    ])
+    @pytest.mark.parametrize("ihls", [1, 2])
+    def test_returns_dataarray_with_halos(self, grid, var, cd_nat, psgn, ihls, example_global_nemodatatree):
+        nemo = example_global_nemodatatree
+        result = nemo[f"{grid}/{var}"].add_halos(psgn=psgn, ihls=ihls)
+        expected = _apply_lbc_nfd(nemo[grid][var], c_NFtype="T", cd_nat=cd_nat, psgn=psgn, ihls=ihls)
+
+        assert isinstance(result, xr.DataArray)
+        assert not isinstance(result, NEMODataArray)
+        assert result.sizes["j"] == nemo[grid].sizes["j"] + ihls
+        assert result.sizes["i"] == nemo[grid].sizes["i"] + 2 * ihls
+        xr.testing.assert_identical(result, expected)
+
+    def test_nftype_error(self, example_regional_nemodatatree):
+        with pytest.raises(ValueError, match="nftype"):
+            example_regional_nemodatatree["gridT/e1t"].add_halos(psgn=1)
+
+    @pytest.mark.parametrize("subset", [{"i": slice(1, None)}, {"j": slice(None, -1)}])
+    def test_subset_domain_error(self, subset, example_global_nemodatatree):
+        nda = NEMODataArray(da=example_global_nemodatatree["gridT"]["e1t"].isel(subset),
+                            tree=example_global_nemodatatree,
+                            grid="gridT",
+                            )
+        with pytest.raises(ValueError, match="full"):
+            nda.add_halos(psgn=1)
+
+    def test_bool_negative_sign_error(self, example_global_nemodatatree):
+        with pytest.raises(ValueError, match="boolean"):
+            example_global_nemodatatree["gridF/fmask"].add_halos(psgn=-1)
