@@ -107,6 +107,7 @@ class NEMODataArray:
         self._dom_prefix = dom_prefix
         self._dom_suffix = dom_suffix
         self._grid_suffix = grid_suffix
+        self._nftype = self._tree.attrs.get("nftype", None)
 
         # -- Assign NEMO dimension names -- #
         # Spatial dimensions:
@@ -190,6 +191,13 @@ class NEMODataArray:
         Access type of parent NEMO model grid (e.g. 't', 'u', etc.).
         """
         return self._grid_suffix
+
+    @property
+    def nftype(self) -> str | None:
+        """
+        Access NEMO model 'nftype' attribute.
+        """
+        return self._nftype
     
     @property
     def metrics(self) -> dict[str, "NEMODataArray"]:
@@ -358,8 +366,7 @@ class NEMODataArray:
             >>> nemo['gridU/uo'].add_halos(psgn=-1, ihls=2)
             """
             # -- Validate Inputs -- #
-            nftype = self._tree[self._grid].attrs.get("nftype", None)
-            if nftype is None:
+            if self._nftype is None:
                 raise ValueError(
                     f"north fold type (nftype) is not defined for NEMO model grid '{self._grid}'. "
                     "add_halos() is only available for north folding NEMO model domains."
@@ -376,7 +383,7 @@ class NEMODataArray:
             # -- Apply north fold LBC & return xarray.DataArray -- #
             result = _apply_lbc_nfd(
                 da=self._da,
-                c_NFtype=nftype,
+                c_NFtype=self._nftype,
                 cd_nat=self._grid_suffix.upper(),
                 psgn=psgn,
                 ihls=ihls,

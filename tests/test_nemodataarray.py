@@ -151,6 +151,12 @@ class TestNEMODataArrayProperties:
         assert isinstance(nda.data, xr.DataArray)
         assert nda.data.equals(nemo["gridT"]["tos_con"])
 
+    @pytest.mark.parametrize("dom_type", ["global", "regional"])
+    def test_nftype_property(self, dom_type, example_global_nemodatatree, example_regional_nemodatatree):
+        nemo = _get_nemodatatree(dom_type, example_global_nemodatatree, example_regional_nemodatatree)
+        nda = nemo["gridT/tos_con"]
+        assert nda.nftype == nemo.attrs.get("nftype", None)
+
     @pytest.mark.parametrize("dom_type,grid,var", [
         ("global", "gridT", "thetao_con"),
         ("regional", "gridT", "thetao_con"),
