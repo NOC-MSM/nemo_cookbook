@@ -163,6 +163,18 @@ Here, the 4-dimensional absolute salinity variable `so_abs` is masked using the 
 
 To drop the absolute salinity values where `my_mask` is `False`, we can optionally use `.apply_mask(mask=my_mask, drop=True)`.
 
+### Adding halos to a NEMO Variable
+
+Given a `NEMODataArray` variable defined on a zonally-periodic, north folding NEMO model domain, we can add halo grid-points using the `.add_halos()` method.
+
+For example, to add 2 halo grid-points to the conservative temperature variable `thetao_con` defined on T-points:
+
+```python
+nemo["gridT/thetao_con"].add_halos(psgn=1, ihls=2)
+```
+
+In the example above, the variable `thetao_con` is extended with 2 halo grid-points along both the north fold and zonally periodic lateral boundaries before being returned as an `xarray.DataArray`.
+
 ### Index a NEMODataArray to Match the Dimension Labels of Another (NEMO)DataArray
 
 In addition to the more familiar `.sel()` and `.isel()` label based selection methods, the `.sel_like()` method can be used to index a `NEMODataArray` according to the dimension index labels of another `NEMODataArray` or `xarray.DataArray` as follows:

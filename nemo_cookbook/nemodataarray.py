@@ -1,5 +1,5 @@
 """
-nemodataarray.py
+nemodataarray.py.
 
 Description:
 This module defines the NEMODataArray class, a grid-aware xarray.DataArray wrapper
@@ -31,6 +31,7 @@ if TYPE_CHECKING:
 from nemo_cookbook.accessors import create_xesmf_dataset
 from nemo_cookbook.integrate import compute_depth_integral
 from nemo_cookbook.interpolate import interpolate_grid
+from nemo_cookbook.lbc import _apply_lbc_nfd
 from nemo_cookbook.transform import transform_vertical_coords
 from nemo_cookbook.validation import validate_nemo_dataarray
 
@@ -106,6 +107,7 @@ class NEMODataArray:
         self._dom_prefix = dom_prefix
         self._dom_suffix = dom_suffix
         self._grid_suffix = grid_suffix
+        self._nftype = self._tree.attrs.get("nftype", None)
 
         # -- Assign NEMO dimension names -- #
         # Spatial dimensions:
@@ -189,6 +191,13 @@ class NEMODataArray:
         Access type of parent NEMO model grid (e.g. 't', 'u', etc.).
         """
         return self._grid_suffix
+
+    @property
+    def nftype(self) -> str | None:
+        """
+        Access NEMO model 'nftype' attribute.
+        """
+        return self._nftype
     
     @property
     def metrics(self) -> dict[str, "NEMODataArray"]:
@@ -311,7 +320,77 @@ class NEMODataArray:
         result = self._da.where(cond=mask, drop=drop)
 
         return self._wrap(result)
-        
+
+    def add_halos(
+            self,
+            psgn: int,
+            ihls: int = 1,
+        ) -> xr.DataArray:
+            """
+            Add halo grid-points to variable defined on a north folding NEMO model grid.
+
+            Halos are defined by applying the north fold & zonally periodic lateral
+            boundary conditions. 
+            
+            The north fold type (`nftype`) and the nature of grid points (T, U, V, W or F)
+            are inferred from the NEMO model grid.
+            
+            See `nemo_cookbook.lbc.apply_lbc_nfd` for further details.
+
+            Parameters
+            ----------
+            psgn : int
+                Sign used across the north fold. Options are: 1 for scalars
+                (e.g., masks, tracers, scale factors) and -1 for vector
+                components (e.g., velocities).
+            ihls : int, optional
+                Number of halo points to add along the lateral boundaries.
+                Default is 1.
+
+            Returns
+            -------
+            xr.DataArray
+                Variable with `ihls` halo rows added to the north of the domain and
+                `ihls` halo columns added to the west and east of the domain.
+
+            Examples
+            --------
+            Add 1 halo point to sea surface temperature `tos_con` defined on
+            T-points in a NEMO model parent domain:
+
+            >>> nemo['gridT/tos_con'].add_halos(psgn=1)
+
+            Add 2 halo points to zonal seawater velocity `uo` defined on
+            U-points in a NEMO model parent domain:
+
+            >>> nemo['gridU/uo'].add_halos(psgn=-1, ihls=2)
+            """
+            # -- Validate Inputs -- #
+            if self._nftype is None:
+                raise ValueError(
+                    f"north fold type (nftype) is not defined for NEMO model grid '{self._grid}'. "
+                    "add_halos() is only available for north folding NEMO model domains."
+                )
+            for dim in (self.i_name, self.j_name):
+                if dim not in self._da.dims:
+                    raise ValueError(f"variable must have dimension '{dim}' to apply north fold LBC.")
+                if self._da.coords[dim].size != self._tree[self._grid].coords[dim].size:
+                    raise ValueError(
+                        f"variable must span the full '{dim}' dimension of NEMO model grid '{self._grid}' "
+                        "to add halo grid points."
+                    )
+
+            # -- Apply north fold LBC & return xarray.DataArray -- #
+            result = _apply_lbc_nfd(
+                da=self._da,
+                c_NFtype=self._nftype,
+                cd_nat=self._grid_suffix.upper(),
+                psgn=psgn,
+                ihls=ihls,
+            )
+
+            return result
+
     def clip(
         self,
         bbox: tuple[float | int, float | int, float | int, float | int],
@@ -489,7 +568,7 @@ class NEMODataArray:
         # -- Calculate weighted mean & return NEMODataArray -- #
         da = self.apply_mask(mask=mask).data
         weight_dims = [dim.replace(self._dom_suffix, "") for dim in dims]
-        weights = self._tree._get_weights(grid=self._grid, dims=weight_dims)
+        weights = self._tree._get_weights(grid=self._grid, dims=weight_dims).sel_like(da).data
         result = da.weighted(weights).mean(dim=dims, skipna=skipna)
         result.name = f"wmean_{'_'.join(dims)}({self.name})"
 
@@ -812,7 +891,7 @@ class NEMODataArray:
 
         # -- Collect variable, weights & mask -- #
         da = self.apply_mask(mask=mask).data
-        weights = self._tree._get_weights(grid=self._grid, dims=dims)
+        weights = self._tree._get_weights(grid=self._grid, dims=dims).sel_like(da).data
 
         # -- Perform integration -- #
         if cum_dims is not None:
@@ -1016,7 +1095,7 @@ class NEMODataArray:
 
             case "weighted_mean":
                 weight_dims = [dim.replace(self._dom_suffix, "") for dim in dims]
-                weights = self._tree._get_weights(grid=self._grid, dims=weight_dims)
+                weights = self._tree._get_weights(grid=self._grid, dims=weight_dims).sel_like(da).data
                 result = da.weighted(weights).mean(dim=dims, skipna=skipna)
 
             case "min":
@@ -1090,13 +1169,13 @@ class NEMODataArray:
             )
             if f"{self._dom_prefix}depth{self._grid_suffix}" in self.coords:
                 # 3-D variables - weight by grid cell face area:
-                weights = self._tree._get_weights(grid=self._grid, dims=weight_dims, fillna=False)
+                weights = self._tree._get_weights(grid=self._grid, dims=weight_dims, fillna=False).sel_like(self._da).data
                 target_weights = self._tree._get_weights(
                     grid=target_grid, dims=weight_dims, fillna=False
                 )
             else:
                 # 2-D variables - weight by grid cell width:
-                weights = self._tree._get_weights(grid=self._grid, dims=weight_dims[1], fillna=False)
+                weights = self._tree._get_weights(grid=self._grid, dims=weight_dims[1], fillna=False).sel_like(self._da).data
                 target_weights = self._tree._get_weights(
                     grid=target_grid, dims=weight_dims[1], fillna=False
                 )
@@ -1140,7 +1219,7 @@ class NEMODataArray:
 
         # Normalise by target grid cell weights for flux variables:
         if self._grid_suffix.upper() in ["U", "V"]:
-            result = result / target_weights
+            result = result / target_weights.sel_like(result)
 
         # -- Apply land-sea mask & return NEMODataArray -- #
         result = NEMODataArray(da=result, tree=self._tree, grid=target_grid)
