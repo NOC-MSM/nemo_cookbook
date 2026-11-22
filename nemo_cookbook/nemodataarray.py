@@ -1,5 +1,5 @@
 """
-nemodataarray.py
+nemodataarray.py.
 
 Description:
 This module defines the NEMODataArray class, a grid-aware xarray.DataArray wrapper
@@ -31,6 +31,7 @@ if TYPE_CHECKING:
 from nemo_cookbook.accessors import create_xesmf_dataset
 from nemo_cookbook.integrate import compute_depth_integral
 from nemo_cookbook.interpolate import interpolate_grid
+from nemo_cookbook.lbc import _apply_lbc_nfd
 from nemo_cookbook.transform import transform_vertical_coords
 from nemo_cookbook.validation import validate_nemo_dataarray
 
@@ -311,7 +312,7 @@ class NEMODataArray:
         result = self._da.where(cond=mask, drop=drop)
 
         return self._wrap(result)
-        
+
     def clip(
         self,
         bbox: tuple[float | int, float | int, float | int, float | int],
@@ -489,7 +490,7 @@ class NEMODataArray:
         # -- Calculate weighted mean & return NEMODataArray -- #
         da = self.apply_mask(mask=mask).data
         weight_dims = [dim.replace(self._dom_suffix, "") for dim in dims]
-        weights = self._tree._get_weights(grid=self._grid, dims=weight_dims)
+        weights = self._tree._get_weights(grid=self._grid, dims=weight_dims).sel_like(da).data
         result = da.weighted(weights).mean(dim=dims, skipna=skipna)
         result.name = f"wmean_{'_'.join(dims)}({self.name})"
 
@@ -812,7 +813,7 @@ class NEMODataArray:
 
         # -- Collect variable, weights & mask -- #
         da = self.apply_mask(mask=mask).data
-        weights = self._tree._get_weights(grid=self._grid, dims=dims)
+        weights = self._tree._get_weights(grid=self._grid, dims=dims).sel_like(da).data
 
         # -- Perform integration -- #
         if cum_dims is not None:
@@ -1016,7 +1017,7 @@ class NEMODataArray:
 
             case "weighted_mean":
                 weight_dims = [dim.replace(self._dom_suffix, "") for dim in dims]
-                weights = self._tree._get_weights(grid=self._grid, dims=weight_dims)
+                weights = self._tree._get_weights(grid=self._grid, dims=weight_dims).sel_like(da).data
                 result = da.weighted(weights).mean(dim=dims, skipna=skipna)
 
             case "min":
@@ -1090,13 +1091,13 @@ class NEMODataArray:
             )
             if f"{self._dom_prefix}depth{self._grid_suffix}" in self.coords:
                 # 3-D variables - weight by grid cell face area:
-                weights = self._tree._get_weights(grid=self._grid, dims=weight_dims, fillna=False)
+                weights = self._tree._get_weights(grid=self._grid, dims=weight_dims, fillna=False).sel_like(self._da).data
                 target_weights = self._tree._get_weights(
                     grid=target_grid, dims=weight_dims, fillna=False
                 )
             else:
                 # 2-D variables - weight by grid cell width:
-                weights = self._tree._get_weights(grid=self._grid, dims=weight_dims[1], fillna=False)
+                weights = self._tree._get_weights(grid=self._grid, dims=weight_dims[1], fillna=False).sel_like(self._da).data
                 target_weights = self._tree._get_weights(
                     grid=target_grid, dims=weight_dims[1], fillna=False
                 )
@@ -1140,7 +1141,7 @@ class NEMODataArray:
 
         # Normalise by target grid cell weights for flux variables:
         if self._grid_suffix.upper() in ["U", "V"]:
-            result = result / target_weights
+            result = result / target_weights.sel_like(result)
 
         # -- Apply land-sea mask & return NEMODataArray -- #
         result = NEMODataArray(da=result, tree=self._tree, grid=target_grid)
