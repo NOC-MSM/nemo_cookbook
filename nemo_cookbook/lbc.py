@@ -1,5 +1,5 @@
 """
-lbc.py
+lbc.py.
 
 Description:
 This module includes functions to handle Lateral Boundary Conditions (LBCs),
@@ -13,388 +13,180 @@ import numpy as np
 import xarray as xr
 
 
-def _lbc_nfd(
-    ptab: np.ndarray,
+def _apply_lbc_nfd(
+    da: xr.DataArray,
     c_NFtype: str,
     cd_nat: str,
-    ihls: int,
     psgn: int,
-    ipi: int,
-    ipj: int,
-    Ni0glo: int,
-) -> np.ndarray:
-    """
-    Apply NEMO North Fold (NFD) Lateral Boundary Condition
-    to a input DataArray.
-
-    This is a Python vectorised implementation of the original NEMO subroutine:
-    /nemo/src/OCE/LBC/lbc_nfd_generic.h90
-
-    Parameters
-    ----------
-    ptab : np.ndarray
-        Array on which apply the boundary condition.
-    c_NFtype : str
-        Type of North Fold condition to apply.
-        Options are "T" for T-point pivot or "F" for F-point pivot.
-    cd_nat : str
-        Nature of array grid-points.
-        Options are "T", "W", "U", "V" or "F".
-    ihls : int
-        Number of halo points.
-    psgn : int
-        Sign used across the north fold boundary.
-        Options are 1 for positive and -1 for negative.
-    ipi : int
-        Size of the i-dimension of the array.
-    ipj : int
-        Size of the j-dimension of the array.
-    Ni0glo : int
-        Number of interior points in the i-dimension (excluding halos).
-
-    Returns
-    -------
-    np.ndarray
-        Array with north fold boundary condition applied.
-    """
-    # === Apply north fold boundary condition === #
-    # North fold  T-point pivot:
-    if c_NFtype == "T":
-        match cd_nat:
-            case "T" | "W":
-                # -- Last ihls lines (from ipj to ipj - ihls + 1) : full -- #
-                for jj in range(1, ihls + 1):
-                    ij1 = ipj - jj + 1
-                    ij2 = ipj - 2 * ihls + jj - 1
-
-                    # First ihls points:
-                    ii1 = np.arange(1, ihls + 1)
-                    ii2 = 2 * ihls + 2 - ii1
-                    ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
-
-                    # Point ihls+1:
-                    ii1 = ihls + 1
-                    ii2 = ii1
-                    ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
-
-                    # Points from ihls+2 to ipi - ihls:
-                    ii1 = 2 + ihls + np.arange(1, Ni0glo) - 1
-                    ii2 = ipi - ihls - np.arange(1, Ni0glo) + 1
-                    ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
-
-                    # Point ipi - ihls + 1:
-                    ii1 = ipi - ihls + 1
-                    ii2 = ihls + 1
-                    ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
-
-                    # Last ihls-1 points:
-                    ii1 = ipi - ihls + 1 + np.arange(1, ihls)
-                    ii2 = ipi - ihls + 1 - np.arange(1, ihls)
-                    ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
-
-                # -- Line number ipj - ihls : right half --- #
-                # Equivalent to [DO jj = 1, 1]:
-                ij1 = ipj - ihls
-                ij2 = ij1  # same line
-
-                # Points from ipi/2+2 to ipi - ihls:
-                ii1 = ipi // 2 + np.arange(1, Ni0glo // 2) + 1
-                ii2 = ipi // 2 - np.arange(1, Ni0glo // 2) + 1
-                ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
-
-                # First ihls points: redo just in case:
-                ii1 = np.arange(1, ihls + 1)
-                ii2 = 2 * ihls + 2 - ii1
-                ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
-
-            case "U":
-                # -- Last ihls lines (from ipj to ipj - ihls + 1) : full -- #
-                for jj in range(1, ihls + 1):  # DO jj = 1, ihls
-                    ij1 = ipj - jj + 1
-                    ij2 = ipj - 2 * ihls + jj - 1
-
-                    # First ihls points:
-                    ii1 = np.arange(1, ihls + 1)
-                    ii2 = 2 * ihls + 1 - ii1
-                    ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
-
-                    # Points from ihls to ipi - ihls  (DO ji = 1, Ni0glo):
-                    ii1 = ihls + np.arange(1, Ni0glo + 1)
-                    ii2 = ipi - ihls - np.arange(1, Ni0glo + 1) + 1
-                    ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
-
-                    # Last ihls points (DO ji = 1, ihls):
-                    ii1 = ipi - ihls + np.arange(1, ihls + 1)
-                    ii2 = ipi - ihls - np.arange(1, ihls + 1) + 1
-                    ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
-
-                # --- Line number ipj - ihls : right half --- #
-                # Equivalent to [DO jj = 1, 1]:
-                ij1 = ipj - ihls
-                ij2 = ij1  # same line
-
-                # Points from ipi/2+1 to ipi - ihls  (DO ji = 1, Ni0glo/2):
-                ii1 = ipi // 2 + np.arange(1, Ni0glo // 2 + 1)
-                ii2 = ipi // 2 - np.arange(1, Ni0glo // 2 + 1) + 1
-                ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
-
-                # First ihls points: redo them just in case:
-                ii1 = np.arange(1, ihls + 1)
-                ii2 = 2 * ihls + 1 - ii1
-                ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
-
-            case "V":
-                # -- Last ihls+1 lines (from ipj to ipj-ihls) : full -- #
-                for jj in range(1, ihls + 2):  # Fortran: DO jj = 1, ihls+1
-                    ij1 = ipj - jj + 1
-                    ij2 = ipj - 2 * ihls + jj - 2
-
-                    # First ihls points:
-                    ii1 = np.arange(1, ihls + 1)
-                    ii2 = 2 * ihls + 2 - ii1
-                    ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
-
-                    # Point ihls+1:
-                    ii1 = ihls + 1
-                    ii2 = ii1
-                    ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
-
-                    # Points from ihls+2 to ipi - ihls  (Fortran: DO ji = 1, Ni0glo - 1):
-                    ii1 = 2 + ihls + np.arange(1, Ni0glo) - 1
-                    ii2 = ipi - ihls - np.arange(1, Ni0glo) + 1
-                    ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
-
-                    # IF( ihls > 0 ) THEN ; DO ji = 1, COUNT( (/ihls > 0/) ) -> one iteration if ihls>0:
-                    if ihls > 0:
-                        ii1 = ipi - ihls + 1
-                        ii2 = ihls + 1
-                        ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
-
-                    # Last ihls-1 points:
-                    ii1 = ipi - ihls + 1 + np.arange(1, ihls)
-                    ii2 = ipi - ihls + 1 - np.arange(1, ihls)
-                    ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
-
-            case "F":
-                # -- Last ihls+1 lines (from ipj to ipj - ihls) : full -- #
-                for jj in range(1, ihls + 2):  # DO jj = 1, ihls+1
-                    ij1 = ipj - jj + 1
-                    ij2 = ipj - 2 * ihls + jj - 2
-
-                    # First ihls points:
-                    ii1 = np.arange(1, ihls + 1)
-                    ii2 = 2 * ihls + 1 - ii1
-                    ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
-
-                    # Points from ihls to ipi - ihls  (DO ji = 1, Ni0glo):
-                    ii1 = ihls + np.arange(1, Ni0glo + 1)
-                    ii2 = ipi - ihls - np.arange(1, Ni0glo + 1) + 1
-                    ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
-
-                    # Last ihls points (DO ji = 1, ihls):
-                    ii1 = ipi - ihls + np.arange(1, ihls + 1)
-                    ii2 = ipi - ihls - np.arange(1, ihls + 1) + 1
-                    ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
-
-    # North fold  F-point pivot:
-    elif c_NFtype == "F":
-        match cd_nat:
-            case "T" | "W":
-                # -- Last ihls lines (from ipj to ipj - ihls + 1) : full -- #
-                for jj in range(1, ihls + 1):  # DO jj = 1, ihls
-                    ij1 = ipj + 1 - jj
-                    ij2 = ipj - 2 * ihls + jj
-
-                    # First ihls points:
-                    ii1 = np.arange(1, ihls + 1)
-                    ii2 = 2 * ihls + 1 - ii1
-                    ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
-
-                    # Points from ihls to ipi - ihls:
-                    ii1 = ihls + np.arange(1, Ni0glo + 1)
-                    ii2 = ipi - ihls - np.arange(1, Ni0glo + 1) + 1
-                    ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
-
-                    # Last ihls points:
-                    ii1 = ipi - ihls + np.arange(1, ihls + 1)
-                    ii2 = ipi - ihls - np.arange(1, ihls + 1) + 1
-                    ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
-
-            case "U":
-                # -- Last ihls lines (from ipj to ipj - ihls + 1) : full -- #
-                for jj in range(1, ihls + 1):  # DO jj = 1, ihls
-                    ij1 = ipj + 1 - jj
-                    ij2 = ipj - 2 * ihls + jj
-
-                    # First ihls-1 points:
-                    ii1 = np.arange(1, ihls)
-                    ii2 = 2 * ihls - ii1
-                    ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
-
-                    # Point ihls (ihls > 0):
-                    ii1 = ihls
-                    ii2 = ipi - ii1
-                    ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
-
-                    # Points from ihls+1 to ipi - ihls - 1:
-                    ii1 = ihls + np.arange(1, Ni0glo)
-                    ii2 = ipi - ihls - np.arange(1, Ni0glo)
-                    ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
-
-                    # Point ipi - ihls:
-                    ii1 = ipi - ihls
-                    ii2 = ii1
-                    ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
-
-                    # Last ihls points:
-                    ii1 = ipi - ihls + np.arange(1, ihls + 1)
-                    ii2 = ipi - ihls - np.arange(1, ihls + 1)
-                    ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
-
-            case "V":
-                # -- Last ihls lines (from ipj to ipj - ihls + 1) : full -- #
-                for jj in range(1, ihls + 1):  # DO jj = 1, ihls
-                    ij1 = ipj - jj + 1
-                    ij2 = ipj - 2 * ihls + jj - 1
-
-                    # First ihls points:
-                    ii1 = np.arange(1, ihls + 1)
-                    ii2 = 2 * ihls + 1 - ii1
-                    ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
-
-                    # Points from ihls to ipi - ihls:
-                    ii1 = ihls + np.arange(1, Ni0glo + 1)
-                    ii2 = ipi - ihls - np.arange(1, Ni0glo + 1) + 1
-                    ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
-
-                    # Last ihls points:
-                    ii1 = ipi - ihls + np.arange(1, ihls + 1)
-                    ii2 = ipi - ihls - np.arange(1, ihls + 1)
-                    ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
-
-                # -- Line number ipj - ihls : right half -- #
-                # Equivalent to [DO jj = 1, 1]:
-                ij1 = ipj - ihls
-                ij2 = ij1  # same line
-
-                # Points from ipi/2+1 to ipi - ihls:
-                ii1 = ipi // 2 + np.arange(1, Ni0glo // 2 + 1)
-                ii2 = ipi // 2 - np.arange(1, Ni0glo // 2 + 1) + 1
-                ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
-
-                # First ihls points: redo them just in case:
-                ii1 = np.arange(1, ihls + 1)
-                ii2 = 2 * ihls + 1 - ii1
-                ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
-
-            case "F":
-                # -- Last ihls lines (from ipj to ipj - ihls + 1) : full -- #
-                for jj in range(1, ihls + 1):  # DO jj = 1, ihls
-                    ij1 = ipj - jj + 1
-                    ij2 = ipj - 2 * ihls + jj - 1
-
-                    # First ihls - 1 points:
-                    ii1 = np.arange(1, ihls)
-                    ii2 = 2 * ihls - ii1
-                    ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
-
-                    # Point ihls:
-                    ii1 = ihls
-                    ii2 = ipi - ii1
-                    ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
-
-                    # Points from ihls+1 to ipi - ihls - 1:
-                    ii1 = ihls + np.arange(1, Ni0glo)
-                    ii2 = ipi - ihls - np.arange(1, Ni0glo)
-                    ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
-
-                    # Point ipi - ihls:
-                    ii1 = ipi - ihls
-                    ii2 = ii1
-                    ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
-
-                    # Last ihls points:
-                    ii1 = ipi - ihls + np.arange(1, ihls + 1)
-                    ii2 = ipi - ihls - np.arange(1, ihls + 1)
-                    ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
-
-                # -- Line number ipj - ihls : right half -- #
-                # Equivalent to [DO jj = 1, 1]:
-                ij1 = ipj - ihls
-                ij2 = ij1  # same line
-
-                # Points from ipi/2+1 to ipi - ihls - 1:
-                ii1 = ipi // 2 + np.arange(1, Ni0glo // 2)
-                ii2 = ipi // 2 - np.arange(1, Ni0glo // 2)
-                ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
-
-                # First ihls - 1 points: redo them just in case:
-                ii1 = np.arange(1, ihls)
-                ii2 = 2 * ihls - ii1
-                ptab[:, ij1 - 1, ii1 - 1] = psgn * ptab[:, ij2 - 1, ii2 - 1]
-
-    return ptab
-
-
-def lbc_nfd(
-    c_NFtype: str, cd_nat: str, ihls: int, ptab: xr.DataArray, psgn: int
+    ihls: int = 1,
 ) -> xr.DataArray:
     """
-    Apply NEMO North Fold (NFD) Lateral Boundary Condition
-    to a input DataArray.
+    Apply NEMO North Fold (NFD) lateral boundary condition to a DataArray.
 
-    This is a Python implementation of the original NEMO subroutine:
-    /nemo/src/OCE/LBC/lbc_nfd_generic.h90
+    This is a lazy xarray implementation of the NEMO subroutine lbc_nfd
+    (src/OCE/LBC/lbc_nfd_generic.h90).
+
+    Note: NEMO lbc_nfd also overwrites the last interior row (Nj) for T-pivot
+    T/W/U-points and F-pivot V/F-points. This is not reproduced here, since
+    NEMO model outputs already satisfy the north fold condition along row Nj.
 
     Parameters
     ----------
+    da : xr.DataArray
+        DataArray defined on the interior domain on which to apply
+        the north fold lateral boundary condition with dimensions
+        (j, i) spanning the full global domain.
     c_NFtype : str
         Type of North Fold condition to apply.
         Options are "T" for T-point pivot or "F" for F-point pivot.
     cd_nat : str
         Nature of array grid-points.
         Options are "T", "W", "U", "V" or "F".
-    ihls : int
-        Number of halo points.
-    ptab : xr.DataArray
-        DataArray on which apply the boundary condition.
     psgn : int
-        Sign used across the north fold boundary.
-        Options are 1 for positive and -1 for negative.
+        Sign used across the north fold. Use 1 for scalars (e.g., land-sea masks,
+        tracers, scale factors) and -1 for vector components (e.g., velocities).
+    ihls : int, optional
+        Number of halo points to add along the lateral boundaries.
+        Default is 1.
 
     Returns
     -------
     xr.DataArray
-        DataArray with north fold boundary condition applied.
+        DataArray with north fold lateral boundary condition applied, of size
+        (..., Nj + ihls, Ni + 2 * ihls) in the (j, i) dimensions.
     """
     # === Validate Inputs === #
+    if not isinstance(da, xr.DataArray):
+        raise TypeError("da must be an xarray.DataArray.")
     if c_NFtype not in ["T", "F"]:
         raise ValueError("Invalid c_NFtype. Options are 'T' or 'F'.")
     if cd_nat not in ["T", "W", "U", "V", "F"]:
         raise ValueError("Invalid cd_nat. Options are 'T', 'W', 'U', 'V' or 'F'.")
     if psgn not in [1, -1]:
+        raise ValueError("Invalid psgn. Options are 1 (scalar) or -1 (vector).")
+    if (psgn == -1) and (da.dtype == bool):
+        raise ValueError("psgn = -1 cannot be applied to a boolean DataArray.")
+    if ("i" not in da.dims) or ("j" not in da.dims):
+        raise ValueError("da must have dimensions 'i' and 'j'.")
+    if isinstance(ihls, bool) or not isinstance(ihls, (int, np.integer)):
+        raise TypeError("ihls must be an integer.")
+    if ihls < 1:
+        raise ValueError("ihls must be >= 1.")
+    if (ihls > da.sizes["i"]) or (ihls + 2 > da.sizes["j"]):
         raise ValueError(
-            "Invalid psgn. Options are 1 for positive and -1 for negative."
+            f"ihls = {ihls} is too large for domain of size (j={da.sizes['j']}, "
+            f"i={da.sizes['i']})."
+        )
+    if da.sizes["i"] % 2 != 0:
+        raise ValueError(
+            f"north fold requires an even i-dimension size, got {da.sizes['i']}."
         )
 
-    if "x" not in ptab.coords:
-        raise ValueError("DataArray must have 'x' coordinate.")
-    if "y" not in ptab.coords:
-        raise ValueError("DataArray must have 'y' coordinate.")
-
-    # === Define domain parameters === #
-    ipi = ptab.coords["x"].size
-    ipj = ptab.coords["y"].size
-    Ni0glo = ipi - 2 * ihls
-
     # === Apply North Fold LBC === #
-    # Convert mask to contiguous ndarray & apply LBC:
-    array = np.ascontiguousarray(ptab.data)
-    array = _lbc_nfd(array, c_NFtype, cd_nat, ihls, psgn, ipi, ipj, Ni0glo)
+    # North fold defined for a T-point:
+    if c_NFtype == "T":
+        match cd_nat:
+            case "T" | "W":
+                da_jhls = (da
+                           .isel(j=slice(-ihls-1, -1)) # Select (jpj-2, jpj-1) rows
+                           .roll(i=-1, roll_coords=True) # Roll (periodic) row
+                           .isel(i=slice(None, None, -1)) # Reverse the order of the row
+                           .assign_coords(
+                               i=da.coords["i"],
+                               j=da.coords["j"].values[-1] + np.arange(ihls, 0, -1)
+                               )
+                            .sortby("j")
+                            )
+            case "U":
+                da_jhls = (da
+                            .isel(j=slice(-ihls-1, -1)) # Select (jpj-2, jpj-1) rows
+                            .isel(i=slice(None, None, -1)) # Reverse the order of the row
+                            .assign_coords(
+                            i=da.coords["i"],
+                            j=da.coords["j"].values[-1] + np.arange(ihls, 0, -1)
+                            )
+                            .sortby("j")
+                            )
+            case "V":
+                da_jhls = (da
+                            .isel(j=slice(-ihls-2, -2)) # Select (jpj-3, jpj-2) rows
+                            .roll(i=-1, roll_coords=True) # Roll (periodic) row
+                            .isel(i=slice(None, None, -1)) # Reverse the order of the row
+                            .assign_coords(
+                            i=da.coords["i"],
+                            j=da.coords["j"].values[-1] + np.arange(ihls, 0, -1)
+                            )
+                            .sortby("j")
+                            )
+            case "F":
+                da_jhls = (da
+                           .isel(j=slice(-ihls-2, -2)) # Select (jpj-3, jpj-2) rows
+                           .isel(i=slice(None, None, -1)) # Reverse the order of the row
+                           .assign_coords(
+                               i=da.coords["i"],
+                               j=da.coords["j"].values[-1] + np.arange(ihls, 0, -1)
+                               )
+                           .sortby("j")
+                           )
+    # North fold defined for an F-point:
+    elif c_NFtype == "F":
+        match cd_nat:
+            case "T" | "W":
+                da_jhls = (da
+                           .isel(j=slice(-ihls, None)) # Select (jpj-1, jpj) rows
+                           .isel(i=slice(None, None, -1)) # Reverse the order of the row
+                           .assign_coords(
+                               i=da.coords["i"],
+                               j=da.coords["j"].values[-1] + np.arange(ihls, 0, -1)
+                               )
+                           .sortby("j")
+                           )
+            case "U":
+                da_jhls = (da
+                            .isel(j=slice(-ihls, None)) # Select (jpj-1, jpj) rows
+                            .roll(i=1, roll_coords=True) # Roll (periodic) row
+                            .isel(i=slice(None, None, -1)) # Reverse the order of the row
+                            .assign_coords(
+                                i=da.coords["i"],
+                                j=da.coords["j"].values[-1] + np.arange(ihls, 0, -1)
+                            )
+                            .sortby("j")
+                            )
+            case "V":
+                da_jhls = (da
+                            .isel(j=slice(-ihls-1, -1)) # Select (jpj-2, jpj-1) rows
+                            .isel(i=slice(None, None, -1)) # Reverse the order of the row
+                            .assign_coords(
+                                i=da.coords["i"],
+                                j=da.coords["j"].values[-1] + np.arange(ihls, 0, -1)
+                            )
+                            .sortby("j")
+                            )
+            case "F":
+                da_jhls = (da
+                           .isel(j=slice(-ihls-1, -1)) # Select (jpj-2, jpj-1) rows
+                           .roll(i=1, roll_coords=True) # Roll (periodic) row
+                           .isel(i=slice(None, None, -1)) # Reverse the order of the row
+                           .assign_coords(
+                               i=da.coords["i"],
+                               j=da.coords["j"].values[-1] + np.arange(ihls, 0, -1)
+                               )
+                           .sortby("j")
+                           )
 
-    # Convert updated mask to DataArray:
-    ptab = xr.DataArray(
-        data=array, dims=ptab.dims, coords=ptab.coords, attrs=ptab.attrs
-    )
+    # Apply sign across the north fold (e.g., -1 for vector components):
+    if psgn == -1:
+        da_jhls = -da_jhls
 
-    return ptab
+    # Concatenate j-halos to interior domain (north fold):
+    da_nf = xr.concat(objs=[da, da_jhls], dim="j")
+
+    # Add halos along i-dimension (zonal periodicity):
+    d_ihls = {
+        "lhs": da_nf.isel(i=slice(-ihls, None)).assign_coords(i=(da_nf.coords["i"].isel(i=slice(0,  ihls)) - ihls)),
+        "rhs": da_nf.isel(i=slice(0, ihls)).assign_coords(i=(da_nf.coords["i"].isel(i=slice(-ihls, None)) + ihls)),
+    }
+    # Concatenate i-halos to north-folding domain:
+    da_nfhls = xr.concat(objs=[d_ihls["lhs"], da_nf, d_ihls["rhs"]], dim="i")
+
+    return da_nfhls
