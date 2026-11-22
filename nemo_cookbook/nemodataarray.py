@@ -313,6 +313,77 @@ class NEMODataArray:
 
         return self._wrap(result)
 
+    def add_halos(
+            self,
+            psgn: int,
+            ihls: int = 1,
+        ) -> xr.DataArray:
+            """
+            Add halo grid-points to variable defined on a north folding NEMO model grid.
+
+            Halos are defined by applying the north fold & zonally periodic lateral
+            boundary conditions. 
+            
+            The north fold type (`nftype`) and the nature of grid points (T, U, V, W or F)
+            are inferred from the NEMO model grid.
+            
+            See `nemo_cookbook.lbc.apply_lbc_nfd` for further details.
+
+            Parameters
+            ----------
+            psgn : int
+                Sign used across the north fold. Options are: 1 for scalars
+                (e.g., masks, tracers, scale factors) and -1 for vector
+                components (e.g., velocities).
+            ihls : int, optional
+                Number of halo points to add along the lateral boundaries.
+                Default is 1.
+
+            Returns
+            -------
+            xr.DataArray
+                Variable with `ihls` halo rows added to the north of the domain and
+                `ihls` halo columns added to the west and east of the domain.
+
+            Examples
+            --------
+            Add 1 halo point to sea surface temperature `tos_con` defined on
+            T-points in a NEMO model parent domain:
+
+            >>> nemo['gridT/tos_con'].add_halos(psgn=1)
+
+            Add 2 halo points to zonal seawater velocity `uo` defined on
+            U-points in a NEMO model parent domain:
+
+            >>> nemo['gridU/uo'].add_halos(psgn=-1, ihls=2)
+            """
+            # -- Validate Inputs -- #
+            nftype = self._tree[self._grid].attrs.get("nftype", None)
+            if nftype is None:
+                raise ValueError(
+                    f"north fold type (nftype) is not defined for NEMO model grid '{self._grid}'. "
+                    "add_halos() is only available for north folding NEMO model domains."
+                )
+            for dim in (self.i_name, self.j_name):
+                if dim not in self._da.dims:
+                    raise ValueError(f"variable must have dimension '{dim}' to apply north fold LBC.")
+                if self._da.coords[dim].size != self._tree[self._grid].coords[dim].size:
+                    raise ValueError(
+                        f"variable must span the full '{dim}' dimension of NEMO model grid '{self._grid}' "
+                        "to add halo grid points."
+                    )
+
+            # -- Apply north fold LBC & return xarray.DataArray -- #
+            result = _apply_lbc_nfd(
+                da=self._da,
+                c_NFtype=nftype,
+                cd_nat=self._grid_suffix.upper(),
+                psgn=psgn,
+                ihls=ihls,
+            )
+
+            return result
+
     def clip(
         self,
         bbox: tuple[float | int, float | int, float | int, float | int],
