@@ -1599,13 +1599,13 @@ class NEMODataTree(xr.DataTree):
                     # Clip adjacent horizontal grid using (i, j) coords of clipped T-grid:
                     match grid_suffix:
                         case "u":
-                            grid_clipped = self[grid].dataset.sel(i=i_bbox + 0.5, j=j_bbox)
+                            grid_clipped = self[grid].dataset.sel({i_name: i_bbox + 0.5, j_name: j_bbox})
                         case "v":
-                            grid_clipped = self[grid].dataset.sel(i=i_bbox, j=j_bbox + 0.5)
+                            grid_clipped = self[grid].dataset.sel({i_name: i_bbox, j_name: j_bbox + 0.5})
                         case "w":
-                            grid_clipped = self[grid].dataset.sel(i=i_bbox, j=j_bbox)
+                            grid_clipped = self[grid].dataset.sel({i_name: i_bbox, j_name: j_bbox})
                         case "f":
-                            grid_clipped = self[grid].dataset.sel(i=i_bbox + 0.5, j=j_bbox + 0.5)
+                            grid_clipped = self[grid].dataset.sel({i_name: i_bbox + 0.5, j_name: j_bbox + 0.5})
 
                     if bbox != (-180, 180, -90, 90):
                         # Update zonal periodicity of NEMO model grid:
@@ -1989,7 +1989,7 @@ class NEMODataTree(xr.DataTree):
         grid_paths = self._get_grid_paths(dom=dom)
         dom_prefix, _ = self._get_properties(dom=dom)
         ijk_names = self._get_ijk_names(dom=dom)
-        i_name, j_name = ijk_names["i"], ijk_names["j"]
+        i_name, j_name, k_name = ijk_names["i"], ijk_names["j"], ijk_names["k"]
 
         # -- Validate longitude within longitude bounds of NEMODataTree -- #
         lon_min_grid = self[grid_paths["gridU"]][f"{dom_prefix}glamu"].min().values.item()
@@ -2001,10 +2001,10 @@ class NEMODataTree(xr.DataTree):
         nemo_geo = self.add_geoindex(grid=grid_paths["gridU"])
 
         # -- Determine (i, j) indices of meridional section endpoints -- #
-        nemo_start = nemo_geo[grid_paths["gridU"]].dataset.sel(gphiu=lat_min, glamu=lon, method='nearest')
+        nemo_start = nemo_geo[grid_paths["gridU"]].dataset.sel({f"{dom_prefix}gphiu": lat_min, f"{dom_prefix}glamu": lon}, method='nearest')
         i_start = nemo_start[i_name].values.item()
         j_start = nemo_start[j_name].values.item()
-        nemo_end = nemo_geo[grid_paths["gridU"]].dataset.sel(gphiu=lat_max, glamu=lon, method='nearest')
+        nemo_end = nemo_geo[grid_paths["gridU"]].dataset.sel({f"{dom_prefix}gphiu": lat_max, f"{dom_prefix}glamu": lon}, method='nearest')
         i_end = nemo_end[i_name].values.item()
         j_end = nemo_end[j_name].values.item()
 
@@ -2015,7 +2015,7 @@ class NEMODataTree(xr.DataTree):
             i_list = np.arange(min([i_start, i_end]), max([i_start, i_end]) + 1)
             i_lons = []
             for i in i_list:
-                i_lons.append(nemo_geo[grid_paths['gridU']]["glamu"]
+                i_lons.append(nemo_geo[grid_paths['gridU']][f"{dom_prefix}glamu"]
                               .sel({i_name: i, j_name: slice(j_start, j_end)})
                               .mean(dim=j_name).values.item()
                               )
@@ -2032,20 +2032,20 @@ class NEMODataTree(xr.DataTree):
         # Transform scalar T-grid variables to U-point grid:
         if scalar_vars is not None:
             for var in scalar_vars:
-                nemo_geo[grid_paths["gridU"]][var] = nemo_geo[f"gridT/{var}"].interp_to(to='U')
+                nemo_geo[grid_paths["gridU"]][var] = nemo_geo[f"{grid_paths['gridT']}/{var}"].interp_to(to='U')
         # Transform V-grid variables to U-point grid:
         if v_vars is not None:
             for var in v_vars:
-                nemo_geo[grid_paths["gridU"]][var] = nemo_geo[f"gridV/{var}"].interp_to(to='U')
+                nemo_geo[grid_paths["gridU"]][var] = nemo_geo[f"{grid_paths['gridV']}/{var}"].interp_to(to='U')
 
         # Extract meridional section & update dimensions & coordinate variables:
         ds_bdy = nemo_geo[grid_paths["gridU"]].dataset.sel({i_name: i_sec,
                                                             j_name: slice(j_sec[0], j_sec[1])
                                                             })
         ds_bdy = (ds_bdy
-                  .rename_vars({"glamu": f"{dom_prefix}glamb",
-                                "gphiu": f"{dom_prefix}gphib",
-                                "depthu": f"{dom_prefix}depthb",
+                  .rename_vars({f"{dom_prefix}glamu": f"{dom_prefix}glamb",
+                                f"{dom_prefix}gphiu": f"{dom_prefix}gphib",
+                                f"{dom_prefix}depthu": f"{dom_prefix}depthb",
                                 "umask": "bmask",
                                 "umaskutil": "bmaskutil",
                                 "e1u": "e1b",
@@ -2066,7 +2066,7 @@ class NEMODataTree(xr.DataTree):
 
         # Apply land-sea masks to all variables:
         for var in ds_bdy.data_vars:
-            if ds_bdy[var].dims == ("time_counter", "k", "bdy"):
+            if ds_bdy[var].dims == ("time_counter", k_name, "bdy"):
                 ds_bdy[var] = ds_bdy[var].where(ds_bdy["bmask"])
             elif ds_bdy[var].dims == ("time_counter", "bdy"):
                 ds_bdy[var] = ds_bdy[var].where(ds_bdy["bmaskutil"])
@@ -2157,7 +2157,7 @@ class NEMODataTree(xr.DataTree):
         grid_paths = self._get_grid_paths(dom=dom)
         dom_prefix, _ = self._get_properties(dom=dom)
         ijk_names = self._get_ijk_names(dom=dom)
-        i_name, j_name = ijk_names["i"], ijk_names["j"]
+        i_name, j_name, k_name = ijk_names["i"], ijk_names["j"], ijk_names["k"]
 
         # -- Validate latitude within latitude bounds of NEMODataTree -- #
         lat_min_grid = self[grid_paths["gridV"]][f"{dom_prefix}gphiv"].min().values.item()
@@ -2169,10 +2169,10 @@ class NEMODataTree(xr.DataTree):
         nemo_geo = self.add_geoindex(grid=grid_paths["gridV"])
 
         # -- Determine (i, j) indices of zonal section endpoints -- #
-        nemo_start = nemo_geo[grid_paths["gridV"]].dataset.sel(gphiv=lat, glamv=lon_min, method='nearest')
+        nemo_start = nemo_geo[grid_paths["gridV"]].dataset.sel({f"{dom_prefix}gphiv": lat, f"{dom_prefix}glamv": lon_min}, method='nearest')
         i_start = nemo_start[i_name].values.item()
         j_start = nemo_start[j_name].values.item()
-        nemo_end = nemo_geo[grid_paths["gridV"]].dataset.sel(gphiv=lat, glamv=lon_max, method='nearest')
+        nemo_end = nemo_geo[grid_paths["gridV"]].dataset.sel({f"{dom_prefix}gphiv": lat, f"{dom_prefix}glamv": lon_max}, method='nearest')
         i_end = nemo_end[i_name].values.item()
         j_end = nemo_end[j_name].values.item()
 
@@ -2183,7 +2183,7 @@ class NEMODataTree(xr.DataTree):
             j_list = np.arange(min([j_start, j_end]), max([j_start, j_end]) + 1)
             j_lats = []
             for j in j_list:
-                j_lats.append(nemo_geo[grid_paths['gridV']]["gphiv"]
+                j_lats.append(nemo_geo[grid_paths['gridV']][f"{dom_prefix}gphiv"]
                               .sel({i_name: slice(i_start, i_end), j_name: j})
                               .mean(dim=i_name).values.item()
                               )
@@ -2200,20 +2200,20 @@ class NEMODataTree(xr.DataTree):
         # Transform scalar T-grid variables to V-point grid:
         if scalar_vars is not None:
             for var in scalar_vars:
-                nemo_geo[grid_paths["gridV"]][var] = nemo_geo[f"gridT/{var}"].interp_to(to='V')
+                nemo_geo[grid_paths["gridV"]][var] = nemo_geo[f"{grid_paths['gridT']}/{var}"].interp_to(to='V')
         # Transform U-grid variables to V-point grid:
         if u_vars is not None:
             for var in u_vars:
-                nemo_geo[grid_paths["gridV"]][var] = nemo_geo[f"gridU/{var}"].interp_to(to='V')
+                nemo_geo[grid_paths["gridV"]][var] = nemo_geo[f"{grid_paths['gridU']}/{var}"].interp_to(to='V')
 
         # Extract zonal section & update dimensions & coordinate variables:
         ds_bdy = nemo_geo[grid_paths["gridV"]].dataset.sel({i_name: slice(i_sec[0], i_sec[1]),
                                                             j_name: j_sec
                                                             })
         ds_bdy = (ds_bdy
-                  .rename_vars({"glamv": f"{dom_prefix}glamb",
-                                "gphiv": f"{dom_prefix}gphib",
-                                "depthv": f"{dom_prefix}depthb",
+                  .rename_vars({f"{dom_prefix}glamv": f"{dom_prefix}glamb",
+                                f"{dom_prefix}gphiv": f"{dom_prefix}gphib",
+                                f"{dom_prefix}depthv": f"{dom_prefix}depthb",
                                 "vmask": "bmask",
                                 "vmaskutil": "bmaskutil",
                                 "e1v": "e1b",
@@ -2234,7 +2234,7 @@ class NEMODataTree(xr.DataTree):
 
         # Apply land-sea masks to all variables:
         for var in ds_bdy.data_vars:
-            if ds_bdy[var].dims == ("time_counter", "k", "bdy"):
+            if ds_bdy[var].dims == ("time_counter", k_name, "bdy"):
                 ds_bdy[var] = ds_bdy[var].where(ds_bdy["bmask"])
             elif ds_bdy[var].dims == ("time_counter", "bdy"):
                 ds_bdy[var] = ds_bdy[var].where(ds_bdy["bmaskutil"])

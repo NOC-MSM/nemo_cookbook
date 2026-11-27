@@ -891,7 +891,8 @@ class NEMODataArray:
 
         # -- Collect variable, weights & mask -- #
         da = self.apply_mask(mask=mask).data
-        weights = self._tree._get_weights(grid=self._grid, dims=dims).sel_like(da).data
+        weight_dims = [dim.replace(self._dom_suffix, "") for dim in dims]
+        weights = self._tree._get_weights(grid=self._grid, dims=weight_dims).sel_like(da).data
 
         # -- Perform integration -- #
         if cum_dims is not None:
@@ -1301,7 +1302,7 @@ class NEMODataArray:
         )
 
         # -- Construct transformed variable Dataset -- #
-        dims = [dim if dim != "k" else "k_new" for dim in self.dims]
+        dims = [dim if dim != self.k_name else "k_new" for dim in self.dims]
         var_dims = [dim for dim in dims if dim in var_out.dims]
         var_out = var_out.transpose(*var_dims)
     

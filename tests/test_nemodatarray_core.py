@@ -1039,3 +1039,33 @@ class TestNEMODataArrayGetattr:
         nda = nemo["gridT/tos_con"]
         da = nemo["gridT"]["tos_con"]
         np.testing.assert_array_equal(nda.values, da.values)
+
+
+class TestNEMODataArrayNestedDomain:
+    """
+    Test NEMODataArray methods on a nested child domain (grid='gridT/1_gridT').
+    """
+    def test_nested_integral(self, example_nested_nemodatatree):
+        nemo = example_nested_nemodatatree
+        result = nemo["gridT/1_gridT/thetao_con"].integral(dims=["k1"])
+        assert isinstance(result, NEMODataArray)
+        assert result.dims == ("time_counter", "j1", "i1")
+        val = float(result.data.sel(j1=5, i1=5).isel(time_counter=0))
+        assert val == pytest.approx(2500.0, rel=1e-5)
+
+    def test_nested_transform_vertical_grid(self, example_nested_nemodatatree):
+        nemo = example_nested_nemodatatree
+        e3_new = xr.DataArray(np.ones(10) * 30.0, dims=["k_new"])
+        result = nemo["gridT/1_gridT/thetao_con"].transform_vertical_grid(e3_new=e3_new)
+        assert isinstance(result, xr.Dataset)
+        assert result["thetao_con"].dims == ("time_counter", "k_new", "j1", "i1")
+        assert result["e3t_new"].dims == ("time_counter", "k_new", "j1", "i1")
+
+    def test_nested_to_and_from_xesmf(self, example_nested_nemodatatree):
+        nemo = example_nested_nemodatatree
+        ds_xesmf = nemo["gridT/1_gridT/tos_con"].to_xesmf(mask=True)
+        assert isinstance(ds_xesmf, xr.Dataset)
+        assert all(c in ds_xesmf.coords for c in ["lon", "lat", "lon_b", "lat_b"])
+        assert ds_xesmf["tos_con"].dims == ("time_counter", "j1", "i1")
+        nda_back = NEMODataArray.from_xesmf(da=ds_xesmf["tos_con"], tree=nemo, grid="gridT/1_gridT")
+        assert isinstance(nda_back, NEMODataArray)

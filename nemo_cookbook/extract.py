@@ -107,7 +107,7 @@ def create_boundary_dataset(
     grid_paths = nemo._get_grid_paths(dom=dom)
     gridT, gridU, gridV = grid_paths["gridT"], grid_paths["gridU"], grid_paths["gridV"]
     ijk_names = nemo._get_ijk_names(dom=dom)
-    k_name = ijk_names["k"]
+    i_name, j_name, k_name = ijk_names["i"], ijk_names["j"], ijk_names["k"]
     time_name = [dim for dim in nemo[gridT].dims if "time" in dim][0]
 
     ds_bdy = xr.Dataset(
@@ -142,17 +142,17 @@ def create_boundary_dataset(
     )
 
     ds_bdy[f"{dom_prefix}glamb"][ubdy_mask] = nemo[gridU][f"{dom_prefix}glamu"].sel(
-        i=ds_bdy["i_bdy"][ubdy_mask], j=ds_bdy["j_bdy"][ubdy_mask]
+        {i_name: ds_bdy["i_bdy"][ubdy_mask], j_name: ds_bdy["j_bdy"][ubdy_mask]}
     )
     ds_bdy[f"{dom_prefix}glamb"][vbdy_mask] = nemo[gridV][f"{dom_prefix}glamv"].sel(
-        i=ds_bdy["i_bdy"][vbdy_mask], j=ds_bdy["j_bdy"][vbdy_mask]
+        {i_name: ds_bdy["i_bdy"][vbdy_mask], j_name: ds_bdy["j_bdy"][vbdy_mask]}
     )
 
     ds_bdy[f"{dom_prefix}gphib"][ubdy_mask] = nemo[gridU][f"{dom_prefix}gphiu"].sel(
-        i=ds_bdy["i_bdy"][ubdy_mask], j=ds_bdy["j_bdy"][ubdy_mask]
+        {i_name: ds_bdy["i_bdy"][ubdy_mask], j_name: ds_bdy["j_bdy"][ubdy_mask]}
     )
     ds_bdy[f"{dom_prefix}gphib"][vbdy_mask] = nemo[gridV][f"{dom_prefix}gphiv"].sel(
-        i=ds_bdy["i_bdy"][vbdy_mask], j=ds_bdy["j_bdy"][vbdy_mask]
+        {i_name: ds_bdy["i_bdy"][vbdy_mask], j_name: ds_bdy["j_bdy"][vbdy_mask]}
     )
 
     if (nemo[gridU][f"{dom_prefix}depthu"].ndim == 1) and (nemo[gridV][f"{dom_prefix}depthv"].ndim == 1):
@@ -162,10 +162,10 @@ def create_boundary_dataset(
     else:
         # Using 3-dimensional vertical reference (depth) coordinate:
         ds_bdy[f"{dom_prefix}depthb"][:, ubdy_mask] = nemo[gridU][f"{dom_prefix}depthu"].sel(
-            i=ds_bdy["i_bdy"][ubdy_mask], j=ds_bdy["j_bdy"][ubdy_mask]
+            {i_name: ds_bdy["i_bdy"][ubdy_mask], j_name: ds_bdy["j_bdy"][ubdy_mask]}
         )
         ds_bdy[f"{dom_prefix}depthb"][:, vbdy_mask] = nemo[gridV][f"{dom_prefix}depthv"].sel(
-            i=ds_bdy["i_bdy"][vbdy_mask], j=ds_bdy["j_bdy"][vbdy_mask]
+            {i_name: ds_bdy["i_bdy"][vbdy_mask], j_name: ds_bdy["j_bdy"][vbdy_mask]}
         )
 
     return ds_bdy
@@ -273,7 +273,7 @@ def update_boundary_dataset(
     grid_paths = nemo._get_grid_paths(dom=dom)
     gridT, gridU, gridV = grid_paths["gridT"], grid_paths["gridU"], grid_paths["gridV"]
     ijk_names = nemo._get_ijk_names(dom=dom)
-    k_name = ijk_names["k"]
+    i_name, j_name, k_name = ijk_names["i"], ijk_names["j"], ijk_names["k"]
     time_name = [dim for dim in nemo[gridT].dims if "time" in dim][0]
 
     # -- Subset boundary dataset using section indexes -- #
@@ -304,13 +304,13 @@ def update_boundary_dataset(
     )
     ds_bdy["velocity"][:, :, ubdy_mask] = (
         nemo[f"{gridU}/{uv_vars[0]}"].masked.data.sel(
-            i=ds_bdy["i_bdy"][ubdy_mask], j=ds_bdy["j_bdy"][ubdy_mask]
+            {i_name: ds_bdy["i_bdy"][ubdy_mask], j_name: ds_bdy["j_bdy"][ubdy_mask]}
         )
         * ds_bdy["flux_dir"][ubdy_mask]
     )
     ds_bdy["velocity"][:, :, vbdy_mask] = (
         nemo[f"{gridV}/{uv_vars[1]}"].masked.data.sel(
-            i=ds_bdy["i_bdy"][vbdy_mask], j=ds_bdy["j_bdy"][vbdy_mask]
+            {i_name: ds_bdy["i_bdy"][vbdy_mask], j_name: ds_bdy["j_bdy"][vbdy_mask]}
         )
         * ds_bdy["flux_dir"][vbdy_mask]
     )
@@ -320,10 +320,10 @@ def update_boundary_dataset(
         data=dask.array.zeros(dim_2d_sizes), dims=[k_name, "bdy"]
     )
     ds_bdy["bmask"][:, ubdy_mask] = nemo[f"{gridU}/umask"].data.sel(
-        i=ds_bdy["i_bdy"][ubdy_mask], j=ds_bdy["j_bdy"][ubdy_mask]
+        {i_name: ds_bdy["i_bdy"][ubdy_mask], j_name: ds_bdy["j_bdy"][ubdy_mask]}
     )
     ds_bdy["bmask"][:, vbdy_mask] = nemo[f"{gridV}/vmask"].data.sel(
-        i=ds_bdy["i_bdy"][vbdy_mask], j=ds_bdy["j_bdy"][vbdy_mask]
+        {i_name: ds_bdy["i_bdy"][vbdy_mask], j_name: ds_bdy["j_bdy"][vbdy_mask]}
     )
 
     # -- Add NEMO grid cell scale factors along boundary -- #
@@ -331,20 +331,20 @@ def update_boundary_dataset(
         data=dask.array.zeros(ds_bdy["bdy"].size), dims=["bdy"]
     )
     ds_bdy["e1b"][ubdy_mask] = nemo[f"{gridU}/e2u"].masked.data.sel(
-        i=ds_bdy["i_bdy"][ubdy_mask], j=ds_bdy["j_bdy"][ubdy_mask]
+        {i_name: ds_bdy["i_bdy"][ubdy_mask], j_name: ds_bdy["j_bdy"][ubdy_mask]}
     )
     ds_bdy["e1b"][vbdy_mask] = nemo[f"{gridV}/e1v"].masked.data.sel(
-        i=ds_bdy["i_bdy"][vbdy_mask], j=ds_bdy["j_bdy"][vbdy_mask]
+        {i_name: ds_bdy["i_bdy"][vbdy_mask], j_name: ds_bdy["j_bdy"][vbdy_mask]}
     )
 
     ds_bdy["e3b"] = xr.DataArray(
         data=dask.array.zeros(dim_3d_sizes), dims=[time_name, k_name, "bdy"]
     )
     ds_bdy["e3b"][:, :, ubdy_mask] = nemo[f"{gridU}/e3u"].masked.data.sel(
-        i=ds_bdy["i_bdy"][ubdy_mask], j=ds_bdy["j_bdy"][ubdy_mask]
+        {i_name: ds_bdy["i_bdy"][ubdy_mask], j_name: ds_bdy["j_bdy"][ubdy_mask]}
     )
     ds_bdy["e3b"][:, :, vbdy_mask] = nemo[f"{gridV}/e3v"].masked.data.sel(
-        i=ds_bdy["i_bdy"][vbdy_mask], j=ds_bdy["j_bdy"][vbdy_mask]
+        {i_name: ds_bdy["i_bdy"][vbdy_mask], j_name: ds_bdy["j_bdy"][vbdy_mask]}
     )
 
     # -- [Optionally] Add scalar variables along-section -- #
@@ -360,18 +360,18 @@ def update_boundary_dataset(
             # Linearly interpolate scalar variables onto NEMO model U/V grid points:
             ds_bdy[var][:, :, ubdy_mask] = 0.5 * (
                 nemo[f"{gridT}/{var}"].masked.data.sel(
-                    i=ds_bdy["i_bdy"][ubdy_mask] - 0.5, j=ds_bdy["j_bdy"][ubdy_mask]
+                    {i_name: ds_bdy["i_bdy"][ubdy_mask] - 0.5, j_name: ds_bdy["j_bdy"][ubdy_mask]}
                 )
                 + nemo[f"{gridT}/{var}"].masked.data.sel(
-                    i=ds_bdy["i_bdy"][ubdy_mask] + 0.5, j=ds_bdy["j_bdy"][ubdy_mask]
+                    {i_name: ds_bdy["i_bdy"][ubdy_mask] + 0.5, j_name: ds_bdy["j_bdy"][ubdy_mask]}
                 )
             )
             ds_bdy[var][:, :, vbdy_mask] = 0.5 * (
                 nemo[f"{gridT}/{var}"].masked.data.sel(
-                    i=ds_bdy["i_bdy"][vbdy_mask], j=ds_bdy["j_bdy"][vbdy_mask] - 0.5
+                    {i_name: ds_bdy["i_bdy"][vbdy_mask], j_name: ds_bdy["j_bdy"][vbdy_mask] - 0.5}
                 )
                 + nemo[f"{gridT}/{var}"].masked.data.sel(
-                    i=ds_bdy["i_bdy"][vbdy_mask], j=ds_bdy["j_bdy"][vbdy_mask] + 0.5
+                    {i_name: ds_bdy["i_bdy"][vbdy_mask], j_name: ds_bdy["j_bdy"][vbdy_mask] + 0.5}
                 )
             )
 

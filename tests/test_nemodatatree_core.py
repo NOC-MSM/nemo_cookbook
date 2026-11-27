@@ -725,3 +725,63 @@ class TestNEMODataTreeToDomainCfg:
             nftype=nftype
             )
         assert isinstance(nemo_domcfg, NEMODataTree)
+
+
+class TestNestedDomainOperations:
+    """
+    Test NEMODataTree core methods on a nested child domain (dom='1').
+    """
+    def test_nested_divergence_and_curl(self, example_nested_nemodatatree):
+        nemo = example_nested_nemodatatree
+        div = nemo.divergence(uv_vars=["uo", "vo"], dom="1")
+        curl = nemo.curl(uv_vars=["uo", "vo"], dom="1")
+        assert isinstance(div, NEMODataArray)
+        assert isinstance(curl, NEMODataArray)
+        assert div.dims == ("time_counter", "k1", "j1", "i1")
+        assert curl.dims == ("time_counter", "k1", "j1", "i1")
+
+    def test_nested_clip_domain(self, example_nested_nemodatatree):
+        nemo = example_nested_nemodatatree
+        bbox = (40, 62, -50, -32)
+        nemo_clipped = nemo.clip_domain(dom="1", bbox=bbox)
+        assert isinstance(nemo_clipped, NEMODataTree)
+        grids = ["gridT/1_gridT", "gridU/1_gridU", "gridV/1_gridV", "gridW/1_gridW", "gridF/1_gridF"]
+        assert len({nemo_clipped[g].sizes["i1"] for g in grids}) == 1
+        assert len({nemo_clipped[g].sizes["j1"] for g in grids}) == 1
+
+    def test_nested_extract_meridional_and_zonal_sections(self, example_nested_nemodatatree):
+        nemo = example_nested_nemodatatree
+        ds_merid = nemo.extract_meridional_section(
+            lon=40, lat_min=-50, lat_max=-30, v_vars=["vo"], scalar_vars=["thetao_con"], dom="1"
+        )
+        assert ds_merid["uo"].dims == ("time_counter", "k1", "bdy")
+        assert ds_merid["thetao_con"].dims == ("time_counter", "k1", "bdy")
+        assert "1_glamb" in ds_merid.coords and "1_gphib" in ds_merid.coords and "1_depthb" in ds_merid.coords
+
+        ds_zonal = nemo.extract_zonal_section(
+            lat=-30, lon_min=30, lon_max=50, u_vars=["uo"], scalar_vars=["thetao_con"], dom="1"
+        )
+        assert ds_zonal["vo"].dims == ("time_counter", "k1", "bdy")
+        assert ds_zonal["thetao_con"].dims == ("time_counter", "k1", "bdy")
+        assert "1_glamb" in ds_zonal.coords and "1_gphib" in ds_zonal.coords and "1_depthb" in ds_zonal.coords
+
+    def test_nested_extract_mask_boundary_and_section(self, example_nested_nemodatatree):
+        nemo = example_nested_nemodatatree
+        mask = np.zeros((10, 10), dtype=bool)
+        mask[4:6, 4:6] = True
+        da_mask = xr.DataArray(
+            mask,
+            dims=["j1", "i1"],
+            coords={"j1": nemo["gridT/1_gridT"]["j1"], "i1": nemo["gridT/1_gridT"]["i1"]},
+        )
+        ds_bdy = nemo.extract_mask_boundary(
+            mask=da_mask, uv_vars=["uo", "vo"], vars=["thetao_con"], dom="1"
+        )
+        assert ds_bdy["velocity"].dims == ("time_counter", "k1", "bdy")
+        assert ds_bdy["thetao_con"].dims == ("time_counter", "k1", "bdy")
+
+        ds_sec = nemo.extract_section(
+            lon=np.array([35, 65]), lat=np.array([-45, -15]), uv_vars=["uo", "vo"], vars=["thetao_con"], dom="1"
+        )
+        assert ds_sec["velocity"].dims == ("time_counter", "k1", "bdy")
+        assert ds_sec["thetao_con"].dims == ("time_counter", "k1", "bdy")

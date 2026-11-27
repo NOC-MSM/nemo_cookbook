@@ -261,6 +261,34 @@ def example_global_nemodatatree() -> NEMODataTree:
     return nemo
 
 @pytest.fixture
+def example_nested_nemodatatree(example_global_nemodatatree, example_regional_nemodatatree) -> NEMODataTree:
+    """
+    Fixture to create an example, idealised nested NEMODataTree with a global parent
+    domain (dom='.') and a regional child domain (dom='1').
+    """
+    nemo = example_global_nemodatatree.copy()
+    child = example_regional_nemodatatree.copy()
+
+    for grid in ["gridT", "gridU", "gridV", "gridW", "gridF"]:
+        g = grid[-1].lower()
+        ds_c = child[grid].dataset.copy()
+        rename_dims = {"i": "i1", "j": "j1"}
+        if "k" in ds_c.dims:
+            rename_dims["k"] = "k1"
+        ds_c = ds_c.rename(rename_dims)
+
+        rename_coords = {
+            f"glam{g}": f"1_glam{g}",
+            f"gphi{g}": f"1_gphi{g}",
+        }
+        if f"depth{g}" in ds_c.coords:
+            rename_coords[f"depth{g}"] = f"1_depth{g}"
+        ds_c = ds_c.rename(rename_coords)
+        nemo[f"{grid}/1_{grid}"] = ds_c
+
+    return nemo
+
+@pytest.fixture
 def example_regional_nemodatatree() -> NEMODataTree:
     """
     Fixture to create an example, idealised regional NEMODataTree.
