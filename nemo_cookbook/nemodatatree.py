@@ -1331,6 +1331,9 @@ class NEMODataTree(xr.DataTree):
 
         # -- Get NEMO model grid properties -- #
         grid_paths = self._get_grid_paths(dom=dom)
+        ijk_names = self._get_ijk_names(dom=dom)
+        i_name, j_name = ijk_names["i"], ijk_names["j"]
+
 
         # -- Define i,j vector components -- #
         var_i, var_j = uv_vars[0], uv_vars[1]
@@ -1348,7 +1351,7 @@ class NEMODataTree(xr.DataTree):
         e1t_e2t_e3t = self.cell_volume(grid=grid_paths["gridT"])
 
         # -- Calculate horizontal divergence on T-points -- #
-        result = ((e2u_e3u * nda_i).diff(dim="i", fillna=fillna) + (e1v_e3v * nda_j).diff(dim="j", fillna=fillna))
+        result = ((e2u_e3u * nda_i).diff(dim=i_name, fillna=fillna) + (e1v_e3v * nda_j).diff(dim=j_name, fillna=fillna))
         divergence = (1 / e1t_e2t_e3t) * result.masked
 
         # -- Update NEMODataArray properties -- #
@@ -1414,6 +1417,8 @@ class NEMODataTree(xr.DataTree):
 
         # -- Get NEMO model grid properties -- #
         grid_paths = self._get_grid_paths(dom=dom)
+        ijk_names = self._get_ijk_names(dom=dom)
+        i_name, j_name = ijk_names["i"], ijk_names["j"]
 
         # -- Define i,j vector components -- #
         var_i, var_j = uv_vars[0], uv_vars[1]
@@ -1431,7 +1436,7 @@ class NEMODataTree(xr.DataTree):
         e1f_e2f = self.cell_area(grid=grid_paths["gridF"], dim="k")
 
         # -- Calculate vertical component of the curl on F-points -- #
-        result = ((nda_j * e2v).diff(dim="i", fillna=fillna) - (nda_i * e1u).diff(dim="j", fillna=fillna))
+        result = ((nda_j * e2v).diff(dim=i_name, fillna=fillna) - (nda_i * e1u).diff(dim=j_name, fillna=fillna))
         curl =  result.masked * (1 / e1f_e2f)
 
         # -- Update NEMODataArray properties -- #
